@@ -20,6 +20,7 @@ const loginArtworkStyle = {
 
 export function LoginScreen({ theme, onThemeChange, onLogin }: LoginScreenProps) {
   const artworkRef = useRef<HTMLDivElement>(null);
+  const revealRef = useRef<HTMLDivElement>(null);
   const rawPointer = useRef({ x: 0.69, y: 0.52 });
   const smoothPointer = useRef({ x: 0.69, y: 0.52 });
   const [account, setAccount] = useState("");
@@ -31,29 +32,34 @@ export function LoginScreen({ theme, onThemeChange, onLogin }: LoginScreenProps)
 
   useEffect(() => {
     const artwork = artworkRef.current;
-    if (!artwork) return;
+    const reveal = revealRef.current;
+    if (!artwork || !reveal) return;
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
     let animationFrame = 0;
     let startTime = performance.now();
 
-    function updatePointer(event: PointerEvent) {
-      const bounds = artwork!.getBoundingClientRect();
-      rawPointer.current = {
-        x: Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width)),
-        y: Math.max(0, Math.min(1, (event.clientY - bounds.top) / bounds.height))
+    function positionInReveal(clientX: number, clientY: number) {
+      const bounds = reveal!.getBoundingClientRect();
+      return {
+        x: Math.max(0, Math.min(1, (clientX - bounds.left) / bounds.width)),
+        y: Math.max(0, Math.min(1, (clientY - bounds.top) / bounds.height))
       };
+    }
+
+    function updatePointer(event: PointerEvent) {
+      rawPointer.current = positionInReveal(event.clientX, event.clientY);
     }
 
     function animate(time: number) {
       if (coarsePointer && !reduceMotion) {
         const elapsed = (time - startTime) / 1000;
-        rawPointer.current = {
-          x: 0.68 + Math.sin(elapsed * 0.42) * 0.17,
-          y: 0.52 + Math.cos(elapsed * 0.34) * 0.2
-        };
+        rawPointer.current = positionInReveal(
+          window.innerWidth * (0.68 + Math.sin(elapsed * 0.42) * 0.17),
+          window.innerHeight * (0.52 + Math.cos(elapsed * 0.34) * 0.2)
+        );
       }
-      const easing = reduceMotion ? 1 : 0.11;
+      const easing = reduceMotion ? 1 : 0.28;
       smoothPointer.current.x += (rawPointer.current.x - smoothPointer.current.x) * easing;
       smoothPointer.current.y += (rawPointer.current.y - smoothPointer.current.y) * easing;
       artwork!.style.setProperty("--spot-x", `${smoothPointer.current.x * 100}%`);
@@ -61,6 +67,9 @@ export function LoginScreen({ theme, onThemeChange, onLogin }: LoginScreenProps)
       animationFrame = window.requestAnimationFrame(animate);
     }
 
+    const initialPointer = positionInReveal(window.innerWidth * 0.69, window.innerHeight * 0.52);
+    rawPointer.current = initialPointer;
+    smoothPointer.current = initialPointer;
     if (!coarsePointer) window.addEventListener("pointermove", updatePointer);
     if (reduceMotion) startTime = 0;
     animationFrame = window.requestAnimationFrame(animate);
@@ -89,7 +98,7 @@ export function LoginScreen({ theme, onThemeChange, onLogin }: LoginScreenProps)
       <section className="login-shell">
         <div className="login-artwork" ref={artworkRef} style={loginArtworkStyle} aria-hidden="true">
           <div className="login-artwork-base" />
-          <div className="login-artwork-reveal" />
+          <div className="login-artwork-reveal" ref={revealRef} />
         </div>
 
         <div className="login-content">

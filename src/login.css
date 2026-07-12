@@ -38,7 +38,7 @@
   background-position: center;
   background-repeat: no-repeat;
   background-size: cover;
-  transform: translate(-230px, 67px);
+  transform: translate(-190px, 117px);
 }
 
 .login-artwork-base {
@@ -255,7 +255,7 @@
 .login-screen.light .login-artwork-reveal {
   background-position: center;
   filter: none;
-  transform: translate(-180px, -170px);
+  transform: translate(-140px, -120px);
 }
 
 .login-screen.light .login-artwork-base {
@@ -339,13 +339,13 @@
   .login-artwork-base,
   .login-artwork-reveal {
     inset: -35% -50%;
-    transform: translate(calc(-50vw + 18px), 19px);
+    transform: translate(calc(-50vw + 33px), 39px);
   }
 
   .login-screen.light .login-artwork-base,
   .login-screen.light .login-artwork-reveal {
     inset: -35% -50%;
-    transform: translate(calc(-50vw + 56px), -170px);
+    transform: translate(calc(-50vw + 71px), -150px);
   }
 
   .login-theme {

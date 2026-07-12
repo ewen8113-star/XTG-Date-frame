@@ -11,6 +11,9 @@
 - Dark-theme final capture: `design-qa-assets/login-dark-final.png`
 - Ultra-wide dark capture: `design-qa-assets/login-wide-fullscreen-final.png`
 - Ultra-wide light capture: `design-qa-assets/login-wide-light-fullscreen-final.png`
+- Dark seed-inside capture: `design-qa-assets/login-seed-inside-dark.png`
+- Light seed-inside capture: `design-qa-assets/login-seed-inside-light.png`
+- Cursor-alignment capture: `design-qa-assets/login-cursor-alignment-dark.png`
 - Captured viewport: 390 x 844 pixels.
 - State: dark theme, empty login form, interactive spotlight at its resting position.
 
@@ -24,6 +27,7 @@
 - Light theme uses the same 20% glass treatment with brighter artwork and strengthened label/action contrast.
 - Light theme now has its own white, light-gray base artwork and matching charcoal reveal artwork instead of filtering the dark asset.
 - The seed core is positioned just inside the glass panel's upper-left corner, with the fission branches extending beyond the panel into the full viewport.
+- The seed body is fully contained by the panel with an asymmetric upper-left placement; it is intentionally not centered in the form.
 - At 2048 x 1050, the artwork bounds extend beyond every viewport edge, horizontal overflow is absent, and no solid-color strip is exposed.
 - Responsive rules constrain the panel to `calc(100vw - 32px)` below 760 pixels and preserve safe-area spacing for fixed controls.
 - Browser viewport emulation reported desktop layout metrics correctly but continued emitting a 390 x 844 capture; responsive sizing was therefore also checked directly against the CSS constraints.
@@ -35,6 +39,7 @@
 - Successful demo submission enters the existing application without altering its operational flows.
 - Light and dark theme controls update the login presentation.
 - Pointer movement over the account input updates the artwork spotlight position.
+- At 2048 x 1050, measured spotlight deltas were `0px, 0px` at both left-side cursor position `(140, 520)` and right-side position `(1900, 520)`.
 - No horizontal overflow was observed in the captured 390-pixel-wide output.
 
 ## Comparison History
