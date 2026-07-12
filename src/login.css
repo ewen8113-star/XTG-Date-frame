@@ -30,6 +30,7 @@
   background-position: center;
   background-repeat: no-repeat;
   background-size: cover;
+  transform: scale(1.18) translate(-25%, -24%);
 }
 
 .login-artwork-base {
@@ -237,9 +238,25 @@
   color: #13223a;
 }
 
+.login-screen.light,
+.login-screen.light .login-artwork {
+  background: #fff;
+}
+
 .login-screen.light .login-artwork-base,
 .login-screen.light .login-artwork-reveal {
-  filter: brightness(1.68) saturate(0.72) contrast(0.82);
+  background-position: center;
+  filter: none;
+  transform: scale(1.18) translate(-12%, -19%);
+}
+
+.login-screen.light .login-artwork-base {
+  background-image: var(--login-light-base);
+}
+
+.login-screen.light .login-artwork-reveal {
+  background-image: var(--login-light-reveal);
+  filter: contrast(0.9);
 }
 
 .login-screen.light .login-form > label,
@@ -282,8 +299,8 @@
 }
 
 @keyframes login-image-settle {
-  from { opacity: 0; transform: scale(1.035); }
-  to { opacity: 1; transform: scale(1); }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @media (max-width: 760px) {
@@ -309,6 +326,13 @@
   .login-artwork-reveal {
     mask-image: radial-gradient(circle 180px at var(--spot-x) var(--spot-y), #fff 0%, #fff 35%, rgb(255 255 255 / 72%) 58%, transparent 100%);
     -webkit-mask-image: radial-gradient(circle 180px at var(--spot-x) var(--spot-y), #fff 0%, #fff 35%, rgb(255 255 255 / 72%) 58%, transparent 100%);
+  }
+
+  .login-artwork-base,
+  .login-artwork-reveal,
+  .login-screen.light .login-artwork-base,
+  .login-screen.light .login-artwork-reveal {
+    transform: scale(1.35) translate(-19%, -13%);
   }
 
   .login-theme {

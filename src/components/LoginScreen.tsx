@@ -1,6 +1,8 @@
 import { Eye, EyeOff, LockKeyhole, Moon, Sun, UserRound } from "lucide-react";
 import { type CSSProperties, type FormEvent, useEffect, useRef, useState } from "react";
 import baseImageUrl from "../assets/login-network-base.png";
+import lightBaseImageUrl from "../assets/login-network-light-base.png";
+import lightRevealImageUrl from "../assets/login-network-light-reveal.png";
 import revealImageUrl from "../assets/login-network-reveal.png";
 
 type LoginScreenProps = {
@@ -11,7 +13,9 @@ type LoginScreenProps = {
 
 const loginArtworkStyle = {
   "--login-base": `url(${baseImageUrl})`,
-  "--login-reveal": `url(${revealImageUrl})`
+  "--login-reveal": `url(${revealImageUrl})`,
+  "--login-light-base": `url(${lightBaseImageUrl})`,
+  "--login-light-reveal": `url(${lightRevealImageUrl})`
 } as CSSProperties;
 
 export function LoginScreen({ theme, onThemeChange, onLogin }: LoginScreenProps) {
