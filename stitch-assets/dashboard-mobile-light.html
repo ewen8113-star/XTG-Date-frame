@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Xintonggao - Work Overview</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700&family=JetBrains+Mono:wght@400;500;600&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@100..900&family=JetBrains+Mono:wght@100..900&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "secondary-fixed": "#e1e0fb",
+                    "outline": "#777681",
+                    "secondary-fixed-dim": "#c5c4de",
+                    "on-tertiary-container": "#c8b7af",
+                    "status-success": "#10B981",
+                    "text-secondary": "#64748B",
+                    "on-primary-container": "#b0b5ff",
+                    "inverse-primary": "#bec2ff",
+                    "on-error-container": "#93000a",
+                    "on-primary-fixed-variant": "#3b4083",
+                    "surface-tint": "#53589c",
+                    "surface-container-low": "#f2f4f7",
+                    "status-warning": "#F59E0B",
+                    "surface-container-highest": "#e0e3e6",
+                    "text-primary": "#0D0C22",
+                    "tertiary-fixed": "#f1dfd6",
+                    "inverse-on-surface": "#eff1f4",
+                    "primary": "#282c6f",
+                    "outline-variant": "#c7c5d2",
+                    "status-danger": "#EF4444",
+                    "on-tertiary-fixed": "#231a15",
+                    "surface": "#f8f9fc",
+                    "on-secondary-container": "#616178",
+                    "on-secondary": "#ffffff",
+                    "primary-container": "#3f4487",
+                    "inverse-surface": "#2d3133",
+                    "primary-fixed": "#e0e0ff",
+                    "surface-dim": "#d8dadd",
+                    "secondary": "#5c5c73",
+                    "on-error": "#ffffff",
+                    "on-secondary-fixed": "#191a2d",
+                    "error": "#ba1a1a",
+                    "on-tertiary-fixed-variant": "#50443e",
+                    "surface-variant": "#e0e3e6",
+                    "surface-container-lowest": "#ffffff",
+                    "on-tertiary": "#ffffff",
+                    "on-secondary-fixed-variant": "#45455b",
+                    "tertiary-fixed-dim": "#d5c3bb",
+                    "primary-fixed-dim": "#bec2ff",
+                    "surface-container": "#eceef1",
+                    "tertiary": "#3d322c",
+                    "surface-bright": "#f8f9fc",
+                    "surface-dark": "#0D0C22",
+                    "tertiary-container": "#544842",
+                    "error-container": "#ffdad6",
+                    "background": "#f8f9fc",
+                    "status-info": "#3B82F6",
+                    "on-surface-variant": "#464650",
+                    "on-surface": "#191c1e",
+                    "on-primary-fixed": "#0c1056",
+                    "on-primary": "#ffffff",
+                    "on-background": "#191c1e",
+                    "surface-container-high": "#e6e8eb",
+                    "secondary-container": "#dfddf8"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "container-max": "1440px",
+                    "unit": "4px",
+                    "margin-mobile": "16px",
+                    "margin-desktop": "24px",
+                    "touch-target": "44px",
+                    "gutter": "16px"
+            },
+            "fontFamily": {
+                    "headline-md": ["Hanken Grotesk"],
+                    "label-sm": ["JetBrains Mono"],
+                    "label-md": ["JetBrains Mono"],
+                    "body-lg": ["Hanken Grotesk"],
+                    "numeric-data": ["JetBrains Mono"],
+                    "display-lg": ["Hanken Grotesk"],
+                    "body-md": ["Hanken Grotesk"],
+                    "headline-sm": ["Hanken Grotesk"]
+            },
+            "fontSize": {
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "400"}],
+                    "label-md": ["13px", {"lineHeight": "16px", "fontWeight": "500"}],
+                    "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "numeric-data": ["14px", {"lineHeight": "20px", "fontWeight": "600"}],
+                    "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "headline-sm": ["20px", {"lineHeight": "28px", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #f8f9fc;
+            color: #191c1e;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .touch-active:active {
+            transform: scale(0.97);
+            transition: transform 0.1s ease-out;
+        }
+        .bento-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0px 4px 20px rgba(13, 12, 34, 0.04);
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body-md text-body-md overflow-x-hidden">
+<!-- Top Navigation Placeholder (Mobile Shell) -->
+<header class="fixed top-0 left-0 right-0 z-40 bg-surface h-16 flex items-center justify-between px-margin-mobile border-b border-outline-variant">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-primary flex items-center justify-center text-white">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">hub</span>
+</div>
+<div>
+<h1 class="font-headline-sm text-headline-sm text-primary leading-tight">Xintonggao</h1>
+<p class="font-label-sm text-[10px] text-outline uppercase tracking-wider">Operations Mobile</p>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:bg-surface-container rounded-full transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<div class="w-8 h-8 rounded-full bg-cover bg-center border border-outline-variant" data-alt="A professional close-up headshot of a corporate administrator for a financial backend system. The lighting is soft and studio-quality, emphasizing a professional and reliable demeanor. The person wears a modern dark suit, set against a clean, minimalist off-white background that matches the app's professional corporate aesthetic." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCOeJ6wPl_oCZjjg_P9HuWEpnG-NNsUPa7iPRuzX-1OOyGBMZGm2WoF7CAX-Z-WuVKXb1o9NNqali-of93w0Xb5q-X-fWiuEPUPvotYh6ieovf7UCHnjqBGZPVjtY3tkc6xqItNKyrqy0c5sEnTChY5lV9vBqZhMJErnifxLZvJNP1TQuOhfdr4feiWM5h9_x4GGCJwl9puClOvo2p5SEj4iaZhKvxaV45vXEoTKnbo-QYJe0Dla5mB')">
+</div>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="pt-20 pb-24 px-margin-mobile min-h-screen">
+<!-- Welcome Header -->
+<section class="mb-6">
+<p class="font-body-md text-text-secondary">Good morning, Administrator</p>
+<h2 class="font-display-lg text-display-lg text-text-primary mt-1">Work Overview</h2>
+</section>
+<!-- 2x2 Summary Grid -->
+<section class="grid grid-cols-2 gap-gutter mb-8">
+<div class="bento-card p-4 rounded-xl flex flex-col justify-between">
+<div class="flex items-center justify-between mb-2">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">rule</span>
+<span class="font-label-sm text-status-warning bg-amber-50 px-2 py-0.5 rounded-full">Pending</span>
+</div>
+<div>
+<p class="font-label-md text-text-secondary">Total Audits</p>
+<p class="font-numeric-data text-xl text-primary mt-1">128</p>
+</div>
+</div>
+<div class="bento-card p-4 rounded-xl flex flex-col justify-between">
+<div class="flex items-center justify-between mb-2">
+<span class="material-symbols-outlined text-status-success" style="font-variation-settings: 'FILL' 1;">payments</span>
+<span class="font-label-sm text-status-success bg-emerald-50 px-2 py-0.5 rounded-full">+12%</span>
+</div>
+<div>
+<p class="font-label-md text-text-secondary">Settlements</p>
+<p class="font-numeric-data text-xl text-primary mt-1">¥42.5M</p>
+</div>
+</div>
+<div class="bento-card p-4 rounded-xl flex flex-col justify-between">
+<div class="flex items-center justify-between mb-2">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">group</span>
+</div>
+<div>
+<p class="font-label-md text-text-secondary">Active Agents</p>
+<p class="font-numeric-data text-xl text-primary mt-1">1,024</p>
+</div>
+</div>
+<div class="bento-card p-4 rounded-xl flex flex-col justify-between border-l-4 border-l-error">
+<div class="flex items-center justify-between mb-2">
+<span class="material-symbols-outlined text-error" style="font-variation-settings: 'FILL' 1;">warning</span>
+<span class="font-label-sm text-error font-bold">CRITICAL</span>
+</div>
+<div>
+<p class="font-label-md text-text-secondary">Risk Nodes</p>
+<p class="font-numeric-data text-xl text-error mt-1">07</p>
+</div>
+</div>
+</section>
+<!-- Priority Task Section -->
+<section class="mb-8">
+<div class="flex items-center justify-between mb-4">
+<h3 class="font-headline-sm text-headline-sm">Priority Tasks</h3>
+<button class="text-primary font-label-md">View All</button>
+</div>
+<div class="space-y-4">
+<!-- Task Card 1: Auditor Needed -->
+<div class="bento-card p-4 rounded-xl touch-active">
+<div class="flex items-start justify-between mb-3">
+<div class="flex gap-3">
+<div class="w-10 h-10 rounded-lg bg-secondary-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">verified_user</span>
+</div>
+<div>
+<h4 class="font-headline-sm text-[16px]">Audit Approval #882</h4>
+<p class="font-label-sm text-text-secondary">Region: North District</p>
+</div>
+</div>
+<span class="font-label-sm px-2 py-1 bg-surface-container text-primary rounded">Auditor needed</span>
+</div>
+<div class="bg-surface-container-low p-3 rounded-lg flex items-center justify-between mb-4">
+<div class="flex flex-col">
+<span class="font-label-sm text-outline">Amount</span>
+<span class="font-numeric-data text-primary">¥142,000.00</span>
+</div>
+<span class="material-symbols-outlined text-outline">arrow_forward_ios</span>
+</div>
+<div class="flex gap-2">
+<button class="flex-1 py-3 bg-primary text-white rounded-lg font-label-md touch-active">Start Audit</button>
+<button class="px-4 py-3 bg-surface-container text-secondary rounded-lg font-label-md touch-active">Delegate</button>
+</div>
+</div>
+<!-- Task Card 2: High Risk -->
+<div class="bento-card p-4 rounded-xl touch-active border-t-4 border-t-status-danger">
+<div class="flex items-start justify-between mb-3">
+<div class="flex gap-3">
+<div class="w-10 h-10 rounded-lg bg-error-container flex items-center justify-center text-error">
+<span class="material-symbols-outlined">report_problem</span>
+</div>
+<div>
+<h4 class="font-headline-sm text-[16px]">Anomalous Settlement</h4>
+<p class="font-label-sm text-text-secondary">Agent: Global Logistics Co.</p>
+</div>
+</div>
+<span class="font-label-sm px-2 py-1 bg-red-50 text-error border border-red-100 rounded">High Risk</span>
+</div>
+<p class="font-body-md text-on-surface-variant mb-4">Payout variance exceeds 25% of the standard rolling average for this node.</p>
+<div class="flex gap-2">
+<button class="flex-1 py-3 bg-error text-white rounded-lg font-label-md touch-active">Freeze Node</button>
+<button class="flex-1 py-3 border border-outline text-primary rounded-lg font-label-md touch-active">Investigate</button>
+</div>
+</div>
+<!-- Task Card 3: Network Node Update -->
+<div class="bento-card p-4 rounded-xl touch-active">
+<div class="flex items-start justify-between mb-3">
+<div class="flex gap-3">
+<div class="w-10 h-10 rounded-lg bg-tertiary-fixed flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined">account_tree</span>
+</div>
+<div>
+<h4 class="font-headline-sm text-[16px]">Relationship Network</h4>
+<p class="font-label-sm text-text-secondary">New Tier-3 Agent Onboarding</p>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-3 mb-4">
+<div class="flex -space-x-2">
+<div class="w-8 h-8 rounded-full border-2 border-white bg-slate-200"></div>
+<div class="w-8 h-8 rounded-full border-2 border-white bg-slate-300"></div>
+<div class="w-8 h-8 rounded-full border-2 border-white bg-primary text-[10px] flex items-center justify-center text-white">+3</div>
+</div>
+<span class="font-body-md text-text-secondary">Waiting for verification</span>
+</div>
+<button class="w-full py-3 border border-primary text-primary rounded-lg font-label-md touch-active">View Network</button>
+</div>
+</div>
+</section>
+<!-- Visualization Card (Simplified for Mobile) -->
+<section class="mb-8">
+<div class="bento-card p-5 rounded-xl bg-primary text-white overflow-hidden relative">
+<!-- Abstract Pattern Decoration -->
+<div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-16 -mt-16"></div>
+<h3 class="font-headline-sm mb-4 relative z-10">Settlement Velocity</h3>
+<div class="h-32 w-full flex items-end justify-between gap-1 relative z-10">
+<div class="w-4 bg-white/20 rounded-t h-[40%]"></div>
+<div class="w-4 bg-white/20 rounded-t h-[60%]"></div>
+<div class="w-4 bg-white/20 rounded-t h-[35%]"></div>
+<div class="w-4 bg-white/20 rounded-t h-[85%]"></div>
+<div class="w-4 bg-white/20 rounded-t h-[55%]"></div>
+<div class="w-4 bg-white/20 rounded-t h-[95%]"></div>
+<div class="w-4 bg-white rounded-t h-[75%] shadow-[0_0_15px_rgba(255,255,255,0.4)]"></div>
+</div>
+<div class="mt-4 flex justify-between items-center relative z-10">
+<span class="font-label-sm text-white/70">Current: 2.4s/txn</span>
+<span class="material-symbols-outlined text-status-success">trending_up</span>
+</div>
+</div>
+</section>
+</main>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 h-touch-target flex justify-around items-center px-4 pb-safe bg-surface border-t border-outline-variant shadow-lg" id="bottom-nav">
+<!-- Home (Active) -->
+<a class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-xl p-1 w-16 transition-all duration-100 scale-100 active:scale-90" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">home</span>
+<span class="font-label-sm text-[10px]">Home</span>
+</a>
+<!-- Audit -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant w-16 active:bg-surface-container-high rounded-xl p-1 transition-all" href="#">
+<span class="material-symbols-outlined">verified_user</span>
+<span class="font-label-sm text-[10px]">Audit</span>
+</a>
+<!-- Agents -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant w-16 active:bg-surface-container-high rounded-xl p-1 transition-all" href="#">
+<span class="material-symbols-outlined">person_search</span>
+<span class="font-label-sm text-[10px]">Agents</span>
+</a>
+<!-- Finance -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant w-16 active:bg-surface-container-high rounded-xl p-1 transition-all" href="#">
+<span class="material-symbols-outlined">payments</span>
+<span class="font-label-sm text-[10px]">Finance</span>
+</a>
+<!-- Me -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant w-16 active:bg-surface-container-high rounded-xl p-1 transition-all" href="#">
+<span class="material-symbols-outlined">person</span>
+<span class="font-label-sm text-[10px]">Me</span>
+</a>
+</nav>
+<!-- Floating Action Button (FAB) - Optional for Home -->
+<button class="fixed bottom-24 right-6 w-14 h-14 bg-primary text-white rounded-full shadow-xl flex items-center justify-center touch-active z-30">
+<span class="material-symbols-outlined text-[32px]">add</span>
+</button>
+<script>
+        // Simple Interaction logic for bottom nav
+        const navItems = document.querySelectorAll('#bottom-nav a');
+        navItems.forEach(item => {
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                navItems.forEach(i => {
+                    i.classList.remove('bg-primary-container', 'text-on-primary-container');
+                    i.classList.add('text-on-surface-variant');
+                    const icon = i.querySelector('.material-symbols-outlined');
+                    if(icon) icon.style.fontVariationSettings = "'FILL' 0";
+                });
+                this.classList.add('bg-primary-container', 'text-on-primary-container');
+                this.classList.remove('text-on-surface-variant');
+                const icon = this.querySelector('.material-symbols-outlined');
+                if(icon) icon.style.fontVariationSettings = "'FILL' 1";
+            });
+        });
+
+        // Pull to refresh visual effect (simulation)
+        let startY = 0;
+        document.addEventListener('touchstart', e => {
+            startY = e.touches[0].pageY;
+        });
+        document.addEventListener('touchmove', e => {
+            const currentY = e.touches[0].pageY;
+            if (window.scrollY === 0 && currentY > startY) {
+                // Subtle feedback logic could go here
+            }
+        });
+    </script>
+</body></html>

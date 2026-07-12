@@ -14,9 +14,13 @@ import {
   Link,
   LayoutDashboard,
   ListChecks,
+  Moon,
+  Search,
   Sprout,
   Settings,
   ShieldCheck,
+  Sun,
+  Bell,
   Handshake,
   WalletCards,
   UserRound,
@@ -26,6 +30,7 @@ import {
   XCircle
 } from "lucide-react";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import logoUrl from "../stitch-assets/logo.png";
 import { briefings, brokers, importBatches, referralNodes } from "./data/mockData";
 import {
   isSourceInvalidForPublish,
@@ -34,7 +39,7 @@ import {
 } from "./lib/briefing-rules";
 import type { Briefing, Broker, BrokerLevelUpdate, EvidenceFile, ImportBatch, ReferralNode, ReviewStatus } from "./types";
 
-type PageKey = "dashboard" | "stats" | "brokers" | "workspace" | "briefingReview" | "financePending" | "financePaid" | "system";
+type PageKey = "dashboard" | "audit" | "stats" | "brokers" | "workspace" | "briefingReview" | "financePending" | "financePaid" | "system";
 type WorkspaceTab = "briefings" | "signedModels" | "level" | "network" | "settlement";
 type BrokerFilter = "all" | "normal" | "seed";
 type SeedPhaseFilter = "all" | "none" | `${number}`;
@@ -78,10 +83,11 @@ type BrowserViewState = Omit<SavedViewState, "page"> & {
 };
 
 const navItems = [
-  { key: "dashboard" as const, label: "仪表盘", icon: LayoutDashboard },
-  { key: "stats" as const, label: "数据统计", icon: BarChart3 },
-  { key: "brokers" as const, label: "用户管理", icon: UsersRound },
+  { key: "dashboard" as const, label: "工作总览", icon: LayoutDashboard },
+  { key: "audit" as const, label: "审核中心", icon: ListChecks },
+  { key: "brokers" as const, label: "经纪人管理", icon: UsersRound },
   { key: "workspace" as const, label: "经纪人工作台", icon: BriefcaseBusiness },
+  { key: "stats" as const, label: "数据与规则", icon: BarChart3 },
   { key: "system" as const, label: "系统管理", icon: Settings }
 ];
 
@@ -92,7 +98,7 @@ const reviewText: Record<ReviewStatus, string> = {
 };
 
 const viewStateKey = "xtg-review-admin-view-state";
-const pageKeys: PageKey[] = ["dashboard", "stats", "brokers", "workspace", "briefingReview", "financePending", "financePaid", "system"];
+const pageKeys: PageKey[] = ["dashboard", "audit", "stats", "brokers", "workspace", "briefingReview", "financePending", "financePaid", "system"];
 const workspaceTabs: WorkspaceTab[] = ["briefings", "signedModels", "level", "network", "settlement"];
 const seedPlanStartDate = new Date("2026-04-01T00:00:00");
 const pastCycleKey = "past";
@@ -632,6 +638,9 @@ export function App() {
   const [financeOrders, setFinanceOrders] = useState<FinanceOrder[]>(() => savedViewState.financeOrders ?? []);
   const [lastListPage, setLastListPage] = useState<PageKey>("brokers");
   const [selectedBriefingId, setSelectedBriefingId] = useState(savedViewState.selectedBriefingId ?? "");
+  const [theme, setTheme] = useState<"light" | "dark">(() =>
+    window.localStorage.getItem("xtg-theme") === "dark" ? "dark" : "light"
+  );
   const currentViewRef = useRef({
     page: savedViewState.page ?? "dashboard" as PageKey,
     selectedBrokerId: savedViewState.selectedBrokerId ?? brokers[0].id,
@@ -695,6 +704,11 @@ export function App() {
   useEffect(() => {
     void refreshData();
   }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    window.localStorage.setItem("xtg-theme", theme);
+  }, [theme]);
 
   useEffect(() => {
     currentViewRef.current = {
@@ -847,10 +861,10 @@ export function App() {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand-block">
-          <div className="brand-mark">鑫</div>
+          <img alt="鑫通告" className="brand-logo" src={logoUrl} />
           <div>
-            <div className="brand-name">鑫通告后台审核</div>
-            <div className="brand-subtitle">运营结算管理</div>
+            <div className="brand-name">鑫通告</div>
+            <div className="brand-subtitle">运营结算后台</div>
           </div>
         </div>
 
@@ -898,12 +912,42 @@ export function App() {
       </aside>
 
       <main className="main">
+        <header className="top-app-bar">
+          <div className="top-context">
+            <strong>审核与结算</strong>
+            <span>运营工作台</span>
+          </div>
+          <div className="top-tools">
+            <label className="global-search">
+              <Search size={16} />
+              <input aria-label="全局搜索" placeholder="搜索经纪人或通告 ID" />
+            </label>
+            <button aria-label="通知" className="top-icon-button" title="通知" type="button"><Bell size={18} /></button>
+            <button
+              aria-label={theme === "light" ? "切换暗色模式" : "切换亮色模式"}
+              className="top-icon-button"
+              onClick={() => setTheme((current) => current === "light" ? "dark" : "light")}
+              title={theme === "light" ? "切换暗色模式" : "切换亮色模式"}
+              type="button"
+            >
+              {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
+            </button>
+            <span className="admin-avatar">运</span>
+          </div>
+        </header>
         {page === "dashboard" && (
           <Dashboard
             brokersData={brokerRows}
             briefingsData={briefingRows}
             importBatchesData={importBatchRows}
             onOpenBroker={openBroker}
+          />
+        )}
+        {page === "audit" && (
+          <AuditCenter
+            briefingsData={briefingRows}
+            brokersData={brokerRows}
+            onOpenBriefing={openBriefingReview}
           />
         )}
         {page === "stats" && <Stats brokersData={brokerRows} briefingsData={briefingRows} />}
@@ -949,7 +993,91 @@ export function App() {
         )}
         {page === "system" && <SystemManagement />}
       </main>
+      <nav aria-label="移动端主导航" className="mobile-bottom-nav">
+        {navItems.slice(0, 4).map((item) => {
+          const Icon = item.icon;
+          return (
+            <button className={page === item.key ? "active" : ""} key={item.key} onClick={() => navigateToPage(item.key)} type="button">
+              <Icon size={19} />
+              <span>{item.label.replace("经纪人", "经纪")}</span>
+            </button>
+          );
+        })}
+      </nav>
     </div>
+  );
+}
+
+function AuditCenter({
+  briefingsData,
+  brokersData,
+  onOpenBriefing
+}: {
+  briefingsData: Briefing[];
+  brokersData: Broker[];
+  onOpenBriefing: (briefing: Briefing) => void;
+}) {
+  const [filter, setFilter] = useState<"all" | "pending" | "evidence" | "dispute">("pending");
+  const [query, setQuery] = useState("");
+  const rewardRows = new Map(buildRewardProfile(briefingsData).completeRows.map((row) => [row.briefing.id, row]));
+  const rows = briefingsData.filter((item) => {
+    const broker = brokersData.find((entry) => entry.id === item.brokerId);
+    const matchesQuery = !query || `${item.title} ${item.jarvisBriefingId} ${broker?.nickname ?? ""}`.toLowerCase().includes(query.toLowerCase());
+    if (!matchesQuery) return false;
+    if (filter === "pending") return effectivePublishStatus(item) === "pending" || effectiveCompleteStatus(rewardRows.get(item.id) ?? { briefing: item, newModels: [], bonusEligible: false }) === "pending";
+    if (filter === "evidence") return needsAdminEvidenceReview(item) && !hasMatchedEvidence(item);
+    if (filter === "dispute") return hasEvidenceDispute(item);
+    return true;
+  });
+  const pendingCount = briefingsData.filter((item) => manualReviewStatus(item).status === "pending").length;
+  const missingEvidenceCount = briefingsData.filter((item) => needsAdminEvidenceReview(item) && !hasMatchedEvidence(item)).length;
+  const disputeCount = briefingsData.filter(hasEvidenceDispute).length;
+  const visibleRows = rows.slice(0, 25);
+
+  return (
+    <section className="page audit-center-page">
+      <PageHeader eyebrow="Audit Center" title="审核中心" description="集中处理有效通告凭证与新增签约核验，审核结果将直接进入奖励结算。" />
+      <div className="audit-summary-grid">
+        <MetricCard label="待人工审核" value={pendingCount} delta="优先处理" />
+        <MetricCard label="缺少匹配凭证" value={missingEvidenceCount} delta="阻塞有效通告" />
+        <MetricCard label="凭证异议" value={disputeCount} delta="需要复核" />
+        <MetricCard label="本期审核记录" value={briefingsData.length} delta="全部通告" />
+      </div>
+      <section className="panel table-panel audit-queue-panel">
+        <div className="audit-filter-bar">
+          <label className="audit-search"><Search size={16} /><input onChange={(event) => setQuery(event.target.value)} placeholder="搜索通告、经纪人或 ID" value={query} /></label>
+          <div className="segmented">
+            {([['pending', '我的待办'], ['evidence', '缺少凭证'], ['dispute', '凭证异议'], ['all', '全部记录']] as const).map(([key, label]) => (
+              <button className={filter === key ? "active" : ""} key={key} onClick={() => setFilter(key)} type="button">{label}</button>
+            ))}
+          </div>
+        </div>
+        <div className="responsive-table-wrap">
+          <table className="audit-queue-table">
+            <thead><tr><th>通告 / 经纪人</th><th>发布时间</th><th>凭证</th><th>有效通告</th><th>新增签约</th><th>风险</th><th>操作</th></tr></thead>
+            <tbody>
+              {visibleRows.map((item) => {
+                const broker = brokersData.find((entry) => entry.id === item.brokerId);
+                const completeRow = rewardRows.get(item.id);
+                return (
+                  <tr key={item.id}>
+                    <td data-label="通告"><div className="user-cell"><strong>{item.title}</strong><span>{broker?.nickname ?? "-"} · #{item.jarvisBriefingId}</span></div></td>
+                    <td data-label="发布时间">{item.publishedAt}</td>
+                    <td data-label="凭证"><span className={`status-pill ${item.evidenceCount ? "success" : "warning"}`}>{item.evidenceCount ? `${item.evidenceCount} 个` : "待补充"}</span></td>
+                    <td data-label="有效通告"><ReviewBadge label={publishReviewLabel(item)} status={effectivePublishStatus(item)} /></td>
+                    <td data-label="新增签约"><ReviewBadge label={completeRow ? signingStatusLabel(completeRow) : "待核验"} status={completeRow ? effectiveCompleteStatus(completeRow) : "pending"} /></td>
+                    <td data-label="风险">{hasEvidenceDispute(item) ? <span className="status-pill danger">凭证异议</span> : <span className="muted">正常</span>}</td>
+                    <td data-label="操作"><button className="secondary-action compact-action" onClick={() => onOpenBriefing(item)} type="button">进入审核</button></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {rows.length === 0 ? <p className="empty-state">当前筛选条件下没有审核任务。</p> : null}
+        {rows.length > visibleRows.length ? <p className="audit-result-note">当前显示前 {visibleRows.length} 条，共 {rows.length} 条；可通过搜索进一步缩小范围。</p> : null}
+      </section>
+    </section>
   );
 }
 
@@ -2062,7 +2190,37 @@ function NetworkTab({
   }
 
   return (
-    <div className="two-column">
+    <div className="network-redesign-stack">
+      <section className="panel relationship-graph-panel">
+        <div className="panel-title with-actions">
+          <div><GitBranch size={18} /><h2>关系网络图谱</h2></div>
+          <span className="graph-legend">上线 {referrers.length} · 直接下线 {relations.length}</span>
+        </div>
+        <div className="relationship-canvas">
+          <div className="graph-level">
+            {referrers.map((node) => (
+              <button className="relationship-node" key={node.id} onClick={() => openRelatedBroker(node)} type="button">
+                <span>我的上线</span><strong>{node.nickname}</strong><small>{node.validPublishCount} 条通告 · {node.validCompleteCount} 条签约</small>
+              </button>
+            ))}
+            {referrers.length === 0 ? <div className="graph-empty-node">暂无上线</div> : null}
+          </div>
+          <div className="graph-connector" />
+          <button className="relationship-node current-node" type="button">
+            <span>当前经纪人</span><strong>{broker.nickname}</strong><small>{broker.publishedBriefings}/6 通告 · {broker.completedBriefings}/2 签约</small>
+          </button>
+          <div className="graph-connector down" />
+          <div className="graph-level">
+            {relations.map((node) => (
+              <button className="relationship-node" key={node.id} onClick={() => openRelatedBroker(node)} type="button">
+                <span>直接下线</span><strong>{node.nickname}</strong><small>{node.validPublishCount}/6 通告 · {node.validCompleteCount}/2 签约</small>
+              </button>
+            ))}
+            {relations.length === 0 ? <div className="graph-empty-node">暂无直接下线</div> : null}
+          </div>
+        </div>
+      </section>
+      <div className="two-column">
       <section className="panel">
         <PanelTitle icon={<GitBranch size={18} />} title="身份与解锁进度" />
         <div className="network-card">
@@ -2142,6 +2300,7 @@ function NetworkTab({
           {relations.length === 0 ? <p className="empty-state">暂无直接下线，可通过手机号关联。</p> : null}
         </div>
       </section>
+      </div>
     </div>
   );
 }

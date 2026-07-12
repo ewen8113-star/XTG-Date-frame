@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Relationship Network - Xintonggao</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700&family=JetBrains+Mono:wght@400;500;600&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@100..900&family=JetBrains+Mono:wght@100..900&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-fixed": "#e1e0fb",
+                        "outline": "#777681",
+                        "secondary-fixed-dim": "#c5c4de",
+                        "on-tertiary-container": "#c8b7af",
+                        "status-success": "#10B981",
+                        "text-secondary": "#64748B",
+                        "on-primary-container": "#b0b5ff",
+                        "inverse-primary": "#bec2ff",
+                        "on-error-container": "#93000a",
+                        "on-primary-fixed-variant": "#3b4083",
+                        "surface-tint": "#53589c",
+                        "surface-container-low": "#f2f4f7",
+                        "status-warning": "#F59E0B",
+                        "surface-container-highest": "#e0e3e6",
+                        "text-primary": "#0D0C22",
+                        "tertiary-fixed": "#f1dfd6",
+                        "inverse-on-surface": "#eff1f4",
+                        "primary": "#282c6f",
+                        "outline-variant": "#c7c5d2",
+                        "status-danger": "#EF4444",
+                        "on-tertiary-fixed": "#231a15",
+                        "surface": "#f8f9fc",
+                        "on-secondary-container": "#616178",
+                        "on-secondary": "#ffffff",
+                        "primary-container": "#3f4487",
+                        "inverse-surface": "#2d3133",
+                        "primary-fixed": "#e0e0ff",
+                        "surface-dim": "#d8dadd",
+                        "secondary": "#5c5c73",
+                        "on-error": "#ffffff",
+                        "on-secondary-fixed": "#191a2d",
+                        "error": "#ba1a1a",
+                        "on-tertiary-fixed-variant": "#50443e",
+                        "surface-variant": "#e0e3e6",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary-fixed-variant": "#45455b",
+                        "tertiary-fixed-dim": "#d5c3bb",
+                        "primary-fixed-dim": "#bec2ff",
+                        "surface-container": "#eceef1",
+                        "tertiary": "#3d322c",
+                        "surface-bright": "#f8f9fc",
+                        "surface-dark": "#0D0C22",
+                        "tertiary-container": "#544842",
+                        "error-container": "#ffdad6",
+                        "background": "#f8f9fc",
+                        "status-info": "#3B82F6",
+                        "on-surface-variant": "#464650",
+                        "on-surface": "#191c1e",
+                        "on-primary-fixed": "#0c1056",
+                        "on-primary": "#ffffff",
+                        "on-background": "#191c1e",
+                        "surface-container-high": "#e6e8eb",
+                        "secondary-container": "#dfddf8"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "container-max": "1440px",
+                        "unit": "4px",
+                        "margin-mobile": "16px",
+                        "margin-desktop": "24px",
+                        "touch-target": "44px",
+                        "gutter": "16px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Hanken Grotesk"],
+                        "label-sm": ["JetBrains Mono"],
+                        "label-md": ["JetBrains Mono"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "numeric-data": ["JetBrains Mono"],
+                        "display-lg": ["Hanken Grotesk"],
+                        "body-md": ["Hanken Grotesk"],
+                        "headline-sm": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "400" }],
+                        "label-md": ["13px", { "lineHeight": "16px", "fontWeight": "500" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "numeric-data": ["14px", { "lineHeight": "20px", "fontWeight": "600" }],
+                        "display-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "headline-sm": ["20px", { "lineHeight": "28px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .canvas-bg {
+            background-image: radial-gradient(circle, #c7c5d2 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+        .node-connector {
+            stroke: #c7c5d2;
+            stroke-width: 2;
+            fill: none;
+        }
+        .node-card {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .node-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0px 4px 20px rgba(13, 12, 34, 0.08);
+        }
+        .side-panel-enter { transform: translateX(100%); transition: transform 0.3s ease-out; }
+        .side-panel-active { transform: translateX(0); }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md overflow-hidden h-screen flex">
+<!-- SideNavBar Anchor -->
+<aside class="fixed left-0 top-0 h-full w-[240px] flex flex-col py-margin-desktop bg-surface-container-lowest border-r border-outline-variant z-50">
+<div class="px-6 mb-8">
+<h1 class="font-headline-sm text-headline-sm font-bold text-primary">Xintonggao</h1>
+<p class="text-secondary text-xs">Operations Backend</p>
+</div>
+<nav class="flex-1 px-4 space-y-1">
+<a class="flex items-center px-4 py-3 rounded-lg text-secondary hover:bg-surface-container transition-colors group" href="#">
+<span class="material-symbols-outlined mr-3">dashboard</span>
+<span class="font-body-md">Overview</span>
+</a>
+<a class="flex items-center px-4 py-3 rounded-lg text-secondary hover:bg-surface-container transition-colors group" href="#">
+<span class="material-symbols-outlined mr-3">rule</span>
+<span class="font-body-md">Audit Center</span>
+</a>
+<a class="flex items-center px-4 py-3 rounded-lg text-secondary hover:bg-surface-container transition-colors group" href="#">
+<span class="material-symbols-outlined mr-3">group</span>
+<span class="font-body-md">Agent Management</span>
+</a>
+<a class="flex items-center px-4 py-3 rounded-lg text-primary font-bold border-r-4 border-primary bg-surface-container-low" href="#">
+<span class="material-symbols-outlined mr-3">hub</span>
+<span class="font-body-md">Relationship Network</span>
+</a>
+<a class="flex items-center px-4 py-3 rounded-lg text-secondary hover:bg-surface-container transition-colors group" href="#">
+<span class="material-symbols-outlined mr-3">payments</span>
+<span class="font-body-md">Settlement</span>
+</a>
+<a class="flex items-center px-4 py-3 rounded-lg text-secondary hover:bg-surface-container transition-colors group" href="#">
+<span class="material-symbols-outlined mr-3">account_balance</span>
+<span class="font-body-md">Finance</span>
+</a>
+<a class="flex items-center px-4 py-3 rounded-lg text-secondary hover:bg-surface-container transition-colors group" href="#">
+<span class="material-symbols-outlined mr-3">settings</span>
+<span class="font-body-md">System Management</span>
+</a>
+</nav>
+<div class="px-4 py-4 space-y-1 mt-auto">
+<button class="w-full bg-primary text-on-primary py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 active:scale-95 duration-150 mb-4">
+<span class="material-symbols-outlined">add</span>
+                New Settlement
+            </button>
+<a class="flex items-center px-4 py-2 text-secondary hover:bg-surface-container transition-colors" href="#">
+<span class="material-symbols-outlined mr-3">help</span>
+<span class="font-body-md">Support</span>
+</a>
+<a class="flex items-center px-4 py-2 text-secondary hover:bg-surface-container transition-colors" href="#">
+<span class="material-symbols-outlined mr-3">person</span>
+<span class="font-body-md">Account</span>
+</a>
+</div>
+</aside>
+<!-- Main Workspace -->
+<main class="ml-[240px] flex-1 flex flex-col relative h-full">
+<!-- TopAppBar Anchor -->
+<header class="fixed top-0 right-0 w-[calc(100%-240px)] h-16 bg-surface border-b border-outline-variant flex justify-between items-center px-margin-desktop z-40">
+<div class="flex items-center gap-4">
+<span class="font-headline-sm text-headline-sm text-primary">Audit & Settlement</span>
+<div class="h-6 w-px bg-outline-variant"></div>
+<nav class="flex gap-6">
+<a class="text-label-md font-label-md text-secondary hover:text-primary transition-all" href="#">Dashboard</a>
+<a class="text-label-md font-label-md text-primary border-b-2 border-primary" href="#">Settlements</a>
+<a class="text-label-md font-label-md text-secondary hover:text-primary transition-all" href="#">Reports</a>
+</nav>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative flex items-center group">
+<span class="material-symbols-outlined absolute left-3 text-outline">search</span>
+<input class="pl-10 pr-4 py-1.5 rounded-full border border-outline-variant bg-surface-container-lowest focus:ring-2 focus:ring-primary focus:border-primary transition-all w-64 text-sm" placeholder="Search Agent..." type="text"/>
+</div>
+<div class="flex gap-4">
+<button class="text-secondary hover:text-primary transition-all"><span class="material-symbols-outlined">notifications</span></button>
+<button class="text-secondary hover:text-primary transition-all"><span class="material-symbols-outlined">contrast</span></button>
+<button class="text-secondary hover:text-primary transition-all"><span class="material-symbols-outlined">calendar_today</span></button>
+</div>
+<div class="w-8 h-8 rounded-full overflow-hidden bg-outline-variant ring-2 ring-primary-container">
+<img class="object-cover w-full h-full" data-alt="Professional headshot of a senior system administrator in a corporate office environment, soft natural lighting, high-end professional aesthetics, neutral tones." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD4ENrahcUqaVlsjbvUeH_c_QLqFrwc-1lbMN-plWnOFwuYN6QPw21KfvtZ5ZFZvEqkyRbduwtUef9ov7ZO4L4OD3D6uj63TSe6xSFmnHRmy72YTKMuIknLvYPOQ0QARVqyQi8Z8OAhbFo-QRSsFQ9SAYmTZl347TNlssF3jZ438f1KH5kzoeblKGlI3MvOuf3CR7wN4FauLeYWz3_5a0xAZ3b_Q7SJv9L6pdV7FQuMio3YKGsBtqgp"/>
+</div>
+</div>
+</header>
+<!-- Canvas Area -->
+<div class="flex-1 mt-16 relative overflow-hidden canvas-bg" id="graph-container">
+<!-- Canvas Toolbar -->
+<div class="absolute top-6 left-6 z-30 flex flex-col gap-2">
+<div class="bg-surface-container-lowest p-2 rounded-xl shadow-lg border border-outline-variant flex flex-col gap-1">
+<button class="p-2 hover:bg-surface-container rounded-lg text-primary"><span class="material-symbols-outlined">add</span></button>
+<div class="h-px bg-outline-variant mx-1"></div>
+<button class="p-2 hover:bg-surface-container rounded-lg text-primary"><span class="material-symbols-outlined">remove</span></button>
+</div>
+<button class="bg-surface-container-lowest p-3 rounded-xl shadow-lg border border-outline-variant text-primary hover:bg-surface-container flex items-center gap-2">
+<span class="material-symbols-outlined">center_focus_weak</span>
+<span class="text-sm font-bold">Center Seed</span>
+</button>
+<button class="bg-primary text-on-primary p-3 rounded-xl shadow-lg flex items-center gap-2 active:scale-95 transition-transform" onclick="toggleDialog('add-connection')">
+<span class="material-symbols-outlined">person_add</span>
+<span class="text-sm font-bold">Add Connection</span>
+</button>
+</div>
+<!-- SVG Graph Connections -->
+<svg class="absolute inset-0 w-full h-full pointer-events-none">
+<g id="connections">
+<!-- Example path between Seed and Referrals -->
+<path class="node-connector" d="M 600,400 L 400,200"></path>
+<path class="node-connector" d="M 600,400 L 800,200"></path>
+<path class="node-connector" d="M 600,400 L 600,600"></path>
+<path class="node-connector" d="M 400,200 L 300,100"></path>
+<path class="node-connector" d="M 400,200 L 500,100"></path>
+</g>
+</svg>
+<!-- Draggable Node Layer -->
+<div class="relative w-full h-full cursor-grab active:cursor-grabbing" id="nodes-layer">
+<!-- Seed Agent Node (Root) -->
+<div class="absolute top-[360px] left-[520px] node-card bg-surface-container-lowest w-[200px] p-4 rounded-xl border-2 border-primary shadow-sm z-10 cursor-pointer" onclick="openDetails('Agent X-001')">
+<div class="flex items-start justify-between mb-3">
+<div class="w-12 h-12 rounded-lg overflow-hidden border border-outline-variant">
+<img class="w-full h-full object-cover" data-alt="A professional portrait of a senior financial executive, dressed in modern corporate attire, neutral background, sharp focus, sophisticated lighting for a high-end backend interface." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDM18kc2lMGdvwlz-oK5nvmhGg_s2IyJsPTZAyZzb1Bz8a5I484x2WfsXBV2e6EqGi2DD-PMlB854vTLvC3HXg2FKAJ0ckWUlzoWdNS3OMl1B78MnG1J-yWYb9vxEBryqA0gdjSnxsT-CYWgeMiulm6jgvTq7JLuA5L2mrVt84jxYeEkeasQpxe9IezXXfQwbzwKRObCcvmwXpOoDNCA2tJKwlRdi-VyYAXC5YN1_OJI9HuO3FkHORF"/>
+</div>
+<span class="bg-primary-container text-on-primary-container text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider">Seed</span>
+</div>
+<h3 class="font-bold text-sm text-primary mb-1">Xintonggao_HQ</h3>
+<p class="text-xs text-secondary font-label-sm mb-3">ID: AG-99001</p>
+<div class="space-y-1">
+<div class="flex justify-between text-[10px] text-outline font-bold">
+<span>6+2 PROGRESS</span>
+<span>4/6</span>
+</div>
+<div class="h-1.5 w-full bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-status-success w-[66%]"></div>
+</div>
+</div>
+</div>
+<!-- Referral Agent 1 -->
+<div class="absolute top-[160px] left-[300px] node-card bg-surface-container-lowest w-[200px] p-4 rounded-xl border border-outline-variant shadow-sm cursor-pointer" onclick="openDetails('Agent X-024')">
+<div class="flex items-start justify-between mb-3">
+<div class="w-12 h-12 rounded-lg overflow-hidden border border-outline-variant">
+<img class="w-full h-full object-cover" data-alt="Portrait of a young business professional, focused expression, corporate setting background, bright lighting, minimalist professional aesthetic suitable for an agent profile." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBhd08iRFV4wU-NqTmiRP7_joOsCqrSixh8PlgOPxEaxP904mFTOmHXJ2Fi5hXWk0QcN6qQcTxlKv-X2vEKVvBuj6pt73hzVlEqUehz4oCkpszs1Ns_Uj2gSoplbdRBLEcLLTGQ_Pu6ZWSoHKvBpykCiXrbOgWmEeiWrfH32dc1buUHkyqYZpFPso2kggSbTanHnY0KJ8-yp_c5Eq_lHL6IGUF5sYEaCfAN2CksydbiuQcD9eqvBkDW"/>
+</div>
+<span class="bg-secondary-container text-on-secondary-container text-[10px] px-2 py-0.5 rounded font-bold uppercase">Referral</span>
+</div>
+<h3 class="font-bold text-sm text-primary mb-1">Chen Wei</h3>
+<p class="text-xs text-secondary font-label-sm mb-2">ID: AG-82011</p>
+<div class="flex items-center gap-1 text-[10px] text-status-warning bg-status-warning/10 px-2 py-1 rounded w-fit">
+<span class="material-symbols-outlined text-[12px]">schedule</span>
+<span>Bound: 2023-11-12</span>
+</div>
+</div>
+<!-- Referral Agent 2 -->
+<div class="absolute top-[160px] left-[700px] node-card bg-surface-container-lowest w-[200px] p-4 rounded-xl border border-outline-variant shadow-sm cursor-pointer" onclick="openDetails('Agent X-088')">
+<div class="flex items-start justify-between mb-3">
+<div class="w-12 h-12 rounded-lg overflow-hidden border border-outline-variant">
+<img class="w-full h-full object-cover" data-alt="Close-up professional headshot of an entrepreneur with a confident smile, modern office background, soft depth of field, high-end commercial photography style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCCOlF-lVAPuRIKYbPJhywS2_ldEE0KMH1cIlgDl3rQoNd-g0xUErgBWZsOZx5mZ6sUO0T0PZBzwnwdBqH0cs3slOFJ5A3Xw82OuZEKomQOaGYYClWWlFUWXHcGjMw4hyk5UrMjxDfuan0f1t4HEGfo1XQ4-ssQaRhE9b82gh4_FjBaGPhLmEAONnsHNltW73CM6GDBL6ITJtcfZx9Jyr8qKGcH7To-67lUUm-MAh_Yj5Zlrrhfa2Gg"/>
+</div>
+<span class="bg-secondary-container text-on-secondary-container text-[10px] px-2 py-0.5 rounded font-bold uppercase">Referral</span>
+</div>
+<h3 class="font-bold text-sm text-primary mb-1">Linda Zhang</h3>
+<p class="text-xs text-secondary font-label-sm mb-2">ID: AG-82088</p>
+<div class="flex items-center gap-1 text-[10px] text-status-success bg-status-success/10 px-2 py-1 rounded w-fit">
+<span class="material-symbols-outlined text-[12px]">verified</span>
+<span>Bound: 2023-12-01</span>
+</div>
+</div>
+<!-- Normal Agent -->
+<div class="absolute top-[560px] left-[520px] node-card bg-surface-container-lowest w-[200px] p-4 rounded-xl border border-outline-variant shadow-sm cursor-pointer" onclick="openDetails('Agent X-112')">
+<div class="flex items-start justify-between mb-3">
+<div class="w-12 h-12 rounded-lg overflow-hidden border border-outline-variant">
+<img class="w-full h-full object-cover" data-alt="Clean corporate headshot of a business woman, bright airy office setting, professional attire, soft lighting, elegant minimalist feel for a CRM profile." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAPF4ivJMPRC0zeizJeDPFmyqXps2jDtmpYHsreis7Fj9uHD6w_plymw-TCZHo9XD5D-1QS8iDsJBrZafafv0OSMseGUbHvFpl79WXBJ0oqHkri1jcxJeBVjiKopK4UkzxhNojoWPqnPeAM49RErddZqU3ESJ1T3C_0V9V_E_Zrfkc7-OiqGE8A0rYNNRK5LqwY8ecbdaFyRuL7kmqf2A8m5yD34_g6g12fQ9OLYDL7LcvT7rC61w1e"/>
+</div>
+<span class="bg-surface-container-high text-on-surface-variant text-[10px] px-2 py-0.5 rounded font-bold uppercase">Normal</span>
+</div>
+<h3 class="font-bold text-sm text-primary mb-1">Liu Qiang</h3>
+<p class="text-xs text-secondary font-label-sm mb-3">ID: AG-82112</p>
+<div class="h-2 w-full bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-status-info w-[20%]"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Sidebar Node Detail Panel -->
+<div class="fixed right-0 top-16 h-[calc(100%-64px)] w-[400px] bg-surface-container-lowest shadow-2xl border-l border-outline-variant z-40 translate-x-full transition-transform duration-300" id="node-detail-panel">
+<div class="p-6 flex flex-col h-full">
+<div class="flex justify-between items-center mb-8">
+<h2 class="text-headline-sm font-headline-sm text-primary">Agent Details</h2>
+<button class="p-2 hover:bg-surface-container rounded-full" onclick="closeDetails()">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<div class="flex items-center gap-4 mb-8">
+<div class="w-20 h-20 rounded-2xl overflow-hidden border-2 border-primary-container p-0.5">
+<img class="w-full h-full object-cover rounded-xl" data-alt="Large detailed profile picture of a professional agent, high definition, commercial photography lighting, clean background, modern professional styling." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB10N4pRl_C2g58evQ_fEfOEEwE1lc7J5V4-33jt5yfm_VfReOL8HxF7x50Vbsu9sz_geHU2JYFL3NWMqs17IV5G2696csiPlFBGiMaJgA6B0jbXTdSImAAzR62nIIqdGWWFkP5OdHxohGsXMamrNhDvxEnjjHF-4MQdIissxAmop0wpIhAOX9EGT4VRIyiKVhiNLoo4pkXisDjOFTUGW3TnQVmK388iE3yOjktQ-TOPmcLDyvjZlPx"/>
+</div>
+<div>
+<h3 class="text-xl font-bold text-primary" id="detail-name">--</h3>
+<p class="font-numeric-data text-secondary" id="detail-id">ID: AG-00000</p>
+<span class="inline-block mt-2 px-3 py-1 bg-primary/10 text-primary text-[10px] font-bold rounded-full uppercase">Active Member</span>
+</div>
+</div>
+<div class="space-y-6 flex-1 overflow-y-auto">
+<section>
+<h4 class="text-xs font-bold text-outline uppercase tracking-widest mb-3">Performance Matrix</h4>
+<div class="grid grid-cols-2 gap-4">
+<div class="bg-surface-container p-4 rounded-xl">
+<p class="text-xs text-secondary mb-1">Total Referrals</p>
+<p class="text-xl font-bold font-numeric-data">24</p>
+</div>
+<div class="bg-surface-container p-4 rounded-xl">
+<p class="text-xs text-secondary mb-1">Settlement Vol.</p>
+<p class="text-xl font-bold font-numeric-data">¥1.2M</p>
+</div>
+</div>
+</section>
+<section>
+<h4 class="text-xs font-bold text-outline uppercase tracking-widest mb-3">6+2 Progress Audit</h4>
+<div class="bg-surface p-4 rounded-xl border border-outline-variant space-y-4">
+<div class="flex justify-between items-center">
+<span class="text-sm">Tier 1 Referrals (6 required)</span>
+<span class="font-bold text-status-success">4/6</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-sm">Direct Revenue (2 required)</span>
+<span class="font-bold text-status-warning">1/2</span>
+</div>
+<div class="p-3 bg-secondary-container rounded-lg flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">calculate</span>
+<p class="text-xs text-on-secondary-container">
+<span class="font-bold">Formula:</span> Current Ratio = (Active / Target) * Weighted Bonus
+                                </p>
+</div>
+</div>
+</section>
+<section>
+<h4 class="text-xs font-bold text-outline uppercase tracking-widest mb-3">Audit Trail</h4>
+<ul class="space-y-4">
+<li class="flex gap-3">
+<div class="w-px bg-outline-variant h-full relative">
+<div class="absolute top-0 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-primary"></div>
+</div>
+<div>
+<p class="text-sm font-bold">New Connection Added</p>
+<p class="text-xs text-secondary">By Admin_01 • 2023-12-15</p>
+</div>
+</li>
+<li class="flex gap-3">
+<div class="w-px bg-outline-variant h-full relative">
+<div class="absolute top-0 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-outline"></div>
+</div>
+<div>
+<p class="text-sm font-bold">Status Update: Active</p>
+<p class="text-xs text-secondary">System Auto • 2023-11-20</p>
+</div>
+</li>
+</ul>
+</section>
+</div>
+<div class="pt-6 border-t border-outline-variant grid grid-cols-2 gap-4">
+<button class="py-3 px-4 rounded-xl border border-outline-variant font-bold text-secondary hover:bg-surface-container">Message</button>
+<button class="py-3 px-4 rounded-xl bg-primary text-on-primary font-bold shadow-lg shadow-primary/20">Edit Profile</button>
+</div>
+</div>
+</div>
+</main>
+<!-- Dialogs -->
+<div class="fixed inset-0 z-[100] hidden" id="add-connection-dialog">
+<div class="absolute inset-0 bg-primary/20 backdrop-blur-sm" onclick="toggleDialog('add-connection')"></div>
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] bg-surface-container-lowest rounded-2xl shadow-2xl p-8 border border-outline-variant">
+<h3 class="text-headline-sm font-headline-sm text-primary mb-6">Create New Connection</h3>
+<div class="space-y-6">
+<div>
+<label class="block text-xs font-bold text-outline uppercase mb-2">Referrer Agent</label>
+<div class="p-4 bg-surface rounded-xl border border-outline-variant flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-primary/10 flex items-center justify-center font-bold text-primary">HQ</div>
+<span class="text-sm font-bold">Xintonggao_HQ (Root)</span>
+</div>
+<span class="text-xs text-status-success font-bold">VALID SOURCE</span>
+</div>
+</div>
+<div>
+<label class="block text-xs font-bold text-outline uppercase mb-2">Target Agent ID</label>
+<input class="w-full p-4 bg-surface-container-lowest border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Enter ID (e.g. AG-12345)" type="text"/>
+</div>
+<!-- Conflict Validation Preview -->
+<div class="bg-error-container/30 border border-error/20 p-4 rounded-xl flex items-start gap-3">
+<span class="material-symbols-outlined text-error">warning</span>
+<div>
+<p class="text-sm font-bold text-on-error-container">Conflict Validation Preview</p>
+<p class="text-xs text-on-error-container/80">Target agent is currently bound to 'Distributor_Alpha'. Re-binding will trigger a 24h cooldown period.</p>
+</div>
+</div>
+<div class="flex gap-4 pt-4">
+<button class="flex-1 py-4 px-6 rounded-xl border border-outline-variant font-bold text-secondary hover:bg-surface-container" onclick="toggleDialog('add-connection')">Cancel</button>
+<button class="flex-1 py-4 px-6 rounded-xl bg-primary text-on-primary font-bold shadow-lg shadow-primary/20">Confirm Binding</button>
+</div>
+</div>
+</div>
+</div>
+<script>
+        // Simple Interaction Logic
+        function openDetails(name) {
+            document.getElementById('detail-name').innerText = name;
+            document.getElementById('detail-id').innerText = 'ID: AG-' + (Math.floor(Math.random() * 90000) + 10000);
+            document.getElementById('node-detail-panel').classList.remove('translate-x-full');
+        }
+
+        function closeDetails() {
+            document.getElementById('node-detail-panel').classList.add('translate-x-full');
+        }
+
+        function toggleDialog(id) {
+            const el = document.getElementById(id + '-dialog');
+            el.classList.toggle('hidden');
+        }
+
+        // Draggable Canvas Logic (Minimal Implementation)
+        const container = document.getElementById('nodes-layer');
+        let isDragging = false;
+        let startX, startY, translateX = 0, translateY = 0;
+
+        container.addEventListener('mousedown', e => {
+            if (e.target === container) {
+                isDragging = true;
+                startX = e.clientX - translateX;
+                startY = e.clientY - translateY;
+            }
+        });
+
+        window.addEventListener('mousemove', e => {
+            if (!isDragging) return;
+            translateX = e.clientX - startX;
+            translateY = e.clientY - startY;
+            container.style.transform = `translate(${translateX}px, ${translateY}px)`;
+            // In a full implementation, SVG paths would also update here
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+    </script>
+</body></html>

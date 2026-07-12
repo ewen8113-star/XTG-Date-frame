@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+
+<html class="light" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Xintonggao - 工作总览</title>
+<!-- Fonts & Icons -->
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700&family=JetBrains+Mono:wght@400;500;600&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@100..900&family=JetBrains+Mono:wght@100..900&display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Config Verbatim -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "secondary-fixed": "#e1e0fb",
+                    "outline": "#777681",
+                    "secondary-fixed-dim": "#c5c4de",
+                    "on-tertiary-container": "#c8b7af",
+                    "status-success": "#10B981",
+                    "text-secondary": "#64748B",
+                    "on-primary-container": "#b0b5ff",
+                    "inverse-primary": "#bec2ff",
+                    "on-error-container": "#93000a",
+                    "on-primary-fixed-variant": "#3b4083",
+                    "surface-tint": "#53589c",
+                    "surface-container-low": "#f2f4f7",
+                    "status-warning": "#F59E0B",
+                    "surface-container-highest": "#e0e3e6",
+                    "text-primary": "#0D0C22",
+                    "tertiary-fixed": "#f1dfd6",
+                    "inverse-on-surface": "#eff1f4",
+                    "primary": "#282c6f",
+                    "outline-variant": "#c7c5d2",
+                    "status-danger": "#EF4444",
+                    "on-tertiary-fixed": "#231a15",
+                    "surface": "#f8f9fc",
+                    "on-secondary-container": "#616178",
+                    "on-secondary": "#ffffff",
+                    "primary-container": "#3f4487",
+                    "inverse-surface": "#2d3133",
+                    "primary-fixed": "#e0e0ff",
+                    "surface-dim": "#d8dadd",
+                    "secondary": "#5c5c73",
+                    "on-error": "#ffffff",
+                    "on-secondary-fixed": "#191a2d",
+                    "error": "#ba1a1a",
+                    "on-tertiary-fixed-variant": "#50443e",
+                    "surface-variant": "#e0e3e6",
+                    "surface-container-lowest": "#ffffff",
+                    "on-tertiary": "#ffffff",
+                    "on-secondary-fixed-variant": "#45455b",
+                    "tertiary-fixed-dim": "#d5c3bb",
+                    "primary-fixed-dim": "#bec2ff",
+                    "surface-container": "#eceef1",
+                    "tertiary": "#3d322c",
+                    "surface-bright": "#f8f9fc",
+                    "surface-dark": "#0D0C22",
+                    "tertiary-container": "#544842",
+                    "error-container": "#ffdad6",
+                    "background": "#f8f9fc",
+                    "status-info": "#3B82F6",
+                    "on-surface-variant": "#464650",
+                    "on-surface": "#191c1e",
+                    "on-primary-fixed": "#0c1056",
+                    "on-primary": "#ffffff",
+                    "on-background": "#191c1e",
+                    "surface-container-high": "#e6e8eb",
+                    "secondary-container": "#dfddf8"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "container-max": "1440px",
+                    "unit": "4px",
+                    "margin-mobile": "16px",
+                    "margin-desktop": "24px",
+                    "touch-target": "44px",
+                    "gutter": "16px"
+            },
+            "fontFamily": {
+                    "headline-md": ["Hanken Grotesk"],
+                    "label-sm": ["JetBrains Mono"],
+                    "label-md": ["JetBrains Mono"],
+                    "body-lg": ["Hanken Grotesk"],
+                    "numeric-data": ["JetBrains Mono"],
+                    "display-lg": ["Hanken Grotesk"],
+                    "body-md": ["Hanken Grotesk"],
+                    "headline-sm": ["Hanken Grotesk"]
+            },
+            "fontSize": {
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "400"}],
+                    "label-md": ["13px", {"lineHeight": "16px", "fontWeight": "500"}],
+                    "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "numeric-data": ["14px", {"lineHeight": "20px", "fontWeight": "600"}],
+                    "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "headline-sm": ["20px", {"lineHeight": "28px", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Hanken Grotesk', sans-serif; background-color: #ECEEF1; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #c7c5d2; border-radius: 10px; }
+        .card-shadow { box-shadow: 0px 4px 20px rgba(13, 12, 34, 0.05); }
+    </style>
+</head>
+<body class="text-on-surface selection:bg-primary-fixed">
+<!-- SideNavBar (Shared Component) -->
+<nav class="fixed left-0 top-0 h-full w-[240px] bg-surface-container-lowest border-r border-outline-variant flex flex-col py-6 z-50">
+<div class="px-6 mb-8">
+<h1 class="font-headline-sm text-headline-sm font-bold text-primary">Xintonggao</h1>
+<p class="text-secondary text-[12px] tracking-wider uppercase">Operations Backend</p>
+</div>
+<div class="flex-1 px-4 space-y-1">
+<!-- Overview Active -->
+<a class="flex items-center px-4 py-3 rounded-lg text-primary font-bold border-r-4 border-primary bg-surface-container-low transition-all duration-150 active:scale-95" href="#">
+<span class="material-symbols-outlined mr-3">dashboard</span>
+<span class="font-body-md text-body-md">Overview</span>
+</a>
+<a class="flex items-center px-4 py-3 rounded-lg text-secondary hover:bg-surface-container transition-colors group" href="#">
+<span class="material-symbols-outlined mr-3">rule</span>
+<span class="font-body-md text-body-md">Audit Center</span>
+</a>
+<a class="flex items-center px-4 py-3 rounded-lg text-secondary hover:bg-surface-container transition-colors" href="#">
+<span class="material-symbols-outlined mr-3">group</span>
+<span class="font-body-md text-body-md">Agent Management</span>
+</a>
+<a class="flex items-center px-4 py-3 rounded-lg text-secondary hover:bg-surface-container transition-colors" href="#">
+<span class="material-symbols-outlined mr-3">hub</span>
+<span class="font-body-md text-body-md">Relationship Network</span>
+</a>
+<a class="flex items-center px-4 py-3 rounded-lg text-secondary hover:bg-surface-container transition-colors" href="#">
+<span class="material-symbols-outlined mr-3">payments</span>
+<span class="font-body-md text-body-md">Settlement</span>
+</a>
+<a class="flex items-center px-4 py-3 rounded-lg text-secondary hover:bg-surface-container transition-colors" href="#">
+<span class="material-symbols-outlined mr-3">account_balance</span>
+<span class="font-body-md text-body-md">Finance</span>
+</a>
+<a class="flex items-center px-4 py-3 rounded-lg text-secondary hover:bg-surface-container transition-colors" href="#">
+<span class="material-symbols-outlined mr-3">settings</span>
+<span class="font-body-md text-body-md">System Management</span>
+</a>
+</div>
+<div class="px-4 py-6 border-t border-outline-variant space-y-2">
+<button class="w-full bg-primary text-on-primary py-2.5 rounded-lg font-bold text-body-md flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-sm">add</span>
+                New Settlement
+            </button>
+<div class="mt-4 flex flex-col gap-1">
+<a class="flex items-center px-4 py-2 text-secondary hover:text-primary text-body-md" href="#">
+<span class="material-symbols-outlined mr-3">help</span> Support
+                </a>
+<a class="flex items-center px-4 py-2 text-secondary hover:text-primary text-body-md" href="#">
+<span class="material-symbols-outlined mr-3">person</span> Account
+                </a>
+</div>
+</div>
+</nav>
+<!-- TopAppBar (Shared Component) -->
+<header class="fixed top-0 right-0 w-[calc(100%-240px)] h-16 bg-surface border-b border-outline-variant flex justify-between items-center px-6 z-40">
+<div class="flex items-center gap-8">
+<h2 class="font-headline-sm text-headline-sm text-primary">Audit & Settlement</h2>
+<nav class="hidden lg:flex gap-6">
+<a class="text-primary border-b-2 border-primary font-label-md text-label-md py-5" href="#">Dashboard</a>
+<a class="text-secondary hover:text-primary font-label-md text-label-md py-5 transition-all" href="#">Settlements</a>
+<a class="text-secondary hover:text-primary font-label-md text-label-md py-5 transition-all" href="#">Reports</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative">
+<input class="bg-surface-container border-none rounded-full px-10 py-2 text-label-md w-64 focus:ring-2 focus:ring-primary/20" placeholder="Search operations..." type="text"/>
+<span class="material-symbols-outlined absolute left-3 top-2 text-outline">search</span>
+</div>
+<div class="flex items-center gap-2 border-l border-outline-variant pl-4">
+<button class="p-2 text-secondary hover:bg-surface-container rounded-full transition-colors"><span class="material-symbols-outlined">notifications</span></button>
+<button class="p-2 text-secondary hover:bg-surface-container rounded-full transition-colors"><span class="material-symbols-outlined">calendar_today</span></button>
+<div class="flex items-center gap-3 ml-2 group cursor-pointer">
+<div class="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center overflow-hidden border border-outline-variant">
+<img class="w-full h-full object-cover" data-alt="A professional headshot of a female operations administrator in a corporate environment, wearing a clean blazer with soft studio lighting. Minimalist professional aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBbd2ru294xso3uNM93kU1p4rxITW99VA2NJWPBg8V5_HXa17hjVdTRU7mUOMNn4DQRnnn4fNO-tRign_V98Iv6SteOPKngN2vk4HW3UuvFpktBgvRiNSTqNe81BYz6ESTe5wvAwkTJpohO4lgTzrEhWBULIklRoD_kdNe376MLqEr5KMCGyTb7ERfkyRclbZOhAyCV7eVMNIO7BYDg6iOSy9hMqVcg86_2hy6HPRntGh26bGXWYImK"/>
+</div>
+<span class="text-label-md font-bold text-primary">Admin_Tgao</span>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-[240px] pt-16 min-h-screen p-margin-desktop">
+<!-- Dashboard Header / Tool Bar -->
+<div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+<div>
+<h3 class="font-display-lg text-display-lg text-text-primary">工作总览 <span class="font-label-sm text-label-sm text-outline font-normal ml-2">Work Overview</span></h3>
+<div class="flex items-center gap-4 mt-2">
+<div class="flex items-center bg-surface-container-low px-3 py-1 rounded-md border border-outline-variant">
+<span class="material-symbols-outlined text-[18px] mr-2 text-primary">date_range</span>
+<span class="font-numeric-data text-numeric-data text-primary">2026-W28</span>
+</div>
+<div class="flex items-center text-status-danger bg-error-container/20 px-3 py-1 rounded-md">
+<span class="material-symbols-outlined text-[18px] mr-2 animate-pulse">timer</span>
+<span class="font-label-md text-label-md font-bold">结算截止倒计时: 14:22:05</span>
+</div>
+</div>
+</div>
+<div class="flex gap-3">
+<button class="bg-surface-container-highest text-primary px-4 py-2 rounded-lg font-label-md flex items-center gap-2 hover:bg-outline-variant transition-colors">
+<span class="material-symbols-outlined">sync</span>
+                    数据同步
+                </button>
+<button class="bg-primary text-on-primary px-6 py-2 rounded-lg font-label-md shadow-sm hover:opacity-90 active:scale-95 transition-all flex items-center gap-2">
+<span class="material-symbols-outlined">download</span>
+                    导出结算明细
+                </button>
+</div>
+</div>
+<!-- KPI Grid -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter mb-8">
+<!-- Card 1 -->
+<div class="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant card-shadow group hover:border-primary transition-all">
+<div class="flex justify-between items-start mb-4">
+<div class="p-2 bg-primary-fixed text-primary rounded-lg">
+<span class="material-symbols-outlined">task_alt</span>
+</div>
+<span class="text-status-info font-label-sm text-label-sm bg-status-info/10 px-2 py-0.5 rounded">+12% vs last week</span>
+</div>
+<p class="text-secondary font-label-md text-label-md">Pending Audit (Tasks)</p>
+<h4 class="font-display-lg text-display-lg mt-1">1,284</h4>
+<div class="w-full bg-surface-container mt-4 h-1 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-2/3"></div>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant card-shadow group hover:border-status-success transition-all">
+<div class="flex justify-between items-start mb-4">
+<div class="p-2 bg-green-50 text-status-success rounded-lg">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+</div>
+<span class="text-status-success font-label-sm text-label-sm bg-status-success/10 px-2 py-0.5 rounded">Steady</span>
+</div>
+<p class="text-secondary font-label-md text-label-md">Pending Settlement (Amount)</p>
+<h4 class="font-display-lg text-display-lg mt-1 font-numeric-data">¥12.4M</h4>
+<div class="w-full bg-surface-container mt-4 h-1 rounded-full overflow-hidden">
+<div class="bg-status-success h-full w-[88%]"></div>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant card-shadow group hover:border-status-warning transition-all">
+<div class="flex justify-between items-start mb-4">
+<div class="p-2 bg-yellow-50 text-status-warning rounded-lg">
+<span class="material-symbols-outlined">description</span>
+</div>
+<span class="text-status-warning font-label-sm text-label-sm bg-status-warning/10 px-2 py-0.5 rounded">Action Needed</span>
+</div>
+<p class="text-secondary font-label-md text-label-md">Missing Evidences</p>
+<h4 class="font-display-lg text-display-lg mt-1">42</h4>
+<div class="w-full bg-surface-container mt-4 h-1 rounded-full overflow-hidden">
+<div class="bg-status-warning h-full w-1/4"></div>
+</div>
+</div>
+<!-- Card 4 -->
+<div class="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant card-shadow group hover:border-status-danger transition-all">
+<div class="flex justify-between items-start mb-4">
+<div class="p-2 bg-red-50 text-status-danger rounded-lg">
+<span class="material-symbols-outlined">report_problem</span>
+</div>
+<span class="text-status-danger font-label-sm text-label-sm bg-status-danger/10 px-2 py-0.5 rounded">Critical</span>
+</div>
+<p class="text-secondary font-label-md text-label-md">High Risk Alerts</p>
+<h4 class="font-display-lg text-display-lg mt-1">15</h4>
+<div class="w-full bg-surface-container mt-4 h-1 rounded-full overflow-hidden">
+<div class="bg-status-danger h-full w-[45%]"></div>
+</div>
+</div>
+</div>
+<!-- Progress Tracker Section -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant card-shadow p-6 mb-8">
+<h5 class="font-headline-sm text-headline-sm mb-8">周结算周期进度 <span class="font-label-sm text-label-sm text-outline font-normal ml-2">Weekly Settlement Cycle</span></h5>
+<div class="relative">
+<div class="absolute top-5 left-0 w-full h-[2px] bg-surface-container"></div>
+<div class="relative flex justify-between">
+<!-- Step 1: Complete -->
+<div class="flex flex-col items-center z-10 w-40 text-center">
+<div class="w-10 h-10 rounded-full bg-status-success text-white flex items-center justify-center mb-4 ring-8 ring-white">
+<span class="material-symbols-outlined">check</span>
+</div>
+<p class="font-bold text-primary font-body-md text-body-md">Evidence Collection</p>
+<p class="text-[12px] text-secondary">Completed Jul 12</p>
+</div>
+<!-- Step 2: Complete -->
+<div class="flex flex-col items-center z-10 w-40 text-center">
+<div class="w-10 h-10 rounded-full bg-status-success text-white flex items-center justify-center mb-4 ring-8 ring-white">
+<span class="material-symbols-outlined">check</span>
+</div>
+<p class="font-bold text-primary font-body-md text-body-md">Audit Phase</p>
+<p class="text-[12px] text-secondary">Completed Jul 14</p>
+</div>
+<!-- Step 3: Active -->
+<div class="flex flex-col items-center z-10 w-40 text-center">
+<div class="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center mb-4 ring-8 ring-white shadow-lg ring-opacity-100">
+<span class="material-symbols-outlined animate-spin">autorenew</span>
+</div>
+<p class="font-bold text-primary font-body-md text-body-md">Pre-settlement</p>
+<p class="text-[12px] text-primary font-bold">In Progress (85%)</p>
+</div>
+<!-- Step 4: Pending -->
+<div class="flex flex-col items-center z-10 w-40 text-center">
+<div class="w-10 h-10 rounded-full bg-surface-container text-outline flex items-center justify-center mb-4 ring-8 ring-white">
+<span class="material-symbols-outlined">pending</span>
+</div>
+<p class="font-medium text-secondary font-body-md text-body-md">Appeal Period</p>
+<p class="text-[12px] text-secondary">Estimated Jul 18</p>
+</div>
+<!-- Step 5: Pending -->
+<div class="flex flex-col items-center z-10 w-40 text-center">
+<div class="w-10 h-10 rounded-full bg-surface-container text-outline flex items-center justify-center mb-4 ring-8 ring-white">
+<span class="material-symbols-outlined">account_balance</span>
+</div>
+<p class="font-medium text-secondary font-body-md text-body-md">Finance Payment</p>
+<p class="text-[12px] text-secondary">Estimated Jul 20</p>
+</div>
+</div>
+<!-- Active Bar Progress -->
+<div class="absolute top-5 left-0 h-[2px] bg-primary transition-all duration-1000" style="width: 50%;"></div>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
+<!-- Task Queue (2/3 width) -->
+<div class="lg:col-span-2 bg-surface-container-lowest rounded-xl border border-outline-variant card-shadow flex flex-col">
+<div class="p-6 border-b border-outline-variant flex justify-between items-center">
+<h5 class="font-headline-sm text-headline-sm">待办任务 <span class="font-label-sm text-label-sm text-outline font-normal ml-2">Today's Tasks</span></h5>
+<div class="flex gap-2">
+<span class="px-3 py-1 bg-surface-container text-secondary rounded-full text-label-sm font-medium">All Tasks (24)</span>
+<button class="material-symbols-outlined text-secondary hover:text-primary transition-colors">filter_list</button>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto max-h-[500px] custom-scrollbar">
+<table class="w-full text-left">
+<thead class="sticky top-0 bg-surface-container-low z-10">
+<tr>
+<th class="px-6 py-3 font-label-md text-label-md text-secondary uppercase tracking-wider">Task ID</th>
+<th class="px-6 py-3 font-label-md text-label-md text-secondary uppercase tracking-wider">Type</th>
+<th class="px-6 py-3 font-label-md text-label-md text-secondary uppercase tracking-wider">Agent/Project</th>
+<th class="px-6 py-3 font-label-md text-label-md text-secondary uppercase tracking-wider">Priority</th>
+<th class="px-6 py-3 font-label-md text-label-md text-secondary uppercase tracking-wider">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<!-- Task Row 1 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-6 py-4 font-numeric-data text-numeric-data">#TSK-8821</td>
+<td class="px-6 py-4 font-body-md text-body-md">Settlement Audit</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 bg-secondary-fixed rounded-full flex items-center justify-center text-[10px] font-bold">AL</div>
+<span class="font-body-md text-body-md">Alibaba Logistics</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="flex items-center gap-1.5 text-status-danger bg-red-50 px-2 py-0.5 rounded text-[12px] font-bold">
+<span class="material-symbols-outlined text-[14px]">error</span> Overdue
+                                    </span>
+</td>
+<td class="px-6 py-4">
+<button class="text-primary hover:underline font-bold text-label-md">Audit Now</button>
+</td>
+</tr>
+<!-- Task Row 2 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-6 py-4 font-numeric-data text-numeric-data">#TSK-8825</td>
+<td class="px-6 py-4 font-body-md text-body-md">Relationship Verification</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 bg-primary-fixed rounded-full flex items-center justify-center text-[10px] font-bold text-primary">JD</div>
+<span class="font-body-md text-body-md">JD Express South</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="flex items-center gap-1.5 text-status-warning bg-yellow-50 px-2 py-0.5 rounded text-[12px] font-bold">
+<span class="material-symbols-outlined text-[14px]">priority_high</span> High Risk
+                                    </span>
+</td>
+<td class="px-6 py-4">
+<button class="text-primary hover:underline font-bold text-label-md">Verify</button>
+</td>
+</tr>
+<!-- Task Row 3 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-6 py-4 font-numeric-data text-numeric-data">#TSK-8830</td>
+<td class="px-6 py-4 font-body-md text-body-md">Manual Adjustment</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 bg-tertiary-fixed rounded-full flex items-center justify-center text-[10px] font-bold">SF</div>
+<span class="font-body-md text-body-md">SF International</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="flex items-center gap-1.5 text-status-info bg-blue-50 px-2 py-0.5 rounded text-[12px] font-bold">
+<span class="material-symbols-outlined text-[14px]">radio_button_checked</span> Normal
+                                    </span>
+</td>
+<td class="px-6 py-4">
+<button class="text-primary hover:underline font-bold text-label-md">Review</button>
+</td>
+</tr>
+<!-- Task Row 4 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-6 py-4 font-numeric-data text-numeric-data">#TSK-8841</td>
+<td class="px-6 py-4 font-body-md text-body-md">Tax Invoice Check</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 bg-secondary-fixed rounded-full flex items-center justify-center text-[10px] font-bold">YT</div>
+<span class="font-body-md text-body-md">YTO Express</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="flex items-center gap-1.5 text-status-info bg-blue-50 px-2 py-0.5 rounded text-[12px] font-bold">
+<span class="material-symbols-outlined text-[14px]">radio_button_checked</span> Normal
+                                    </span>
+</td>
+<td class="px-6 py-4">
+<button class="text-primary hover:underline font-bold text-label-md">Open</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-4 border-t border-outline-variant text-center">
+<button class="text-label-md text-primary font-bold hover:bg-surface-container px-4 py-2 rounded-lg transition-all">View All Workload</button>
+</div>
+</div>
+<!-- Risk Zone (1/3 width) -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant card-shadow flex flex-col border-l-4 border-l-status-danger">
+<div class="p-6 border-b border-outline-variant flex justify-between items-center">
+<h5 class="font-headline-sm text-headline-sm text-status-danger">异常风险提示 <span class="font-label-sm text-label-sm text-outline font-normal ml-2">Risk Zone</span></h5>
+<span class="w-6 h-6 bg-status-danger text-white rounded-full flex items-center justify-center text-[11px] font-bold">03</span>
+</div>
+<div class="p-6 space-y-6">
+<!-- Anomaly 1 -->
+<div class="p-4 bg-surface rounded-lg border border-outline-variant/30 hover:shadow-md transition-shadow cursor-pointer">
+<div class="flex justify-between items-start mb-2">
+<span class="font-bold text-body-md text-primary">重复奖励发放检测</span>
+<span class="material-symbols-outlined text-status-danger text-sm" style="font-variation-settings: 'FILL' 1;">warning</span>
+</div>
+<p class="text-body-md text-secondary leading-relaxed">系统检测到 Agent_9921 在 2026-W27 周期内存在 2 笔重复的拉新奖励 (¥5,000.00)。</p>
+<div class="mt-4 flex items-center justify-between">
+<span class="font-numeric-data text-numeric-data text-status-danger">¥10,000.00 Total</span>
+<button class="px-3 py-1 bg-primary-container text-on-primary-container rounded text-label-sm font-bold hover:brightness-110">去拦截</button>
+</div>
+</div>
+<!-- Anomaly 2 -->
+<div class="p-4 bg-surface rounded-lg border border-outline-variant/30 hover:shadow-md transition-shadow cursor-pointer">
+<div class="flex justify-between items-start mb-2">
+<span class="font-bold text-body-md text-primary">层级拓扑冲突</span>
+<span class="material-symbols-outlined text-status-warning text-sm" style="font-variation-settings: 'FILL' 1;">hub</span>
+</div>
+<p class="text-body-md text-secondary leading-relaxed">检测到节点 A 与 节点 C 存在循环结算引用风险，请重新核对拓扑关系。</p>
+<div class="mt-4 flex items-center justify-between">
+<span class="font-numeric-data text-numeric-data text-status-warning">Node Conflict</span>
+<button class="px-3 py-1 bg-surface-container-high text-primary rounded text-label-sm font-bold hover:bg-outline-variant">查看拓扑</button>
+</div>
+</div>
+<!-- Anomaly 3 -->
+<div class="p-4 bg-surface rounded-lg border border-outline-variant/30 hover:shadow-md transition-shadow cursor-pointer">
+<div class="flex justify-between items-start mb-2">
+<span class="font-bold text-body-md text-primary">负向结算额度预警</span>
+<span class="material-symbols-outlined text-status-info text-sm" style="font-variation-settings: 'FILL' 1;">trending_down</span>
+</div>
+<p class="text-body-md text-secondary leading-relaxed">本周共有 5 个代理商出现 Negative Carry-forward，需手动确认本期是否结清。</p>
+<div class="mt-4 flex items-center justify-between">
+<span class="font-numeric-data text-numeric-data text-status-info">-¥32,490.00</span>
+<button class="px-3 py-1 bg-surface-container-high text-primary rounded text-label-sm font-bold hover:bg-outline-variant">处理</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- System Visualization Placeholder (Relationship & Calculations) -->
+<div class="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-gutter">
+<div class="lg:col-span-2 bg-surface-container-lowest rounded-xl border border-outline-variant card-shadow p-6">
+<h5 class="font-headline-sm text-headline-sm mb-6">结算公式计算核对 <span class="font-label-sm text-label-sm text-outline font-normal ml-2">Calculation Audit</span></h5>
+<div class="bg-surface p-6 rounded-lg border-2 border-dashed border-outline-variant flex flex-col items-center justify-center gap-6">
+<div class="flex items-center gap-4">
+<div class="text-center p-4 bg-white border border-outline-variant rounded-lg w-32">
+<p class="text-label-sm text-secondary mb-1">活跃用户量</p>
+<p class="font-numeric-data text-headline-sm">12,400</p>
+</div>
+<span class="material-symbols-outlined text-outline">close</span>
+<div class="text-center p-4 bg-white border border-outline-variant rounded-lg w-32">
+<p class="text-label-sm text-secondary mb-1">分佣比例</p>
+<p class="font-numeric-data text-headline-sm">15%</p>
+</div>
+<span class="material-symbols-outlined text-outline">add</span>
+<div class="text-center p-4 bg-white border border-outline-variant rounded-lg w-32">
+<p class="text-label-sm text-secondary mb-1">固定补贴</p>
+<p class="font-numeric-data text-headline-sm">¥2,500</p>
+</div>
+<span class="material-symbols-outlined text-outline">drag_handle</span>
+<div class="text-center p-4 bg-primary text-white rounded-lg w-40 shadow-lg">
+<p class="text-label-sm opacity-80 mb-1">结算预测值</p>
+<p class="font-numeric-data text-headline-sm">¥21,100</p>
+</div>
+</div>
+<p class="text-label-sm text-outline">公式 ID: M-CALC-W28-001 (当前应用于所有 A 级代理商)</p>
+</div>
+</div>
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant card-shadow p-6 flex flex-col">
+<h5 class="font-headline-sm text-headline-sm mb-4">实时关系动态 <span class="font-label-sm text-label-sm text-outline font-normal ml-2">Network nodes</span></h5>
+<div class="flex-1 relative overflow-hidden bg-surface rounded-lg">
+<!-- Mock Node Graph -->
+<div class="absolute inset-0 opacity-20">
+<div class="absolute w-full h-full" style="background-image: radial-gradient(#282c6f 1px, transparent 1px); background-size: 24px 24px;"></div>
+</div>
+<div class="absolute inset-0 flex items-center justify-center">
+<div class="relative w-full h-full p-4">
+<!-- Node Center -->
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-primary rounded-full flex items-center justify-center text-white ring-4 ring-primary/20 z-10">
+<span class="material-symbols-outlined">hub</span>
+</div>
+<!-- Orbit Nodes -->
+<div class="absolute top-1/4 left-1/4 w-8 h-8 bg-surface-container-highest border border-primary rounded-full"></div>
+<div class="absolute top-3/4 left-2/3 w-8 h-8 bg-surface-container-highest border border-primary rounded-full"></div>
+<div class="absolute top-1/2 left-4 w-8 h-8 bg-surface-container-highest border border-primary rounded-full"></div>
+<!-- Lines -->
+<svg class="absolute inset-0 w-full h-full pointer-events-none">
+<line stroke="#c7c5d2" stroke-width="1" x1="50%" x2="25%" y1="50%" y2="25%"></line>
+<line stroke="#c7c5d2" stroke-width="1" x1="50%" x2="66%" y1="50%" y2="75%"></line>
+<line stroke="#c7c5d2" stroke-width="1" x1="50%" x2="5%" y1="50%" y2="50%"></line>
+</svg>
+</div>
+</div>
+<div class="absolute bottom-4 left-4 right-4 bg-white/80 backdrop-blur p-3 rounded border border-outline-variant text-[11px] text-primary">
+                        正在同步 420 个子节点的层级结算权重...
+                    </div>
+</div>
+</div>
+</div>
+</main>
+<!-- Success Feedback Overlay (Hidden by default) -->
+<div class="fixed bottom-10 right-10 translate-y-20 opacity-0 transition-all duration-300 bg-status-success text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 z-[100]" id="toast">
+<span class="material-symbols-outlined">check_circle</span>
+<span class="font-bold">数据同步成功</span>
+</div>
+<script>
+        // Micro-interaction for sync button
+        const syncBtn = document.querySelector('button:has(.material-symbols-outlined:contains("sync"))') || document.querySelectorAll('button')[2];
+        const toast = document.getElementById('toast');
+
+        syncBtn.addEventListener('click', () => {
+            const icon = syncBtn.querySelector('.material-symbols-outlined');
+            icon.classList.add('animate-spin');
+            syncBtn.classList.add('opacity-50');
+            
+            setTimeout(() => {
+                icon.classList.remove('animate-spin');
+                syncBtn.classList.remove('opacity-50');
+                
+                // Show toast
+                toast.classList.remove('translate-y-20', 'opacity-0');
+                setTimeout(() => {
+                    toast.classList.add('translate-y-20', 'opacity-0');
+                }, 3000);
+            }, 1500);
+        });
+
+        // Countdown Timer Logic
+        let timeLeft = 14 * 3600 + 22 * 60 + 5;
+        const countdownEl = document.querySelector('.text-status-danger .font-label-md');
+        
+        setInterval(() => {
+            timeLeft--;
+            const hours = Math.floor(timeLeft / 3600);
+            const minutes = Math.floor((timeLeft % 3600) / 60);
+            const seconds = timeLeft % 60;
+            if (countdownEl) {
+                countdownEl.innerText = `结算截止倒计时: ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+        }, 1000);
+    </script>
+</body></html>
