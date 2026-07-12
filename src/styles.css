@@ -2586,6 +2586,72 @@ textarea:focus {
   height: 1px;
 }
 
+/* Dark task cards keep numeric data readable on their own theme surface. */
+.task-card {
+  border-color: var(--border);
+  background: var(--surface-low);
+  color: var(--text);
+}
+
+.task-card span,
+.task-card small {
+  color: var(--text-secondary);
+}
+
+.task-card strong {
+  color: var(--text);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-weight: 700;
+}
+
+:root[data-theme="dark"] .task-card {
+  background: var(--surface-high);
+}
+
+/* Identity icons are intentionally unframed to avoid oversized pill badges. */
+.level-badge,
+.level-badge.seed,
+.level-badge.normal,
+.level-badge.combined {
+  gap: 6px;
+  min-width: 0;
+  min-height: 28px;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.level-badge .level-main-icon {
+  width: 26px;
+  height: 26px;
+}
+
+.level-badge .level-main-icon + .level-main-icon {
+  margin-left: 0;
+  border-left: 1px solid var(--border-strong);
+  padding-left: 6px;
+}
+
+.level-badge .normal-icon {
+  color: var(--text-secondary);
+}
+
+.level-badge .seed-icon {
+  color: var(--success);
+}
+
+.level-badge .referral-icon {
+  color: color-mix(in srgb, var(--success) 70%, var(--info));
+}
+
+.level-phase {
+  right: -2px;
+  bottom: -2px;
+  border-color: var(--surface-card);
+}
+
 @media (max-width: 1120px) {
   .top-context span,
   .global-search {
