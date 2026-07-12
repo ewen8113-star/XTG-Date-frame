@@ -14,6 +14,8 @@
 - Dark seed-inside capture: `design-qa-assets/login-seed-inside-dark.png`
 - Light seed-inside capture: `design-qa-assets/login-seed-inside-light.png`
 - Cursor-alignment capture: `design-qa-assets/login-cursor-alignment-dark.png`
+- High-resolution dark capture: `design-qa-assets/login-hq-dark.png`
+- High-resolution light capture: `design-qa-assets/login-hq-light.png`
 - Captured viewport: 390 x 844 pixels.
 - State: dark theme, empty login form, interactive spotlight at its resting position.
 
@@ -29,6 +31,8 @@
 - The seed core is positioned just inside the glass panel's upper-left corner, with the fission branches extending beyond the panel into the full viewport.
 - The seed body is fully contained by the panel with an asymmetric upper-left placement; it is intentionally not centered in the form.
 - At 2048 x 1050, the artwork bounds extend beyond every viewport edge, horizontal overflow is absent, and no solid-color strip is exposed.
+- All four background layers now render from 3344 x 1882 AVIF assets, replacing 1672 x 941 source sampling without changing composition or interaction geometry.
+- The optimized high-resolution assets total about 1.7 MB, down from roughly 7.7 MB for the prior four PNG layers.
 - Responsive rules constrain the panel to `calc(100vw - 32px)` below 760 pixels and preserve safe-area spacing for fixed controls.
 - Browser viewport emulation reported desktop layout metrics correctly but continued emitting a 390 x 844 capture; responsive sizing was therefore also checked directly against the CSS constraints.
 

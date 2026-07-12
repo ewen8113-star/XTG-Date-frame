@@ -1,9 +1,9 @@
 import { Eye, EyeOff, LockKeyhole, Moon, Sun, UserRound } from "lucide-react";
 import { type CSSProperties, type FormEvent, useEffect, useRef, useState } from "react";
-import baseImageUrl from "../assets/login-network-dark-base-v2.png";
-import lightBaseImageUrl from "../assets/login-network-light-base.png";
-import lightRevealImageUrl from "../assets/login-network-light-reveal.png";
-import revealImageUrl from "../assets/login-network-dark-reveal-v2.png";
+import baseImageUrl from "../assets/login-network-dark-base-hq.avif";
+import revealImageUrl from "../assets/login-network-dark-reveal-hq.avif";
+import lightBaseImageUrl from "../assets/login-network-light-base-hq.avif";
+import lightRevealImageUrl from "../assets/login-network-light-reveal-hq.avif";
 
 type LoginScreenProps = {
   theme: "light" | "dark";
