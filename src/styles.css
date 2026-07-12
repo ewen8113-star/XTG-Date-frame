@@ -1987,6 +1987,8 @@ textarea {
 
 .brand-block {
   padding: 0 8px 6px;
+  justify-content: flex-start;
+  gap: 0;
 }
 
 .brand-logo {
@@ -2052,7 +2054,13 @@ textarea {
 
 .sidebar-note {
   border-color: var(--border);
-  background: var(--surface-low);
+  justify-content: flex-start;
+  min-height: auto;
+  border: 0;
+  padding: 0 8px;
+  background: transparent;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 11px;
 }
 
 .main {
@@ -2150,6 +2158,150 @@ textarea {
   background: var(--primary-container);
   color: #fff;
   font-weight: 700;
+}
+
+.account-menu-wrap {
+  position: relative;
+}
+
+.account-menu-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  border: 0;
+  border-radius: 8px;
+  padding: 3px 7px 3px 3px;
+  background: transparent;
+  color: var(--text);
+}
+
+.account-menu-trigger:hover,
+.account-menu-trigger[aria-expanded="true"] {
+  background: var(--surface-high);
+}
+
+.account-menu-name {
+  max-width: 140px;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-popover {
+  position: absolute;
+  z-index: 80;
+  top: calc(100% + 8px);
+  right: 0;
+  display: grid;
+  gap: 7px;
+  width: 280px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  background: var(--surface-card);
+  box-shadow: 0 18px 48px rgb(0 0 0 / 20%);
+}
+
+.account-popover > span {
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.account-popover p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.account-popover-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.account-popover-actions button {
+  min-height: 34px;
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-low);
+  color: var(--text);
+}
+
+.account-admin-list {
+  display: grid;
+  gap: 0;
+}
+
+.account-admin-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 76px;
+  border-top: 1px solid var(--border);
+  padding: 12px 0;
+}
+
+.account-admin-row:first-child {
+  border-top: 0;
+}
+
+.account-admin-identity,
+.account-admin-controls {
+  display: flex;
+  align-items: center;
+}
+
+.account-admin-identity {
+  gap: 12px;
+  min-width: 0;
+}
+
+.account-admin-identity > div,
+.account-admin-controls label {
+  display: grid;
+  gap: 5px;
+}
+
+.account-admin-identity span,
+.account-admin-controls label > span {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.account-admin-controls {
+  gap: 18px;
+}
+
+.account-admin-controls select {
+  min-width: 150px;
+  min-height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0 10px;
+  background: var(--surface-low);
+  color: var(--text);
+}
+
+.account-enabled-control {
+  grid-template-columns: auto 56px;
+  align-items: center;
+}
+
+.account-enabled-control input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary-container);
+}
+
+.finance-report-metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .page {
@@ -2689,8 +2841,20 @@ textarea:focus {
 
   .top-context span,
   .global-search,
-  .admin-avatar {
+  .account-menu-name,
+  .account-menu-trigger > svg {
     display: none;
+  }
+
+  .account-menu-trigger {
+    padding-right: 3px;
+  }
+
+  .account-popover {
+    position: fixed;
+    top: 62px;
+    right: 12px;
+    width: min(280px, calc(100vw - 24px));
   }
 
   .page {
@@ -2713,6 +2877,24 @@ textarea:focus {
   .workspace-summary,
   .audit-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .finance-report-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .account-admin-row,
+  .account-admin-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .account-admin-controls {
+    gap: 12px;
+  }
+
+  .account-admin-controls select {
+    width: 100%;
   }
 
   .metric-card {

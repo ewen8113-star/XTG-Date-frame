@@ -17,7 +17,6 @@ import {
   Moon,
   Search,
   Sprout,
-  Settings,
   ShieldCheck,
   Sun,
   Bell,
@@ -26,13 +25,14 @@ import {
   UserRound,
   Users,
   Upload,
+  UserCog,
   UsersRound,
   XCircle
 } from "lucide-react";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import logoUrl from "../stitch-assets/logo.png";
 import { LoginScreen } from "./components/LoginScreen";
 import { briefings, brokers, importBatches, referralNodes } from "./data/mockData";
+import { readAccounts, roleDescriptions, roleLabels, saveAccounts, type StoredAccount, type SystemRole } from "./lib/auth";
 import {
   isSourceInvalidForPublish,
   parseClawbackCycle,
@@ -40,7 +40,7 @@ import {
 } from "./lib/briefing-rules";
 import type { Briefing, Broker, BrokerLevelUpdate, EvidenceFile, ImportBatch, ReferralNode, ReviewStatus } from "./types";
 
-type PageKey = "dashboard" | "audit" | "stats" | "brokers" | "workspace" | "briefingReview" | "financePending" | "financePaid" | "system";
+type PageKey = "dashboard" | "audit" | "stats" | "brokers" | "workspace" | "briefingReview" | "financePending" | "financePaid" | "financeReport" | "system";
 type WorkspaceTab = "briefings" | "signedModels" | "level" | "network" | "settlement";
 type BrokerFilter = "all" | "normal" | "seed";
 type SeedPhaseFilter = "all" | "none" | `${number}`;
@@ -89,7 +89,7 @@ const navItems = [
   { key: "brokers" as const, label: "经纪人管理", icon: UsersRound },
   { key: "workspace" as const, label: "经纪人工作台", icon: BriefcaseBusiness },
   { key: "stats" as const, label: "数据与规则", icon: BarChart3 },
-  { key: "system" as const, label: "系统管理", icon: Settings }
+  { key: "system" as const, label: "账户管理", icon: UserCog }
 ];
 
 const reviewText: Record<ReviewStatus, string> = {
@@ -99,7 +99,7 @@ const reviewText: Record<ReviewStatus, string> = {
 };
 
 const viewStateKey = "xtg-review-admin-view-state";
-const pageKeys: PageKey[] = ["dashboard", "audit", "stats", "brokers", "workspace", "briefingReview", "financePending", "financePaid", "system"];
+const pageKeys: PageKey[] = ["dashboard", "audit", "stats", "brokers", "workspace", "briefingReview", "financePending", "financePaid", "financeReport", "system"];
 const workspaceTabs: WorkspaceTab[] = ["briefings", "signedModels", "level", "network", "settlement"];
 const seedPlanStartDate = new Date("2026-04-01T00:00:00");
 const pastCycleKey = "past";
@@ -642,7 +642,13 @@ export function App() {
   const [theme, setTheme] = useState<"light" | "dark">(() =>
     window.localStorage.getItem("xtg-theme") === "dark" ? "dark" : "light"
   );
-  const [isAuthenticated, setIsAuthenticated] = useState(() => window.sessionStorage.getItem("xtg-authenticated") === "true");
+  const [accounts, setAccounts] = useState<StoredAccount[]>(readAccounts);
+  const [currentAccountName, setCurrentAccountName] = useState(() => window.sessionStorage.getItem("xtg-current-account") ?? "");
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    const accountName = window.sessionStorage.getItem("xtg-current-account") ?? "";
+    return window.sessionStorage.getItem("xtg-authenticated") === "true" && readAccounts().some((account) => account.account === accountName && account.enabled);
+  });
+  const [profileOpen, setProfileOpen] = useState(false);
   const currentViewRef = useRef({
     page: savedViewState.page ?? "dashboard" as PageKey,
     selectedBrokerId: savedViewState.selectedBrokerId ?? brokers[0].id,
@@ -650,6 +656,19 @@ export function App() {
     workspaceTab: savedViewState.workspaceTab ?? "briefings" as WorkspaceTab,
     lastListPage: "brokers" as PageKey
   });
+  const currentAccount = accounts.find((account) => account.account === currentAccountName);
+  const currentRole = currentAccount?.role ?? "operations";
+  const canOperate = currentRole === "super_admin" || currentRole === "operations";
+  const canManageFinance = currentRole === "super_admin" || currentRole === "finance";
+  const visibleNavItems = navItems.filter((item) => item.key === "dashboard" || (item.key === "system" ? currentRole === "super_admin" : canOperate));
+  const mobileNavItems = currentRole === "finance"
+    ? [
+        navItems[0],
+        { key: "financePending" as const, label: "待付款", icon: WalletCards },
+        { key: "financePaid" as const, label: "已付款", icon: CheckCircle2 },
+        { key: "financeReport" as const, label: "财务报表", icon: BarChart3 }
+      ]
+    : visibleNavItems.slice(0, 4);
 
   const selectedBroker = useMemo(
     () => brokerRows.find((broker) => broker.id === selectedBrokerId) ?? brokerRows[0] ?? brokers[0],
@@ -702,6 +721,15 @@ export function App() {
     applyBrowserViewState(nextState);
     window.history.pushState(nextState, "", window.location.pathname);
   }
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const allowed = page === "dashboard"
+      || (canOperate && ["audit", "stats", "brokers", "workspace", "briefingReview"].includes(page))
+      || (canManageFinance && ["financePending", "financePaid", "financeReport"].includes(page))
+      || (currentRole === "super_admin" && page === "system");
+    if (!allowed) setPage(canManageFinance ? "financePending" : "dashboard");
+  }, [canManageFinance, canOperate, currentRole, isAuthenticated, page]);
 
   useEffect(() => {
     void refreshData();
@@ -859,13 +887,29 @@ export function App() {
     navigateToPage("financePaid");
   }
 
+  function updateSystemAccounts(nextAccounts: StoredAccount[]) {
+    saveAccounts(nextAccounts);
+    setAccounts(nextAccounts);
+  }
+
+  function logout() {
+    window.sessionStorage.removeItem("xtg-authenticated");
+    window.sessionStorage.removeItem("xtg-current-account");
+    setProfileOpen(false);
+    setCurrentAccountName("");
+    setIsAuthenticated(false);
+  }
+
   if (!isAuthenticated) {
     return (
       <LoginScreen
         theme={theme}
         onThemeChange={setTheme}
-        onLogin={() => {
+        onLogin={(accountName) => {
           window.sessionStorage.setItem("xtg-authenticated", "true");
+          window.sessionStorage.setItem("xtg-current-account", accountName);
+          setAccounts(readAccounts());
+          setCurrentAccountName(accountName);
           setIsAuthenticated(true);
         }}
       />
@@ -876,7 +920,6 @@ export function App() {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand-block">
-          <img alt="鑫通告" className="brand-logo" src={logoUrl} />
           <div>
             <div className="brand-name">鑫通告</div>
             <div className="brand-subtitle">运营结算后台</div>
@@ -884,7 +927,7 @@ export function App() {
         </div>
 
         <nav className="nav-list" aria-label="主导航">
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const Icon = item.icon;
             return (
               <button
@@ -898,7 +941,7 @@ export function App() {
               </button>
             );
           })}
-          <div className="nav-group">
+          {canManageFinance ? <div className="nav-group">
             <div className="nav-group-label">
               <WalletCards size={18} />
               <span>财务管理</span>
@@ -917,12 +960,18 @@ export function App() {
             >
               已付款订单
             </button>
-          </div>
+            <button
+              className={`nav-subitem ${page === "financeReport" ? "active" : ""}`}
+              onClick={() => navigateToPage("financeReport")}
+              type="button"
+            >
+              财务报表
+            </button>
+          </div> : null}
         </nav>
 
         <div className="sidebar-note">
-          <ShieldCheck size={18} />
-          <span>开发预览模式：暂不启用系统登录</span>
+          <span>ver 1.02</span>
         </div>
       </aside>
 
@@ -947,7 +996,24 @@ export function App() {
             >
               {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
             </button>
-            <span className="admin-avatar">运</span>
+            <div className="account-menu-wrap">
+              <button aria-expanded={profileOpen} className="account-menu-trigger" onClick={() => setProfileOpen((current) => !current)} type="button">
+                <span className="admin-avatar">{currentAccountName.slice(0, 1).toUpperCase()}</span>
+                <span className="account-menu-name">{currentAccountName}</span>
+                <ChevronDown size={15} />
+              </button>
+              {profileOpen && currentAccount ? (
+                <div className="account-popover">
+                  <strong>{currentAccount.account}</strong>
+                  <span>{roleLabels[currentAccount.role]}</span>
+                  <p>{roleDescriptions[currentAccount.role]}</p>
+                  <div className="account-popover-actions">
+                    {currentAccount.role === "super_admin" ? <button onClick={() => { setProfileOpen(false); navigateToPage("system"); }} type="button">账户管理</button> : null}
+                    <button onClick={logout} type="button">退出登录</button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
           </div>
         </header>
         {page === "dashboard" && (
@@ -1006,10 +1072,13 @@ export function App() {
             orders={financeOrders}
           />
         )}
-        {page === "system" && <SystemManagement />}
+        {page === "financeReport" && <FinanceReport orders={financeOrders} />}
+        {page === "system" && currentAccount && (
+          <SystemManagement accounts={accounts} currentAccount={currentAccount} onAccountsChange={updateSystemAccounts} />
+        )}
       </main>
       <nav aria-label="移动端主导航" className="mobile-bottom-nav">
-        {navItems.slice(0, 4).map((item) => {
+        {mobileNavItems.map((item) => {
           const Icon = item.icon;
           return (
             <button className={page === item.key ? "active" : ""} key={item.key} onClick={() => navigateToPage(item.key)} type="button">
@@ -3424,24 +3493,113 @@ function paginate<T>(rows: T[], page: number, pageSize = 10) {
   };
 }
 
-function SystemManagement() {
+function SystemManagement({
+  accounts,
+  currentAccount,
+  onAccountsChange
+}: {
+  accounts: StoredAccount[];
+  currentAccount: StoredAccount;
+  onAccountsChange: (accounts: StoredAccount[]) => void;
+}) {
+  function updateAccount(accountName: string, changes: Partial<Pick<StoredAccount, "role" | "enabled">>) {
+    onAccountsChange(accounts.map((account) => account.account === accountName ? { ...account, ...changes } : account));
+  }
+
   return (
     <section className="page">
       <PageHeader
-        eyebrow="System"
-        title="系统管理"
-        description="第一阶段不启用登录；这里先预留后台用户、角色和权限配置。"
+        eyebrow="Accounts"
+        title="账户管理"
+        description="管理使用运营结算后台的系统用户、职能与权限。这里的账户不包含经纪人。"
       />
       <section className="panel">
-        <PanelTitle icon={<Settings size={18} />} title="预留角色" />
+        <PanelTitle icon={<UserCog size={18} />} title="系统用户" />
+        <div className="account-admin-list">
+          {accounts.map((account) => {
+            const isSelf = account.account === currentAccount.account;
+            return (
+              <div className="account-admin-row" key={account.account}>
+                <div className="account-admin-identity">
+                  <span className="admin-avatar">{account.account.slice(0, 1).toUpperCase()}</span>
+                  <div>
+                    <strong>{account.account}{isSelf ? "（当前账号）" : ""}</strong>
+                    <span>注册于 {new Date(account.createdAt).toLocaleString("zh-CN", { hour12: false })}</span>
+                  </div>
+                </div>
+                <div className="account-admin-controls">
+                  <label>
+                    <span>职能</span>
+                    <select disabled={isSelf} onChange={(event) => updateAccount(account.account, { role: event.target.value as SystemRole })} value={account.role}>
+                      <option value="super_admin">超级管理员</option>
+                      <option value="operations">运营</option>
+                      <option value="finance">财务</option>
+                    </select>
+                  </label>
+                  <label className="account-enabled-control">
+                    <input checked={account.enabled} disabled={isSelf} onChange={(event) => updateAccount(account.account, { enabled: event.target.checked })} type="checkbox" />
+                    <span>{account.enabled ? "已启用" : "已停用"}</span>
+                  </label>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+      <section className="panel">
+        <PanelTitle icon={<ShieldCheck size={18} />} title="角色权限" />
         <div className="role-grid">
-          {["超级管理员", "运营", "客服", "财务", "只读账号"].map((role) => (
+          {(Object.keys(roleLabels) as SystemRole[]).map((role) => (
             <div className="role-card" key={role}>
-              <strong>{role}</strong>
-              <span>后续接入登录后启用</span>
+              <strong>{roleLabels[role]}</strong>
+              <span>{roleDescriptions[role]}</span>
             </div>
           ))}
         </div>
+      </section>
+    </section>
+  );
+}
+
+function FinanceReport({ orders }: { orders: FinanceOrder[] }) {
+  const paidOrders = orders.filter((order) => order.status === "paid");
+  const pendingOrders = orders.filter((order) => order.status === "pending");
+  const paidAmount = paidOrders.reduce((sum, order) => sum + order.amount, 0);
+  const pendingAmount = pendingOrders.reduce((sum, order) => sum + order.amount, 0);
+  const brokerRows = Array.from(new Set(orders.map((order) => order.brokerId))).map((brokerId) => {
+    const brokerOrders = orders.filter((order) => order.brokerId === brokerId);
+    return {
+      brokerId,
+      name: brokerOrders[0]?.brokerNickname ?? "-",
+      paidCount: brokerOrders.filter((order) => order.status === "paid").length,
+      paidAmount: brokerOrders.filter((order) => order.status === "paid").reduce((sum, order) => sum + order.amount, 0),
+      pendingCount: brokerOrders.filter((order) => order.status === "pending").length,
+      pendingAmount: brokerOrders.filter((order) => order.status === "pending").reduce((sum, order) => sum + order.amount, 0)
+    };
+  }).sort((left, right) => right.paidAmount - left.paidAmount);
+
+  return (
+    <section className="page">
+      <PageHeader eyebrow="Finance Report" title="财务报表" description="汇总结算付款单的待付、已付金额与经纪人结算情况。" />
+      <div className="metric-grid finance-report-metrics">
+        <MetricCard label="待付款金额" value={money(pendingAmount)} delta={`${pendingOrders.length} 笔待处理`} />
+        <MetricCard label="已付款金额" value={money(paidAmount)} delta={`${paidOrders.length} 笔已完成`} />
+        <MetricCard label="结算总额" value={money(pendingAmount + paidAmount)} delta={`${orders.length} 笔付款单`} />
+      </div>
+      <section className="panel">
+        <PanelTitle icon={<BarChart3 size={18} />} title="经纪人结算汇总" />
+        {brokerRows.length ? (
+          <table>
+            <thead><tr><th>经纪人</th><th>待付款</th><th>待付金额</th><th>已付款</th><th>已付金额</th></tr></thead>
+            <tbody>
+              {brokerRows.map((row) => (
+                <tr key={row.brokerId}>
+                  <td>{row.name}</td><td>{row.pendingCount}</td><td>{money(row.pendingAmount)}</td><td>{row.paidCount}</td><td>{money(row.paidAmount)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : <p className="empty-state">尚无结算付款单，运营提交后将在这里形成报表。</p>}
       </section>
     </section>
   );

@@ -1,0 +1,54 @@
+export type SystemRole = "super_admin" | "operations" | "finance";
+
+export type StoredAccount = {
+  account: string;
+  passwordHash: string;
+  salt: string;
+  createdAt: string;
+  role: SystemRole;
+  enabled: boolean;
+};
+
+export const accountStorageKey = "xtg-local-accounts";
+export const roleLabels: Record<SystemRole, string> = {
+  super_admin: "超级管理员",
+  operations: "运营",
+  finance: "财务"
+};
+
+export const roleDescriptions: Record<SystemRole, string> = {
+  super_admin: "管理系统账户、角色与全部业务权限",
+  operations: "审核通告与签约凭证，并提交经纪人结算付款单",
+  finance: "处理待付款订单、确认付款并查看财务报表"
+};
+
+export function readAccounts(): StoredAccount[] {
+  try {
+    const value = JSON.parse(window.localStorage.getItem(accountStorageKey) ?? "[]") as Partial<StoredAccount>[];
+    if (!Array.isArray(value)) return [];
+    return value
+      .filter((item): item is Partial<StoredAccount> & Pick<StoredAccount, "account" | "passwordHash" | "salt" | "createdAt"> =>
+        Boolean(item.account && item.passwordHash && item.salt && item.createdAt)
+      )
+      .map((item, index) => ({
+        account: item.account,
+        passwordHash: item.passwordHash,
+        salt: item.salt,
+        createdAt: item.createdAt,
+        role: item.role ?? (index === 0 ? "super_admin" : "operations"),
+        enabled: item.enabled ?? true
+      }));
+  } catch {
+    return [];
+  }
+}
+
+export function saveAccounts(accounts: StoredAccount[]) {
+  window.localStorage.setItem(accountStorageKey, JSON.stringify(accounts));
+}
+
+export async function hashPassword(password: string, salt: string) {
+  const bytes = new TextEncoder().encode(`${salt}:${password}`);
+  const digest = await window.crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}

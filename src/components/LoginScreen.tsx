@@ -4,11 +4,12 @@ import baseImageUrl from "../assets/login-network-dark-base-hq.avif";
 import revealImageUrl from "../assets/login-network-dark-reveal-hq.avif";
 import lightBaseImageUrl from "../assets/login-network-light-base-hq.avif";
 import lightRevealImageUrl from "../assets/login-network-light-reveal-hq.avif";
+import { hashPassword, readAccounts, saveAccounts, type StoredAccount } from "../lib/auth";
 
 type LoginScreenProps = {
   theme: "light" | "dark";
   onThemeChange: (theme: "light" | "dark") => void;
-  onLogin: () => void;
+  onLogin: (account: string) => void;
 };
 
 const loginArtworkStyle = {
@@ -19,30 +20,6 @@ const loginArtworkStyle = {
 } as CSSProperties;
 
 type AuthMode = "login" | "register";
-type StoredAccount = {
-  account: string;
-  passwordHash: string;
-  salt: string;
-  createdAt: string;
-};
-
-const accountStorageKey = "xtg-local-accounts";
-
-function readAccounts() {
-  try {
-    const value = JSON.parse(window.localStorage.getItem(accountStorageKey) ?? "[]") as StoredAccount[];
-    return Array.isArray(value) ? value : [];
-  } catch {
-    return [];
-  }
-}
-
-async function hashPassword(password: string, salt: string) {
-  const bytes = new TextEncoder().encode(`${salt}:${password}`);
-  const digest = await window.crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
 export function LoginScreen({ theme, onThemeChange, onLogin }: LoginScreenProps) {
   const artworkRef = useRef<HTMLDivElement>(null);
   const revealRef = useRef<HTMLDivElement>(null);
@@ -142,14 +119,21 @@ export function LoginScreen({ theme, onThemeChange, onLogin }: LoginScreenProps)
       setIsSubmitting(true);
       const salt = window.crypto.randomUUID();
       const passwordHash = await hashPassword(password, salt);
-      window.localStorage.setItem(accountStorageKey, JSON.stringify([
+      saveAccounts([
         ...accounts,
-        { account: normalizedAccount, passwordHash, salt, createdAt: new Date().toISOString() }
-      ] satisfies StoredAccount[]));
+        {
+          account: normalizedAccount,
+          passwordHash,
+          salt,
+          createdAt: new Date().toISOString(),
+          role: accounts.length === 0 ? "super_admin" : "operations",
+          enabled: true
+        }
+      ] satisfies StoredAccount[]);
       window.localStorage.setItem("xtg-last-account", normalizedAccount);
       window.setTimeout(() => {
         setIsSubmitting(false);
-        onLogin();
+        onLogin(normalizedAccount);
       }, 450);
       return;
     }
@@ -157,6 +141,10 @@ export function LoginScreen({ theme, onThemeChange, onLogin }: LoginScreenProps)
     const storedAccount = readAccounts().find((item) => item.account === normalizedAccount);
     if (!storedAccount) {
       setError("账号不存在，请先注册");
+      return;
+    }
+    if (!storedAccount.enabled) {
+      setError("该账号已停用，请联系超级管理员");
       return;
     }
     const passwordHash = await hashPassword(password, storedAccount.salt);
@@ -170,7 +158,7 @@ export function LoginScreen({ theme, onThemeChange, onLogin }: LoginScreenProps)
     else window.localStorage.removeItem("xtg-last-account");
     window.setTimeout(() => {
       setIsSubmitting(false);
-      onLogin();
+      onLogin(normalizedAccount);
     }, 450);
   }
 
