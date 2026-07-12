@@ -16,6 +16,7 @@
 - Cursor-alignment capture: `design-qa-assets/login-cursor-alignment-dark.png`
 - High-resolution dark capture: `design-qa-assets/login-hq-dark.png`
 - High-resolution light capture: `design-qa-assets/login-hq-light.png`
+- Registration capture: `design-qa-assets/login-register.png`
 - Captured viewport: 390 x 844 pixels.
 - State: dark theme, empty login form, interactive spotlight at its resting position.
 
@@ -33,12 +34,15 @@
 - At 2048 x 1050, the artwork bounds extend beyond every viewport edge, horizontal overflow is absent, and no solid-color strip is exposed.
 - All four background layers now render from 3344 x 1882 AVIF assets, replacing 1672 x 941 source sampling without changing composition or interaction geometry.
 - The optimized high-resolution assets total about 1.7 MB, down from roughly 7.7 MB for the prior four PNG layers.
+- The registration state fits within 1280 x 720 without horizontal or vertical overflow and preserves the existing glass, theme, and interactive-background treatment.
 - Responsive rules constrain the panel to `calc(100vw - 32px)` below 760 pixels and preserve safe-area spacing for fixed controls.
 - Browser viewport emulation reported desktop layout metrics correctly but continued emitting a 390 x 844 capture; responsive sizing was therefore also checked directly against the CSS constraints.
 
 ## Interaction Checks
 
 - Empty submit displays the required account/password validation message.
+- Registration validates account length, password length, duplicate accounts, and password confirmation before creating a local account.
+- When no local account exists, registration is selected by default; successful registration enters the existing application directly.
 - Password visibility control toggles without submitting the form.
 - Successful demo submission enters the existing application without altering its operational flows.
 - Light and dark theme controls update the login presentation.

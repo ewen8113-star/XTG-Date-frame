@@ -18,13 +18,40 @@ const loginArtworkStyle = {
   "--login-light-reveal": `url(${lightRevealImageUrl})`
 } as CSSProperties;
 
+type AuthMode = "login" | "register";
+type StoredAccount = {
+  account: string;
+  passwordHash: string;
+  salt: string;
+  createdAt: string;
+};
+
+const accountStorageKey = "xtg-local-accounts";
+
+function readAccounts() {
+  try {
+    const value = JSON.parse(window.localStorage.getItem(accountStorageKey) ?? "[]") as StoredAccount[];
+    return Array.isArray(value) ? value : [];
+  } catch {
+    return [];
+  }
+}
+
+async function hashPassword(password: string, salt: string) {
+  const bytes = new TextEncoder().encode(`${salt}:${password}`);
+  const digest = await window.crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 export function LoginScreen({ theme, onThemeChange, onLogin }: LoginScreenProps) {
   const artworkRef = useRef<HTMLDivElement>(null);
   const revealRef = useRef<HTMLDivElement>(null);
   const rawPointer = useRef({ x: 0.69, y: 0.52 });
   const smoothPointer = useRef({ x: 0.69, y: 0.52 });
-  const [account, setAccount] = useState("");
+  const [account, setAccount] = useState(() => window.localStorage.getItem("xtg-last-account") ?? "");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [authMode, setAuthMode] = useState<AuthMode>(() => readAccounts().length ? "login" : "register");
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState("");
@@ -79,14 +106,68 @@ export function LoginScreen({ theme, onThemeChange, onLogin }: LoginScreenProps)
     };
   }, []);
 
-  function submitLogin(event: FormEvent<HTMLFormElement>) {
+  function changeAuthMode(nextMode: AuthMode) {
+    setAuthMode(nextMode);
+    setPassword("");
+    setConfirmPassword("");
+    setError("");
+  }
+
+  async function submitLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!account.trim() || !password) {
       setError("请输入账号和密码");
       return;
     }
+    const normalizedAccount = account.trim().toLowerCase();
+    if (authMode === "register") {
+      if (normalizedAccount.length < 3) {
+        setError("账号至少需要 3 个字符");
+        return;
+      }
+      if (password.length < 6) {
+        setError("密码至少需要 6 个字符");
+        return;
+      }
+      if (password !== confirmPassword) {
+        setError("两次输入的密码不一致");
+        return;
+      }
+      const accounts = readAccounts();
+      if (accounts.some((item) => item.account === normalizedAccount)) {
+        setError("该账号已存在，请直接登录");
+        return;
+      }
+      setError("");
+      setIsSubmitting(true);
+      const salt = window.crypto.randomUUID();
+      const passwordHash = await hashPassword(password, salt);
+      window.localStorage.setItem(accountStorageKey, JSON.stringify([
+        ...accounts,
+        { account: normalizedAccount, passwordHash, salt, createdAt: new Date().toISOString() }
+      ] satisfies StoredAccount[]));
+      window.localStorage.setItem("xtg-last-account", normalizedAccount);
+      window.setTimeout(() => {
+        setIsSubmitting(false);
+        onLogin();
+      }, 450);
+      return;
+    }
+
+    const storedAccount = readAccounts().find((item) => item.account === normalizedAccount);
+    if (!storedAccount) {
+      setError("账号不存在，请先注册");
+      return;
+    }
+    const passwordHash = await hashPassword(password, storedAccount.salt);
+    if (passwordHash !== storedAccount.passwordHash) {
+      setError("账号或密码错误");
+      return;
+    }
     setError("");
     setIsSubmitting(true);
+    if (remember) window.localStorage.setItem("xtg-last-account", normalizedAccount);
+    else window.localStorage.removeItem("xtg-last-account");
     window.setTimeout(() => {
       setIsSubmitting(false);
       onLogin();
@@ -104,6 +185,11 @@ export function LoginScreen({ theme, onThemeChange, onLogin }: LoginScreenProps)
         <div className="login-content">
           <div className="login-heading">
             <h1>鑫通告运营结算后台</h1>
+          </div>
+
+          <div className="login-mode-switch" role="tablist" aria-label="账户操作">
+            <button aria-selected={authMode === "login"} className={authMode === "login" ? "active" : ""} onClick={() => changeAuthMode("login")} role="tab" type="button">登录</button>
+            <button aria-selected={authMode === "register"} className={authMode === "register" ? "active" : ""} onClick={() => changeAuthMode("register")} role="tab" type="button">注册</button>
           </div>
 
           <form className="login-form" onSubmit={submitLogin}>
@@ -124,15 +210,27 @@ export function LoginScreen({ theme, onThemeChange, onLogin }: LoginScreenProps)
                 </button>
               </span>
             </label>
-            <div className="login-options">
-              <label className="remember-option">
-                <input checked={remember} onChange={(event) => setRemember(event.target.checked)} type="checkbox" />
-                <span>记住账号</span>
+            {authMode === "register" ? (
+              <label>
+                <span>确认密码</span>
+                <span className="login-input">
+                  <LockKeyhole size={18} />
+                  <input autoComplete="new-password" onChange={(event) => setConfirmPassword(event.target.value)} placeholder="请再次输入密码" type={showPassword ? "text" : "password"} value={confirmPassword} />
+                </span>
               </label>
-              <button className="forgot-action" type="button">忘记密码？</button>
-            </div>
+            ) : (
+              <div className="login-options">
+                <label className="remember-option">
+                  <input checked={remember} onChange={(event) => setRemember(event.target.checked)} type="checkbox" />
+                  <span>记住账号</span>
+                </label>
+                <button className="forgot-action" onClick={() => setError("请联系系统管理员重置密码")} type="button">忘记密码？</button>
+              </div>
+            )}
             {error ? <p className="login-error" role="alert">{error}</p> : null}
-            <button className="login-submit" disabled={isSubmitting} type="submit">{isSubmitting ? "正在登录..." : "登录"}</button>
+            <button className="login-submit" disabled={isSubmitting} type="submit">
+              {isSubmitting ? (authMode === "register" ? "正在创建..." : "正在登录...") : (authMode === "register" ? "创建账号并进入" : "登录")}
+            </button>
           </form>
 
         </div>
