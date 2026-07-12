@@ -9,6 +9,8 @@
 - Form-region comparison: `design-qa-assets/login-form-comparison.png`
 - Light-theme final capture: `design-qa-assets/login-light-final.png`
 - Dark-theme final capture: `design-qa-assets/login-dark-final.png`
+- Ultra-wide dark capture: `design-qa-assets/login-wide-fullscreen-final.png`
+- Ultra-wide light capture: `design-qa-assets/login-wide-light-fullscreen-final.png`
 - Captured viewport: 390 x 844 pixels.
 - State: dark theme, empty login form, interactive spotlight at its resting position.
 
@@ -22,6 +24,7 @@
 - Light theme uses the same 20% glass treatment with brighter artwork and strengthened label/action contrast.
 - Light theme now has its own white, light-gray base artwork and matching charcoal reveal artwork instead of filtering the dark asset.
 - The seed core is positioned just inside the glass panel's upper-left corner, with the fission branches extending beyond the panel into the full viewport.
+- At 2048 x 1050, the artwork bounds extend beyond every viewport edge, horizontal overflow is absent, and no solid-color strip is exposed.
 - Responsive rules constrain the panel to `calc(100vw - 32px)` below 760 pixels and preserve safe-area spacing for fixed controls.
 - Browser viewport emulation reported desktop layout metrics correctly but continued emitting a 390 x 844 capture; responsive sizing was therefore also checked directly against the CSS constraints.
 

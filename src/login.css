@@ -16,7 +16,15 @@
 .login-artwork-base,
 .login-artwork-reveal {
   position: absolute;
+}
+
+.login-artwork {
   inset: 0;
+}
+
+.login-artwork-base,
+.login-artwork-reveal {
+  inset: -35% -25%;
 }
 
 .login-artwork {
@@ -30,7 +38,7 @@
   background-position: center;
   background-repeat: no-repeat;
   background-size: cover;
-  transform: scale(1.18) translate(-25%, -24%);
+  transform: translate(-230px, 67px);
 }
 
 .login-artwork-base {
@@ -247,7 +255,7 @@
 .login-screen.light .login-artwork-reveal {
   background-position: center;
   filter: none;
-  transform: scale(1.18) translate(-12%, -19%);
+  transform: translate(-180px, -170px);
 }
 
 .login-screen.light .login-artwork-base {
@@ -329,10 +337,15 @@
   }
 
   .login-artwork-base,
-  .login-artwork-reveal,
+  .login-artwork-reveal {
+    inset: -35% -50%;
+    transform: translate(calc(-50vw + 18px), 19px);
+  }
+
   .login-screen.light .login-artwork-base,
   .login-screen.light .login-artwork-reveal {
-    transform: scale(1.35) translate(-19%, -13%);
+    inset: -35% -50%;
+    transform: translate(calc(-50vw + 56px), -170px);
   }
 
   .login-theme {
