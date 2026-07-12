@@ -1,0 +1,243 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Broker {
+  id                 String             @id @default(cuid())
+  miniProgramUserId  String             @unique
+  nickname           String
+  wechatPhone        String?
+  boundPhone         String?
+  realNameStatus     RealNameStatus     @default(UNVERIFIED)
+  accountStatus      AccountStatus      @default(NORMAL)
+  brokerLevel        BrokerLevel        @default(NORMAL)
+  seedPhase          Int?
+  referralUnlocked   Boolean            @default(false)
+  registeredAt       DateTime?
+  lastLoginAt        DateTime?
+  violationCount     Int                @default(0)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  snapshots          BrokerSnapshot[]
+  briefings          Briefing[]
+  evidences          EvidenceFile[]
+  settlements        SettlementItem[]
+  refereeRelations   ReferralRelation[] @relation("Referee")
+  referrerRelations  ReferralRelation[] @relation("Referrer")
+  promotions         PromotionRecord[]
+}
+
+model ImportBatch {
+  id            String           @id @default(cuid())
+  title         String
+  source        ImportSource     @default(JARVIS_CHROME)
+  importedAt    DateTime         @default(now())
+  operatorName  String           @default("开发预览账号")
+  brokerCount   Int              @default(0)
+  briefingCount Int              @default(0)
+  notes         String?
+  brokerSnaps   BrokerSnapshot[]
+  briefingSnaps BriefingSnapshot[]
+}
+
+model BrokerSnapshot {
+  id                  String      @id @default(cuid())
+  brokerId            String
+  importBatchId       String
+  publishedBriefings  Int         @default(0)
+  completedBriefings  Int         @default(0)
+  signupTotalTimes    Int         @default(0)
+  contractTotalTimes  Int         @default(0)
+  signupTotalPeople   Int         @default(0)
+  contractTotalPeople Int         @default(0)
+  violationCount      Int         @default(0)
+  capturedAt          DateTime    @default(now())
+  broker              Broker      @relation(fields: [brokerId], references: [id])
+  importBatch         ImportBatch @relation(fields: [importBatchId], references: [id])
+
+  @@unique([brokerId, importBatchId])
+}
+
+model Briefing {
+  id                  String              @id @default(cuid())
+  jarvisBriefingId    String              @unique
+  brokerId            String
+  title               String
+  recruitmentType     String?
+  genderRequirement   String?
+  recruitCount        Int?
+  workAddress         String?
+  workStartAt         DateTime?
+  workEndAt           DateTime?
+  publishedAt         DateTime?
+  finishedAt          DateTime?
+  salaryText          String?
+  requirementText     String?             @db.Text
+  sourceStatus        String?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  broker              Broker              @relation(fields: [brokerId], references: [id])
+  snapshots           BriefingSnapshot[]
+  review              BriefingReview?
+  evidences           EvidenceFile[]
+  settlementItems     SettlementItem[]
+}
+
+model BriefingSnapshot {
+  id                    String      @id @default(cuid())
+  briefingId            String
+  importBatchId         String
+  signupTimes           Int         @default(0)
+  contractTimes         Int         @default(0)
+  signupPeople          Int         @default(0)
+  contractPeople        Int         @default(0)
+  sourceStatus          String?
+  capturedAt            DateTime    @default(now())
+  briefing              Briefing    @relation(fields: [briefingId], references: [id])
+  importBatch           ImportBatch @relation(fields: [importBatchId], references: [id])
+
+  @@unique([briefingId, importBatchId])
+}
+
+model BriefingReview {
+  id                   String       @id @default(cuid())
+  briefingId           String       @unique
+  validPublishStatus   ReviewStatus @default(PENDING)
+  validCompleteStatus  ReviewStatus @default(PENDING)
+  invalidReason        String?
+  reviewerName         String?
+  reviewedAt           DateTime?
+  isSameProjectLimited Boolean      @default(false)
+  isDailyLimitExceeded Boolean      @default(false)
+  isWeeklyLimitExceeded Boolean     @default(false)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  briefing             Briefing     @relation(fields: [briefingId], references: [id])
+}
+
+model EvidenceFile {
+  id          String   @id @default(cuid())
+  brokerId    String
+  briefingId  String?
+  fileName    String
+  fileUrl     String
+  fileType    String?
+  notes       String?
+  matchedAt   DateTime?
+  uploadedBy  String   @default("开发预览账号")
+  uploadedAt  DateTime @default(now())
+  broker      Broker   @relation(fields: [brokerId], references: [id])
+  briefing    Briefing? @relation(fields: [briefingId], references: [id])
+}
+
+model ReferralRelation {
+  id          String   @id @default(cuid())
+  referrerId  String
+  refereeId   String
+  bindPhone   String?
+  boundAt     DateTime @default(now())
+  operator    String   @default("开发预览账号")
+  notes       String?
+  referrer    Broker   @relation("Referrer", fields: [referrerId], references: [id])
+  referee     Broker   @relation("Referee", fields: [refereeId], references: [id])
+
+  @@unique([referrerId, refereeId])
+}
+
+model PromotionRecord {
+  id              String      @id @default(cuid())
+  brokerId        String
+  fromLevel       BrokerLevel
+  toLevel         BrokerLevel
+  reason          String
+  promotedAt      DateTime    @default(now())
+  operator        String      @default("开发预览账号")
+  broker          Broker      @relation(fields: [brokerId], references: [id])
+}
+
+model SettlementCycle {
+  id          String           @id @default(cuid())
+  title       String
+  weekStart   DateTime
+  weekEnd     DateTime
+  status      SettlementStatus @default(DRAFT)
+  createdAt   DateTime         @default(now())
+  items       SettlementItem[]
+}
+
+model SettlementItem {
+  id                    String          @id @default(cuid())
+  settlementCycleId      String
+  brokerId               String
+  briefingId             String?
+  itemType               SettlementType
+  quantity               Int             @default(1)
+  unitAmountCents        Int
+  totalAmountCents       Int
+  status                 SettlementItemStatus @default(PENDING_CONFIRMATION)
+  reason                 String?
+  createdAt              DateTime        @default(now())
+  cycle                  SettlementCycle @relation(fields: [settlementCycleId], references: [id])
+  broker                 Broker          @relation(fields: [brokerId], references: [id])
+  briefing               Briefing?       @relation(fields: [briefingId], references: [id])
+}
+
+enum RealNameStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  FAILED
+}
+
+enum AccountStatus {
+  NORMAL
+  LIMITED
+  TEMP_BANNED
+  PERM_BANNED
+}
+
+enum BrokerLevel {
+  NORMAL
+  SEED
+}
+
+enum ImportSource {
+  JARVIS_CHROME
+  MANUAL
+  EXCEL
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum SettlementStatus {
+  DRAFT
+  PREVIEW_SENT
+  DISPUTE_REVIEW
+  FINANCE_SUBMITTED
+  PAID
+  ARCHIVED
+}
+
+enum SettlementType {
+  VALID_PUBLISH
+  VALID_COMPLETE
+  REFERRAL_BASE
+  REFERRAL_INCREMENT
+}
+
+enum SettlementItemStatus {
+  PENDING_CONFIRMATION
+  CONFIRMED
+  DISPUTED
+  ADJUSTED
+  PAID
+}
