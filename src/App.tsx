@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import logoUrl from "../stitch-assets/logo.png";
+import { LoginScreen } from "./components/LoginScreen";
 import { briefings, brokers, importBatches, referralNodes } from "./data/mockData";
 import {
   isSourceInvalidForPublish,
@@ -641,6 +642,7 @@ export function App() {
   const [theme, setTheme] = useState<"light" | "dark">(() =>
     window.localStorage.getItem("xtg-theme") === "dark" ? "dark" : "light"
   );
+  const [isAuthenticated, setIsAuthenticated] = useState(() => window.sessionStorage.getItem("xtg-authenticated") === "true");
   const currentViewRef = useRef({
     page: savedViewState.page ?? "dashboard" as PageKey,
     selectedBrokerId: savedViewState.selectedBrokerId ?? brokers[0].id,
@@ -855,6 +857,19 @@ export function App() {
       )
     );
     navigateToPage("financePaid");
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <LoginScreen
+        theme={theme}
+        onThemeChange={setTheme}
+        onLogin={() => {
+          window.sessionStorage.setItem("xtg-authenticated", "true");
+          setIsAuthenticated(true);
+        }}
+      />
+    );
   }
 
   return (

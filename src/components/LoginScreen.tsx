@@ -1,0 +1,134 @@
+import { Eye, EyeOff, LockKeyhole, Moon, Sun, UserRound } from "lucide-react";
+import { type CSSProperties, type FormEvent, useEffect, useRef, useState } from "react";
+import baseImageUrl from "../assets/login-network-base.png";
+import revealImageUrl from "../assets/login-network-reveal.png";
+
+type LoginScreenProps = {
+  theme: "light" | "dark";
+  onThemeChange: (theme: "light" | "dark") => void;
+  onLogin: () => void;
+};
+
+const loginArtworkStyle = {
+  "--login-base": `url(${baseImageUrl})`,
+  "--login-reveal": `url(${revealImageUrl})`
+} as CSSProperties;
+
+export function LoginScreen({ theme, onThemeChange, onLogin }: LoginScreenProps) {
+  const artworkRef = useRef<HTMLDivElement>(null);
+  const rawPointer = useRef({ x: 0.69, y: 0.52 });
+  const smoothPointer = useRef({ x: 0.69, y: 0.52 });
+  const [account, setAccount] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [remember, setRemember] = useState(true);
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const artwork = artworkRef.current;
+    if (!artwork) return;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
+    let animationFrame = 0;
+    let startTime = performance.now();
+
+    function updatePointer(event: PointerEvent) {
+      const bounds = artwork!.getBoundingClientRect();
+      rawPointer.current = {
+        x: Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width)),
+        y: Math.max(0, Math.min(1, (event.clientY - bounds.top) / bounds.height))
+      };
+    }
+
+    function animate(time: number) {
+      if (coarsePointer && !reduceMotion) {
+        const elapsed = (time - startTime) / 1000;
+        rawPointer.current = {
+          x: 0.68 + Math.sin(elapsed * 0.42) * 0.17,
+          y: 0.52 + Math.cos(elapsed * 0.34) * 0.2
+        };
+      }
+      const easing = reduceMotion ? 1 : 0.11;
+      smoothPointer.current.x += (rawPointer.current.x - smoothPointer.current.x) * easing;
+      smoothPointer.current.y += (rawPointer.current.y - smoothPointer.current.y) * easing;
+      artwork!.style.setProperty("--spot-x", `${smoothPointer.current.x * 100}%`);
+      artwork!.style.setProperty("--spot-y", `${smoothPointer.current.y * 100}%`);
+      animationFrame = window.requestAnimationFrame(animate);
+    }
+
+    if (!coarsePointer) window.addEventListener("pointermove", updatePointer);
+    if (reduceMotion) startTime = 0;
+    animationFrame = window.requestAnimationFrame(animate);
+    return () => {
+      window.removeEventListener("pointermove", updatePointer);
+      window.cancelAnimationFrame(animationFrame);
+    };
+  }, []);
+
+  function submitLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!account.trim() || !password) {
+      setError("请输入账号和密码");
+      return;
+    }
+    setError("");
+    setIsSubmitting(true);
+    window.setTimeout(() => {
+      setIsSubmitting(false);
+      onLogin();
+    }, 450);
+  }
+
+  return (
+    <main className={`login-screen ${theme}`}>
+      <section className="login-shell">
+        <div className="login-artwork" ref={artworkRef} style={loginArtworkStyle} aria-hidden="true">
+          <div className="login-artwork-base" />
+          <div className="login-artwork-reveal" />
+        </div>
+
+        <div className="login-content">
+          <div className="login-heading">
+            <h1>鑫通告运营结算后台</h1>
+          </div>
+
+          <form className="login-form" onSubmit={submitLogin}>
+            <label>
+              <span>账号 / 手机号</span>
+              <span className="login-input">
+                <UserRound size={18} />
+                <input autoComplete="username" onChange={(event) => setAccount(event.target.value)} placeholder="请输入账号或手机号" value={account} />
+              </span>
+            </label>
+            <label>
+              <span>密码</span>
+              <span className="login-input">
+                <LockKeyhole size={18} />
+                <input autoComplete="current-password" onChange={(event) => setPassword(event.target.value)} placeholder="请输入密码" type={showPassword ? "text" : "password"} value={password} />
+                <button aria-label={showPassword ? "隐藏密码" : "显示密码"} onClick={() => setShowPassword((current) => !current)} type="button">
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </span>
+            </label>
+            <div className="login-options">
+              <label className="remember-option">
+                <input checked={remember} onChange={(event) => setRemember(event.target.checked)} type="checkbox" />
+                <span>记住账号</span>
+              </label>
+              <button className="forgot-action" type="button">忘记密码？</button>
+            </div>
+            {error ? <p className="login-error" role="alert">{error}</p> : null}
+            <button className="login-submit" disabled={isSubmitting} type="submit">{isSubmitting ? "正在登录..." : "登录"}</button>
+          </form>
+
+        </div>
+        <div className="login-theme" aria-label="主题模式">
+          <button aria-label="浅色模式" className={theme === "light" ? "active" : ""} onClick={() => onThemeChange("light")} title="浅色模式" type="button"><Sun size={18} /></button>
+          <button aria-label="深色模式" className={theme === "dark" ? "active" : ""} onClick={() => onThemeChange("dark")} title="深色模式" type="button"><Moon size={18} /></button>
+        </div>
+        <span className="login-version">ver 1.02</span>
+      </section>
+    </main>
+  );
+}
