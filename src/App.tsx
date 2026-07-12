@@ -2197,7 +2197,7 @@ function NetworkTab({
           <span className="graph-legend">上线 {referrers.length} · 直接下线 {relations.length}</span>
         </div>
         <div className="relationship-canvas">
-          <div className="graph-level">
+          <div className="graph-level graph-referrers">
             {referrers.map((node) => (
               <button className="relationship-node" key={node.id} onClick={() => openRelatedBroker(node)} type="button">
                 <span>我的上线</span><strong>{node.nickname}</strong><small>{node.validPublishCount} 条通告 · {node.validCompleteCount} 条签约</small>
@@ -2210,7 +2210,7 @@ function NetworkTab({
             <span>当前经纪人</span><strong>{broker.nickname}</strong><small>{broker.publishedBriefings}/6 通告 · {broker.completedBriefings}/2 签约</small>
           </button>
           <div className="graph-connector down" />
-          <div className="graph-level">
+          <div className="graph-level graph-relations">
             {relations.map((node) => (
               <button className="relationship-node" key={node.id} onClick={() => openRelatedBroker(node)} type="button">
                 <span>直接下线</span><strong>{node.nickname}</strong><small>{node.validPublishCount}/6 通告 · {node.validCompleteCount}/2 签约</small>
