@@ -47,6 +47,56 @@ export function saveAccounts(accounts: StoredAccount[]) {
   window.localStorage.setItem(accountStorageKey, JSON.stringify(accounts));
 }
 
+async function authRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(path, {
+    ...init,
+    headers: { "Content-Type": "application/json", ...init?.headers }
+  });
+  const value = await response.json() as T & { error?: string };
+  if (!response.ok) throw new Error(value.error ?? "账户服务请求失败");
+  return value;
+}
+
+export async function syncLocalAccounts() {
+  const localAccounts = readAccounts();
+  if (!localAccounts.length) return fetchAccounts();
+  const accounts = await authRequest<StoredAccount[]>("/api/auth/import-local", {
+    method: "POST",
+    body: JSON.stringify({ accounts: localAccounts })
+  });
+  saveAccounts(accounts);
+  return accounts;
+}
+
+export async function fetchAuthStatus() {
+  return authRequest<{ hasAccounts: boolean }>("/api/auth/status");
+}
+
+export async function registerRemoteAccount(account: string, password: string) {
+  return authRequest<StoredAccount>("/api/auth/register", {
+    method: "POST",
+    body: JSON.stringify({ account, password })
+  });
+}
+
+export async function loginRemoteAccount(account: string, password: string) {
+  return authRequest<StoredAccount>("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ account, password })
+  });
+}
+
+export async function fetchAccounts() {
+  return authRequest<StoredAccount[]>("/api/auth/accounts");
+}
+
+export async function updateRemoteAccount(account: string, changes: Partial<Pick<StoredAccount, "role" | "enabled">>) {
+  return authRequest<StoredAccount[]>(`/api/auth/accounts/${encodeURIComponent(account)}`, {
+    method: "PATCH",
+    body: JSON.stringify(changes)
+  });
+}
+
 export async function hashPassword(password: string, salt: string) {
   const bytes = new TextEncoder().encode(`${salt}:${password}`);
   const digest = await window.crypto.subtle.digest("SHA-256", bytes);

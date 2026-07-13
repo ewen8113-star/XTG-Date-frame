@@ -1,6 +1,7 @@
 import cors from "cors";
 import express from "express";
 import { execFile } from "node:child_process";
+import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -11,6 +12,7 @@ import { prisma } from "./prisma";
 const app = express();
 const port = Number(process.env.API_PORT ?? 3131);
 const uploadRoot = path.resolve(process.cwd(), "uploads");
+const accountFile = path.join(uploadRoot, "system-accounts.json");
 const execFileAsync = promisify(execFile);
 
 app.use(cors());
@@ -32,6 +34,115 @@ async function withFallback<T>(query: () => Promise<unknown>, fallback: T): Prom
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, service: "xtg-review-admin-api" });
+});
+
+type AuthRole = "super_admin" | "operations" | "finance";
+type AuthAccount = {
+  account: string;
+  passwordHash: string;
+  salt: string;
+  createdAt: string;
+  role: AuthRole;
+  enabled: boolean;
+};
+
+async function readAuthAccounts(): Promise<AuthAccount[]> {
+  try {
+    const value = JSON.parse(await fs.readFile(accountFile, "utf8")) as AuthAccount[];
+    return Array.isArray(value) ? value : [];
+  } catch {
+    return [];
+  }
+}
+
+async function writeAuthAccounts(accounts: AuthAccount[]) {
+  await fs.mkdir(uploadRoot, { recursive: true });
+  await fs.writeFile(accountFile, JSON.stringify(accounts, null, 2), "utf8");
+}
+
+function passwordDigest(password: string, salt: string) {
+  return createHash("sha256").update(`${salt}:${password}`).digest("hex");
+}
+
+app.get("/api/auth/status", async (_req, res) => {
+  res.json({ hasAccounts: (await readAuthAccounts()).length > 0 });
+});
+
+app.post("/api/auth/import-local", async (req, res) => {
+  const existing = await readAuthAccounts();
+  if (existing.length > 0) {
+    res.json(existing);
+    return;
+  }
+  const incoming = Array.isArray(req.body?.accounts) ? req.body.accounts : [];
+  const accounts: AuthAccount[] = incoming
+    .filter((item: any) => item?.account && item?.passwordHash && item?.salt && item?.createdAt)
+    .map((item: any, index: number) => ({
+      account: String(item.account).trim().toLowerCase(),
+      passwordHash: String(item.passwordHash),
+      salt: String(item.salt),
+      createdAt: String(item.createdAt),
+      role: index === 0 ? "super_admin" : item.role === "finance" ? "finance" : "operations",
+      enabled: item.enabled !== false
+    }));
+  if (accounts.length) await writeAuthAccounts(accounts);
+  res.json(accounts);
+});
+
+app.post("/api/auth/register", async (req, res) => {
+  const account = String(req.body?.account ?? "").trim().toLowerCase();
+  const password = String(req.body?.password ?? "");
+  const accounts = await readAuthAccounts();
+  if (account.length < 3 || password.length < 6) {
+    res.status(400).json({ error: "账号或密码不符合要求" });
+    return;
+  }
+  if (accounts.some((item) => item.account === account)) {
+    res.status(409).json({ error: "该账号已存在，请直接登录" });
+    return;
+  }
+  const salt = randomUUID();
+  const created: AuthAccount = {
+    account,
+    passwordHash: passwordDigest(password, salt),
+    salt,
+    createdAt: new Date().toISOString(),
+    role: accounts.length === 0 ? "super_admin" : "operations",
+    enabled: true
+  };
+  await writeAuthAccounts([...accounts, created]);
+  res.status(201).json(created);
+});
+
+app.post("/api/auth/login", async (req, res) => {
+  const account = String(req.body?.account ?? "").trim().toLowerCase();
+  const password = String(req.body?.password ?? "");
+  const found = (await readAuthAccounts()).find((item) => item.account === account);
+  if (!found || found.passwordHash !== passwordDigest(password, found.salt)) {
+    res.status(401).json({ error: "账号或密码错误" });
+    return;
+  }
+  if (!found.enabled) {
+    res.status(403).json({ error: "该账号已停用，请联系超级管理员" });
+    return;
+  }
+  res.json(found);
+});
+
+app.get("/api/auth/accounts", async (_req, res) => {
+  res.json(await readAuthAccounts());
+});
+
+app.patch("/api/auth/accounts/:account", async (req, res) => {
+  const accounts = await readAuthAccounts();
+  const accountName = String(req.params.account).toLowerCase();
+  const next = accounts.map((item) => item.account === accountName ? {
+    ...item,
+    role: (["super_admin", "operations", "finance"] as string[]).includes(req.body?.role) ? req.body.role as AuthRole : item.role,
+    enabled: typeof req.body?.enabled === "boolean" ? req.body.enabled : item.enabled
+  } : item);
+  await writeAuthAccounts(next);
+  res.json(next);
 });
 
 app.get("/api/dashboard", async (_req, res) => {

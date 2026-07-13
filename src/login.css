@@ -4,6 +4,7 @@
   overflow: hidden;
   background: #06142d;
   color: #f5f7ff;
+  -webkit-text-size-adjust: 100%;
 }
 
 .login-shell {
@@ -355,9 +356,20 @@
 @media (max-width: 760px) {
   .login-content {
     width: calc(100vw - 32px);
+    max-height: calc(100dvh - 32px);
     padding: 30px 24px 28px;
+    overflow-y: auto;
     background: rgb(3 13 31 / 28%);
     backdrop-filter: blur(18px) saturate(116%);
+    scrollbar-width: none;
+  }
+
+  .login-content::-webkit-scrollbar {
+    display: none;
+  }
+
+  .login-input input {
+    font-size: 16px;
   }
 
   .login-heading {

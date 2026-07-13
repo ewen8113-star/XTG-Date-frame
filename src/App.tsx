@@ -32,7 +32,7 @@ import {
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { LoginScreen } from "./components/LoginScreen";
 import { briefings, brokers, importBatches, referralNodes } from "./data/mockData";
-import { readAccounts, roleDescriptions, roleLabels, saveAccounts, type StoredAccount, type SystemRole } from "./lib/auth";
+import { readAccounts, roleDescriptions, roleLabels, saveAccounts, syncLocalAccounts, updateRemoteAccount, type StoredAccount, type SystemRole } from "./lib/auth";
 import {
   isSourceInvalidForPublish,
   parseClawbackCycle,
@@ -736,6 +736,14 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    if (!isAuthenticated) return;
+    void syncLocalAccounts().then((nextAccounts) => {
+      saveAccounts(nextAccounts);
+      setAccounts(nextAccounts);
+    }).catch(() => undefined);
+  }, [isAuthenticated]);
+
+  useEffect(() => {
     document.documentElement.dataset.theme = theme;
     window.localStorage.setItem("xtg-theme", theme);
   }, [theme]);
@@ -887,9 +895,16 @@ export function App() {
     navigateToPage("financePaid");
   }
 
-  function updateSystemAccounts(nextAccounts: StoredAccount[]) {
-    saveAccounts(nextAccounts);
-    setAccounts(nextAccounts);
+  async function updateSystemAccounts(nextAccounts: StoredAccount[]) {
+    const changed = nextAccounts.find((next) => {
+      const current = accounts.find((item) => item.account === next.account);
+      return current && (current.role !== next.role || current.enabled !== next.enabled);
+    });
+    const savedAccounts = changed
+      ? await updateRemoteAccount(changed.account, { role: changed.role, enabled: changed.enabled })
+      : nextAccounts;
+    saveAccounts(savedAccounts);
+    setAccounts(savedAccounts);
   }
 
   function logout() {

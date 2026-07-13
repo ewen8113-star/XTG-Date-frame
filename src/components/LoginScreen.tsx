@@ -4,7 +4,7 @@ import baseImageUrl from "../assets/login-network-dark-base-hq.avif";
 import revealImageUrl from "../assets/login-network-dark-reveal-hq.avif";
 import lightBaseImageUrl from "../assets/login-network-light-base-hq.avif";
 import lightRevealImageUrl from "../assets/login-network-light-reveal-hq.avif";
-import { hashPassword, readAccounts, saveAccounts, type StoredAccount } from "../lib/auth";
+import { fetchAuthStatus, loginRemoteAccount, readAccounts, registerRemoteAccount, saveAccounts, syncLocalAccounts } from "../lib/auth";
 
 type LoginScreenProps = {
   theme: "light" | "dark";
@@ -33,6 +33,15 @@ export function LoginScreen({ theme, onThemeChange, onLogin }: LoginScreenProps)
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    void syncLocalAccounts()
+      .then(() => fetchAuthStatus())
+      .then(({ hasAccounts }) => {
+        if (hasAccounts) setAuthMode("login");
+      })
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     const artwork = artworkRef.current;
@@ -117,19 +126,15 @@ export function LoginScreen({ theme, onThemeChange, onLogin }: LoginScreenProps)
       }
       setError("");
       setIsSubmitting(true);
-      const salt = window.crypto.randomUUID();
-      const passwordHash = await hashPassword(password, salt);
-      saveAccounts([
-        ...accounts,
-        {
-          account: normalizedAccount,
-          passwordHash,
-          salt,
-          createdAt: new Date().toISOString(),
-          role: accounts.length === 0 ? "super_admin" : "operations",
-          enabled: true
-        }
-      ] satisfies StoredAccount[]);
+      try {
+        await syncLocalAccounts();
+        const created = await registerRemoteAccount(normalizedAccount, password);
+        saveAccounts([...readAccounts().filter((item) => item.account !== created.account), created]);
+      } catch (registerError) {
+        setIsSubmitting(false);
+        setError(registerError instanceof Error ? registerError.message : "注册失败");
+        return;
+      }
       window.localStorage.setItem("xtg-last-account", normalizedAccount);
       window.setTimeout(() => {
         setIsSubmitting(false);
@@ -138,22 +143,17 @@ export function LoginScreen({ theme, onThemeChange, onLogin }: LoginScreenProps)
       return;
     }
 
-    const storedAccount = readAccounts().find((item) => item.account === normalizedAccount);
-    if (!storedAccount) {
-      setError("账号不存在，请先注册");
-      return;
-    }
-    if (!storedAccount.enabled) {
-      setError("该账号已停用，请联系超级管理员");
-      return;
-    }
-    const passwordHash = await hashPassword(password, storedAccount.salt);
-    if (passwordHash !== storedAccount.passwordHash) {
-      setError("账号或密码错误");
+    setIsSubmitting(true);
+    try {
+      await syncLocalAccounts();
+      const authenticated = await loginRemoteAccount(normalizedAccount, password);
+      saveAccounts([...readAccounts().filter((item) => item.account !== authenticated.account), authenticated]);
+    } catch (loginError) {
+      setIsSubmitting(false);
+      setError(loginError instanceof Error ? loginError.message : "登录失败");
       return;
     }
     setError("");
-    setIsSubmitting(true);
     if (remember) window.localStorage.setItem("xtg-last-account", normalizedAccount);
     else window.localStorage.removeItem("xtg-last-account");
     window.setTimeout(() => {
