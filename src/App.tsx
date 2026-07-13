@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   Sun,
   Bell,
+  BookOpen,
   Handshake,
   WalletCards,
   UserRound,
@@ -31,6 +32,7 @@ import {
 } from "lucide-react";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { LoginScreen } from "./components/LoginScreen";
+import { SystemGuide } from "./components/SystemGuide";
 import { briefings, brokers, importBatches, referralNodes } from "./data/mockData";
 import { readAccounts, roleDescriptions, roleLabels, saveAccounts, syncLocalAccounts, updateRemoteAccount, type StoredAccount, type SystemRole } from "./lib/auth";
 import {
@@ -40,7 +42,7 @@ import {
 } from "./lib/briefing-rules";
 import type { Briefing, Broker, BrokerLevelUpdate, EvidenceFile, ImportBatch, ReferralNode, ReviewStatus } from "./types";
 
-type PageKey = "dashboard" | "audit" | "stats" | "brokers" | "workspace" | "briefingReview" | "financePending" | "financePaid" | "financeReport" | "system";
+type PageKey = "dashboard" | "audit" | "stats" | "brokers" | "workspace" | "briefingReview" | "financePending" | "financePaid" | "financeReport" | "system" | "guide";
 type WorkspaceTab = "briefings" | "signedModels" | "level" | "network" | "settlement" | "paymentStatus";
 type BrokerFilter = "all" | "normal" | "seed";
 type SeedPhaseFilter = "all" | "none" | `${number}`;
@@ -101,7 +103,7 @@ const reviewText: Record<ReviewStatus, string> = {
 };
 
 const viewStateKey = "xtg-review-admin-view-state";
-const pageKeys: PageKey[] = ["dashboard", "audit", "stats", "brokers", "workspace", "briefingReview", "financePending", "financePaid", "financeReport", "system"];
+const pageKeys: PageKey[] = ["dashboard", "audit", "stats", "brokers", "workspace", "briefingReview", "financePending", "financePaid", "financeReport", "system", "guide"];
 const workspaceTabs: WorkspaceTab[] = ["briefings", "signedModels", "level", "network", "settlement", "paymentStatus"];
 const seedPlanStartDate = new Date("2026-04-01T00:00:00");
 const pastCycleKey = "past";
@@ -651,6 +653,8 @@ export function App() {
     return window.sessionStorage.getItem("xtg-authenticated") === "true" && readAccounts().some((account) => account.account === accountName && account.enabled);
   });
   const [profileOpen, setProfileOpen] = useState(false);
+  const [updatesOpen, setUpdatesOpen] = useState(false);
+  const [releaseDetailOpen, setReleaseDetailOpen] = useState(false);
   const currentViewRef = useRef({
     page: savedViewState.page ?? "dashboard" as PageKey,
     selectedBrokerId: savedViewState.selectedBrokerId ?? brokers[0].id,
@@ -726,7 +730,8 @@ export function App() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    const allowed = canOperate && ["dashboard", "audit", "stats", "brokers", "workspace", "briefingReview"].includes(page)
+    const allowed = page === "guide"
+      || canOperate && ["dashboard", "audit", "stats", "brokers", "workspace", "briefingReview"].includes(page)
       || (canManageFinance && ["financePending", "financePaid", "financeReport"].includes(page))
       || (currentRole === "super_admin" && page === "system");
     if (!allowed) setPage(canManageFinance ? "financePending" : "dashboard");
@@ -1021,7 +1026,7 @@ export function App() {
         </nav>
 
         <div className="sidebar-note">
-          <span>ver 1.02 (BY EWEN)</span>
+          <span>ver 1.03 (BY EWEN)</span>
         </div>
       </aside>
 
@@ -1036,7 +1041,32 @@ export function App() {
               <Search size={16} />
               <input aria-label="全局搜索" placeholder="搜索经纪人或通告 ID" />
             </label>
-            <button aria-label="通知" className="top-icon-button" title="通知" type="button"><Bell size={18} /></button>
+            <button aria-label="系统使用白皮书" className="top-icon-button" onClick={() => navigateToPage("guide")} title="系统使用白皮书" type="button">
+              <BookOpen size={18} />
+            </button>
+            <div className="updates-menu-wrap">
+              <button
+                aria-expanded={updatesOpen}
+                aria-label="版本更新"
+                className="top-icon-button notification-button"
+                onClick={() => setUpdatesOpen((current) => !current)}
+                title="版本更新"
+                type="button"
+              >
+                <Bell size={18} />
+                <span className="notification-dot" />
+              </button>
+              {updatesOpen ? (
+                <div className="updates-popover">
+                  <div className="updates-popover-heading"><strong>版本更新</strong><span>1 条</span></div>
+                  <button onClick={() => { setUpdatesOpen(false); setReleaseDetailOpen(true); }} type="button">
+                    <span className="update-version">ver 1.03</span>
+                    <strong>白皮书与协作流程更新</strong>
+                    <small>2026-07-13 · 点击查看详情</small>
+                  </button>
+                </div>
+              ) : null}
+            </div>
             <button
               aria-label={theme === "light" ? "切换暗色模式" : "切换亮色模式"}
               className="top-icon-button"
@@ -1125,10 +1155,32 @@ export function App() {
           />
         )}
         {page === "financeReport" && <FinanceReport orders={financeOrders} />}
+        {page === "guide" && <SystemGuide />}
         {page === "system" && currentAccount && (
           <SystemManagement accounts={accounts} currentAccount={currentAccount} onAccountsChange={updateSystemAccounts} />
         )}
       </main>
+      {releaseDetailOpen ? (
+        <div className="modal-backdrop" role="presentation">
+          <section aria-labelledby="release-title" aria-modal="true" className="notice-modal release-modal" role="dialog">
+            <div className="release-modal-heading">
+              <span>VER 1.03 · 2026-07-13</span>
+              <h2 id="release-title">版本更新详情</h2>
+            </div>
+            <div className="release-note-section feature">
+              <strong>功能更新</strong>
+              <p>新增系统使用白皮书与版本更新中心，并完善付款状态追踪、财务驳回和撤销重提的协作闭环。</p>
+            </div>
+            <div className="release-note-section fix">
+              <strong>Bug 修复</strong>
+              <p>修复移动端登录布局与账户同步、深色模式详情页、搜索框白底及多处界面交互适配问题。</p>
+            </div>
+            <div className="notice-modal-actions">
+              <button className="primary-action" onClick={() => setReleaseDetailOpen(false)} type="button">确认</button>
+            </div>
+          </section>
+        </div>
+      ) : null}
       <nav aria-label="移动端主导航" className="mobile-bottom-nav">
         {mobileNavItems.map((item) => {
           const Icon = item.icon;
