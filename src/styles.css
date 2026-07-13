@@ -2574,6 +2574,40 @@ textarea:focus {
   background: var(--surface);
 }
 
+.review-content-shell {
+  border-color: var(--border);
+  background: var(--surface-card);
+}
+
+.review-back-button {
+  border-color: var(--border);
+  background: var(--surface-card);
+  color: var(--text-secondary);
+}
+
+.review-back-button:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-low);
+  color: var(--text);
+}
+
+.review-page-header p,
+.video-meta span,
+.evidence-picker-item span,
+.signed-history-list div {
+  color: var(--text-secondary);
+}
+
+.xtg-detail-title span {
+  border-color: var(--border);
+  color: var(--text-secondary);
+}
+
+.matched-list,
+.signed-history-list {
+  border-color: var(--border);
+}
+
 .review-content-scroll {
   background: var(--surface-canvas);
 }
