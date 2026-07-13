@@ -2957,7 +2957,18 @@ textarea:focus {
 }
 
 .global-search input {
+  border-color: transparent !important;
+  outline: 0 !important;
   background: transparent !important;
+  box-shadow: none !important;
+}
+
+.global-search input:focus,
+.global-search input:focus-visible {
+  border-color: transparent !important;
+  outline: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .metric-card,
