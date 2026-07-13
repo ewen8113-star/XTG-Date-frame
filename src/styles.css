@@ -2440,6 +2440,11 @@ textarea {
   font-family: "JetBrains Mono", ui-monospace, monospace;
 }
 
+.xtg-detail-card .info-item strong {
+  font-family: inherit;
+  font-weight: 400;
+}
+
 .panel-title,
 .panel-title h2,
 .xtg-detail-card h3,
