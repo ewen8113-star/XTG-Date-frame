@@ -21,6 +21,7 @@ import {
   Sun,
   Bell,
   BookOpen,
+  Trash2,
   Handshake,
   WalletCards,
   UserRound,
@@ -2045,6 +2046,8 @@ function BriefingTab({
   const [statusTone, setStatusTone] = useState<"neutral" | "success" | "error">("neutral");
   const [importNotice, setImportNotice] = useState<{ message: string; tone: "success" | "error" } | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [pageNumber, setPageNumber] = useState(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const page = paginate(items, pageNumber);
@@ -2104,6 +2107,30 @@ function BriefingTab({
     return nextItems;
   }
 
+  async function clearBriefings() {
+    setIsClearing(true);
+    setStatus("");
+    try {
+      const response = await fetch(`/api/brokers/${broker.id}/briefings`, { method: "DELETE" });
+      const result = await response.json() as { deletedCount?: number; error?: string };
+      if (!response.ok) {
+        setStatusTone("error");
+        setStatus(result.error ?? "清除通告失败");
+        return;
+      }
+      onBriefingsChange((current) => current.filter((item) => item.brokerId !== broker.id));
+      setPageNumber(1);
+      setStatusTone("success");
+      setStatus(`已清除 ${result.deletedCount ?? 0} 条通告，可重新导入`);
+      setShowClearConfirm(false);
+    } catch {
+      setStatusTone("error");
+      setStatus("清除通告失败，请稍后重试");
+    } finally {
+      setIsClearing(false);
+    }
+  }
+
   function chooseEvidenceFiles() {
     fileInputRef.current?.click();
   }
@@ -2148,6 +2175,15 @@ function BriefingTab({
           </select>
           <button className="secondary-action" onClick={() => void refreshBriefings()} type="button">刷新</button>
           <button className="secondary-action" onClick={chooseEvidenceFiles} type="button"><Upload size={16} />上传凭证库</button>
+          <button
+            className="secondary-action danger-action"
+            disabled={isClearing || allItems.length === 0}
+            onClick={() => setShowClearConfirm(true)}
+            title="测试功能：清除当前经纪人的通告数据"
+            type="button"
+          >
+            <Trash2 size={16} />清除通告
+          </button>
           <button className="primary-action" disabled={isImporting} onClick={createBriefingImport} type="button"><Upload size={16} />{isImporting ? "导入中..." : "导入通告数据"}</button>
         </div>
       </div>
@@ -2165,6 +2201,23 @@ function BriefingTab({
             <p>{importNotice.message}</p>
             <div className="drawer-actions notice-modal-actions">
               <button className="primary-action" onClick={() => setImportNotice(null)} type="button">确定</button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+      {showClearConfirm ? (
+        <div className="modal-backdrop" role="presentation">
+          <section aria-labelledby="clear-briefings-title" aria-modal="true" className="notice-modal warning" role="dialog">
+            <h2 id="clear-briefings-title">清除当前经纪人的通告？</h2>
+            <p>
+              将清除 {broker.nickname} 已导入的 {allItems.length} 条通告、审核记录和关联结算条目。
+              已上传的视频凭证会保留在凭证库，但会解除与旧通告的匹配。此操作仅用于测试，且无法撤销。
+            </p>
+            <div className="drawer-actions notice-modal-actions">
+              <button className="secondary-action" disabled={isClearing} onClick={() => setShowClearConfirm(false)} type="button">取消</button>
+              <button className="secondary-action danger-action" disabled={isClearing} onClick={() => void clearBriefings()} type="button">
+                <Trash2 size={16} />{isClearing ? "正在清除..." : "确认清除"}
+              </button>
             </div>
           </section>
         </div>

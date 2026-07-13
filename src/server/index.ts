@@ -266,6 +266,37 @@ app.get("/api/brokers/:id/briefings", async (req, res) => {
   res.json(data);
 });
 
+app.delete("/api/brokers/:id/briefings", async (req, res) => {
+  try {
+    const broker = await prisma.broker.findUnique({ where: { id: req.params.id }, select: { id: true } });
+    if (!broker) {
+      res.status(404).json({ error: "经纪人不存在" });
+      return;
+    }
+    const briefingIds = (await prisma.briefing.findMany({
+      where: { brokerId: broker.id },
+      select: { id: true }
+    })).map((item) => item.id);
+    if (!briefingIds.length) {
+      res.json({ deletedCount: 0 });
+      return;
+    }
+    await prisma.$transaction([
+      prisma.evidenceFile.updateMany({
+        where: { briefingId: { in: briefingIds } },
+        data: { briefingId: null, matchedAt: null }
+      }),
+      prisma.settlementItem.deleteMany({ where: { briefingId: { in: briefingIds } } }),
+      prisma.briefingReview.deleteMany({ where: { briefingId: { in: briefingIds } } }),
+      prisma.briefingSnapshot.deleteMany({ where: { briefingId: { in: briefingIds } } }),
+      prisma.briefing.deleteMany({ where: { id: { in: briefingIds } } })
+    ]);
+    res.json({ deletedCount: briefingIds.length });
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : "清除通告失败" });
+  }
+});
+
 app.get("/api/brokers/:id/evidences", async (req, res) => {
   try {
     const evidences = await prisma.evidenceFile.findMany({
