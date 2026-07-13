@@ -353,6 +353,15 @@ app.post("/api/brokers/:id/referrals", async (req, res) => {
       return;
     }
 
+    const existingReferrer = await prisma.referralRelation.findFirst({
+      where: { refereeId: referee.id },
+      include: { referrer: { select: { nickname: true } } }
+    });
+    if (existingReferrer && existingReferrer.referrerId !== referrer.id) {
+      res.status(409).json({ error: `该经纪人已关联上线 ${existingReferrer.referrer.nickname}，不能重复关联其他上线` });
+      return;
+    }
+
     const inheritedPhase = referrer.seedPhase ?? 1;
     await prisma.referralRelation.upsert({
       where: {
@@ -532,20 +541,49 @@ app.patch("/api/briefings/:id/review", async (req, res) => {
       return;
     }
 
+    let isDailyLimitExceeded = false;
+    let isWeeklyLimitExceeded = false;
+    if (validPublishStatus === "APPROVED" && briefing.publishedAt) {
+      const publishedAt = new Date(briefing.publishedAt);
+      const dayStart = new Date(publishedAt.getFullYear(), publishedAt.getMonth(), publishedAt.getDate());
+      const seedPlanStart = new Date("2026-04-01T00:00:00");
+      const weekIndex = Math.max(0, Math.floor((dayStart.getTime() - seedPlanStart.getTime()) / (7 * 86400000)));
+      const weekStart = new Date(seedPlanStart.getTime() + weekIndex * 7 * 86400000);
+      const approvedFilter = {
+        brokerId: briefing.brokerId,
+        id: { not: briefing.id },
+        review: { validPublishStatus: "APPROVED" as const }
+      };
+      const [dailyApprovedCount, weeklyApprovedCount] = await Promise.all([
+        prisma.briefing.count({ where: { ...approvedFilter, publishedAt: { gte: dayStart, lt: publishedAt } } }),
+        prisma.briefing.count({ where: { ...approvedFilter, publishedAt: { gte: weekStart, lt: publishedAt } } })
+      ]);
+      isDailyLimitExceeded = dailyApprovedCount >= 3;
+      isWeeklyLimitExceeded = weeklyApprovedCount >= 12;
+    }
+
+    const isPublishCandidate = isDailyLimitExceeded || isWeeklyLimitExceeded;
+    const storedPublishStatus = isPublishCandidate ? "PENDING" : validPublishStatus;
+    const storedCompleteStatus = storedPublishStatus === "APPROVED" ? validCompleteStatus : "PENDING";
+
     await prisma.briefingReview.upsert({
       where: { briefingId: req.params.id },
       update: {
-        validPublishStatus,
-        validCompleteStatus,
+        validPublishStatus: storedPublishStatus,
+        validCompleteStatus: storedCompleteStatus,
         invalidReason,
+        isDailyLimitExceeded,
+        isWeeklyLimitExceeded,
         reviewerName: "开发预览账号",
         reviewedAt: new Date()
       },
       create: {
         briefingId: req.params.id,
-        validPublishStatus,
-        validCompleteStatus,
+        validPublishStatus: storedPublishStatus,
+        validCompleteStatus: storedCompleteStatus,
         invalidReason,
+        isDailyLimitExceeded,
+        isWeeklyLimitExceeded,
         reviewerName: "开发预览账号",
         reviewedAt: new Date()
       }

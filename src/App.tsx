@@ -299,6 +299,52 @@ function effectivePublishStatus(briefing: Briefing): ReviewStatus {
   return "pending";
 }
 
+const dailyPublishRewardLimit = 3;
+const weeklyPublishRewardLimit = 12;
+
+function calendarDayKey(value: string) {
+  const timestamp = dateValue(value);
+  if (!timestamp) return "";
+  const date = new Date(timestamp);
+  return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+}
+
+function buildPublishCapState(briefings: Briefing[]) {
+  const eligibleApprovedIds = new Set<string>();
+  const cappedIds = new Set<string>();
+  const dailyCounts = new Map<string, number>();
+  const weeklyCounts = new Map<string, number>();
+
+  [...briefings]
+    .sort((left, right) => dateValue(left.publishedAt) - dateValue(right.publishedAt) || left.id.localeCompare(right.id))
+    .forEach((briefing) => {
+      const status = effectivePublishStatus(briefing);
+      if (status === "rejected") return;
+      const dayKey = `${briefing.brokerId}:${calendarDayKey(briefing.publishedAt)}`;
+      const weekKey = `${briefing.brokerId}:${weekCycleForDate(briefing.publishedAt).key}`;
+      const dailyCount = dailyCounts.get(dayKey) ?? 0;
+      const weeklyCount = weeklyCounts.get(weekKey) ?? 0;
+      const capped = dailyCount >= dailyPublishRewardLimit || weeklyCount >= weeklyPublishRewardLimit;
+      if (capped) {
+        cappedIds.add(briefing.id);
+        return;
+      }
+      if (status === "approved") {
+        eligibleApprovedIds.add(briefing.id);
+        dailyCounts.set(dayKey, dailyCount + 1);
+        weeklyCounts.set(weekKey, weeklyCount + 1);
+      }
+    });
+
+  return { eligibleApprovedIds, cappedIds };
+}
+
+function cappedPublishStatus(briefing: Briefing, briefings: Briefing[]): ReviewStatus {
+  const status = effectivePublishStatus(briefing);
+  if (status !== "approved") return status;
+  return buildPublishCapState(briefings).eligibleApprovedIds.has(briefing.id) ? "approved" : "pending";
+}
+
 function needsAdminEvidenceReview(briefing: Briefing) {
   if (sourceRejected(briefing)) return false;
   if (hasEvidenceDispute(briefing)) return true;
@@ -326,15 +372,22 @@ function publishReviewLabel(briefing: Briefing) {
   return undefined;
 }
 
-function signingStatusLabel(row: Pick<RewardCompleteRow, "briefing" | "newModels" | "bonusEligible">) {
-  if (effectivePublishStatus(row.briefing) === "rejected") return "不通过";
+function cappedPublishLabel(briefing: Briefing, briefings: Briefing[]) {
+  if (buildPublishCapState(briefings).cappedIds.has(briefing.id)) return "候选待定";
+  return publishReviewLabel(briefing);
+}
+
+function signingStatusLabel(row: Pick<RewardCompleteRow, "briefing" | "newModels" | "bonusEligible" | "publishStatus">) {
+  if (row.publishStatus === "rejected") return "不通过";
+  if (row.publishStatus === "pending") return "候选待定";
   if (row.briefing.contractPeople > 0 && row.newModels.length === 0) return "签约者重复";
   return reviewText[effectiveCompleteStatus(row)];
 }
 
-function effectiveCompleteStatus(row: Pick<RewardCompleteRow, "briefing" | "newModels" | "bonusEligible">): ReviewStatus {
-  const publishStatus = effectivePublishStatus(row.briefing);
+function effectiveCompleteStatus(row: Pick<RewardCompleteRow, "briefing" | "newModels" | "bonusEligible"> & { publishStatus?: ReviewStatus }): ReviewStatus {
+  const publishStatus = row.publishStatus ?? effectivePublishStatus(row.briefing);
   if (publishStatus === "rejected") return "rejected";
+  if (publishStatus === "pending") return "pending";
   if (row.briefing.validCompleteStatus === "rejected") return "rejected";
   if (row.briefing.contractPeople > 0 && row.newModels.length === 0) return "rejected";
   if (row.briefing.validCompleteStatus === "approved" && !row.briefing.reviewedAt) return "pending";
@@ -347,6 +400,7 @@ type RewardCompleteRow = {
   newModels: ReturnType<typeof parseSignedModelName>[];
   repeatedModels: ReturnType<typeof parseSignedModelName>[];
   publishApproved: boolean;
+  publishStatus: ReviewStatus;
   completeApproved: boolean;
   bonusEligible: boolean;
   reason: string;
@@ -432,12 +486,15 @@ function buildSignedModelSummary(briefings: Briefing[]) {
 
 function buildRewardProfile(briefings: Briefing[], cycleKey?: string) {
   const orderedBriefings = [...briefings].sort((left, right) => dateValue(left.publishedAt) - dateValue(right.publishedAt));
+  const publishCapState = buildPublishCapState(orderedBriefings);
   const signedHistory = new Set<string>();
   const completeRows: RewardCompleteRow[] = orderedBriefings.map((briefing) => {
     const models = signedModelsForBriefing(briefing);
     const newModels = models.filter((model) => !signedHistory.has(model.key));
     const repeatedModels = models.filter((model) => signedHistory.has(model.key));
-    const publishApproved = effectivePublishStatus(briefing) === "approved";
+    const rawPublishStatus = effectivePublishStatus(briefing);
+    const publishStatus = rawPublishStatus === "approved" && !publishCapState.eligibleApprovedIds.has(briefing.id) ? "pending" : rawPublishStatus;
+    const publishApproved = publishStatus === "approved";
     const completeApproved = briefing.validCompleteStatus === "approved" && Boolean(briefing.reviewedAt);
     const bonusEligible = publishApproved && completeApproved && newModels.length > 0;
     models.forEach((model) => signedHistory.add(model.key));
@@ -446,6 +503,7 @@ function buildRewardProfile(briefings: Briefing[], cycleKey?: string) {
       newModels,
       repeatedModels,
       publishApproved,
+      publishStatus,
       completeApproved,
       bonusEligible,
       reason: bonusEligible
@@ -457,7 +515,7 @@ function buildRewardProfile(briefings: Briefing[], cycleKey?: string) {
   });
   const scopedBriefings = cycleKey ? orderedBriefings.filter((briefing) => weekCycleForDate(briefing.publishedAt).key === cycleKey) : orderedBriefings;
   const scopedIds = new Set(scopedBriefings.map((briefing) => briefing.id));
-  const validPublishBriefings = scopedBriefings.filter((briefing) => effectivePublishStatus(briefing) === "approved");
+  const validPublishBriefings = scopedBriefings.filter((briefing) => publishCapState.eligibleApprovedIds.has(briefing.id));
   const clawbackBriefings = buildClawbackBriefings(orderedBriefings, cycleKey);
   const bonusCompleteRows = completeRows.filter((row) => scopedIds.has(row.briefing.id) && row.bonusEligible);
   return {
@@ -475,7 +533,7 @@ function buildRewardProfile(briefings: Briefing[], cycleKey?: string) {
 function buildReviewSummary(briefings: Briefing[]) {
   const rewardProfile = buildRewardProfile(briefings);
   const completeRows = rewardProfile.completeRows;
-  const pendingPublishCount = briefings.filter((briefing) => effectivePublishStatus(briefing) === "pending").length;
+  const pendingPublishCount = completeRows.filter((row) => row.publishStatus === "pending").length;
   const pendingCompleteCount = completeRows.filter((row) => effectiveCompleteStatus(row) === "pending").length;
   const rejectedPublishCount = briefings.filter((briefing) => effectivePublishStatus(briefing) === "rejected").length;
   const rejectedCompleteCount = completeRows.filter((row) => effectiveCompleteStatus(row) === "rejected").length;
@@ -1061,7 +1119,7 @@ export function App() {
                   <div className="updates-popover-heading"><strong>版本更新</strong><span>1 条</span></div>
                   <button onClick={() => { setUpdatesOpen(false); setReleaseDetailOpen(true); }} type="button">
                     <span className="update-version">ver 1.03</span>
-                    <strong>白皮书与协作流程更新</strong>
+                    <strong>白皮书与奖励规则更新</strong>
                     <small>2026-07-13 · 点击查看详情</small>
                   </button>
                 </div>
@@ -1169,7 +1227,7 @@ export function App() {
             </div>
             <div className="release-note-section feature">
               <strong>功能更新</strong>
-              <p>新增系统使用白皮书与版本更新中心，并完善付款状态追踪、财务驳回和撤销重提的协作闭环。</p>
+              <p>新增系统白皮书与版本更新中心，并完善唯一上线、有效通告候选递补、付款状态追踪和财务驳回协作规则。</p>
             </div>
             <div className="release-note-section fix">
               <strong>Bug 修复</strong>
@@ -1212,7 +1270,7 @@ function AuditCenter({
     const broker = brokersData.find((entry) => entry.id === item.brokerId);
     const matchesQuery = !query || `${item.title} ${item.jarvisBriefingId} ${broker?.nickname ?? ""}`.toLowerCase().includes(query.toLowerCase());
     if (!matchesQuery) return false;
-    if (filter === "pending") return effectivePublishStatus(item) === "pending" || effectiveCompleteStatus(rewardRows.get(item.id) ?? { briefing: item, newModels: [], bonusEligible: false }) === "pending";
+    if (filter === "pending") return cappedPublishStatus(item, briefingsData) === "pending" || effectiveCompleteStatus(rewardRows.get(item.id) ?? { briefing: item, newModels: [], bonusEligible: false }) === "pending";
     if (filter === "evidence") return needsAdminEvidenceReview(item) && !hasMatchedEvidence(item);
     if (filter === "dispute") return hasEvidenceDispute(item);
     return true;
@@ -1252,7 +1310,7 @@ function AuditCenter({
                     <td data-label="通告"><div className="user-cell"><strong>{item.title}</strong><span>{broker?.nickname ?? "-"} · #{item.jarvisBriefingId}</span></div></td>
                     <td data-label="发布时间">{item.publishedAt}</td>
                     <td data-label="凭证"><span className={`status-pill ${item.evidenceCount ? "success" : "warning"}`}>{item.evidenceCount ? `${item.evidenceCount} 个` : "待补充"}</span></td>
-                    <td data-label="有效通告"><ReviewBadge label={publishReviewLabel(item)} status={effectivePublishStatus(item)} /></td>
+                    <td data-label="有效通告"><ReviewBadge label={cappedPublishLabel(item, briefingsData)} status={cappedPublishStatus(item, briefingsData)} /></td>
                     <td data-label="新增签约"><ReviewBadge label={completeRow ? signingStatusLabel(completeRow) : "待核验"} status={completeRow ? effectiveCompleteStatus(completeRow) : "pending"} /></td>
                     <td data-label="风险">{hasEvidenceDispute(item) ? <span className="status-pill danger">凭证异议</span> : <span className="muted">正常</span>}</td>
                     <td data-label="操作"><button className="secondary-action compact-action" onClick={() => onOpenBriefing(item)} type="button">进入审核</button></td>
@@ -2115,7 +2173,7 @@ function BriefingTab({
                   ) : null}
                 </div>
               </td>
-              <td><ReviewBadge label={publishReviewLabel(item)} status={effectivePublishStatus(item)} /></td>
+              <td><ReviewBadge label={cappedPublishLabel(item, allItems)} status={rewardRowsByBriefingId.get(item.id)?.publishStatus ?? cappedPublishStatus(item, allItems)} /></td>
               <td>
                 {rewardRowsByBriefingId.get(item.id) ? (
                   <ReviewBadge
@@ -2910,8 +2968,10 @@ function BriefingReviewPage({
   const newSignedModelNames = signedReviewRows.filter((row) => row.isNew);
   const repeatedSignedModelNames = signedReviewRows.filter((row) => !row.isNew);
   const initialModelMismatchKeys = useMemo(() => signedModelMismatchKeys(item.invalidReason), [item.invalidReason]);
-  const currentRewardRow = buildRewardProfile(briefingsData.filter((briefing) => briefing.brokerId === item.brokerId)).completeRows.find((row) => row.briefing.id === item.id);
-  const initialPublishStatus = sourceInvalid ? "rejected" as ReviewStatus : effectivePublishStatus(item);
+  const brokerBriefings = briefingsData.filter((briefing) => briefing.brokerId === item.brokerId);
+  const publishCapBlocked = buildPublishCapState(brokerBriefings).cappedIds.has(item.id);
+  const currentRewardRow = buildRewardProfile(brokerBriefings).completeRows.find((row) => row.briefing.id === item.id);
+  const initialPublishStatus = sourceInvalid ? "rejected" as ReviewStatus : currentRewardRow?.publishStatus ?? effectivePublishStatus(item);
   const initialCompleteStatus = sourceInvalid
     ? "rejected" as ReviewStatus
     : currentRewardRow
@@ -3235,7 +3295,7 @@ function BriefingReviewPage({
             <p>{broker.nickname} · #{item.jarvisBriefingId} · {item.sourceStatus}</p>
           </div>
           <div className="inline-actions">
-            <ReviewBadge status={effectivePublishStatus(item)} />
+            <ReviewBadge label={cappedPublishLabel(item, brokerBriefings)} status={currentRewardRow?.publishStatus ?? cappedPublishStatus(item, brokerBriefings)} />
             {currentRewardRow ? (
               <ReviewBadge label={signingStatusLabel(currentRewardRow)} status={effectiveCompleteStatus(currentRewardRow)} />
             ) : (
@@ -3476,12 +3536,15 @@ function BriefingReviewPage({
           ) : (
             <p className="form-status">仅对待审核通告进行凭证审核；进行中且跨周发布的通告，可在发布当周结算日凭凭证判定为有效。</p>
           )}
+          {publishCapBlocked ? (
+            <p className="form-status warning-status">该通告已超出每日 3 条或每周 12 条有效通告上限，当前作为奖励候选待定；前序通告审核不通过并释放名额后，方可继续审核。</p>
+          ) : null}
           <div className="review-form">
             <label>
               <span>有效通告</span>
               <select
-                disabled={sourceInvalid}
-                value={sourceInvalid ? "rejected" : reviewDraft.validPublishStatus}
+                disabled={sourceInvalid || publishCapBlocked}
+                value={sourceInvalid ? "rejected" : publishCapBlocked ? "pending" : reviewDraft.validPublishStatus}
                 onChange={(event) => setReviewDraft({ ...reviewDraft, validPublishStatus: event.target.value as ReviewStatus })}
               >
                 <option value="pending">待审核</option>

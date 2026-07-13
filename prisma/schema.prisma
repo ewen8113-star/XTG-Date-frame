@@ -147,6 +147,7 @@ model ReferralRelation {
   referee     Broker   @relation("Referee", fields: [refereeId], references: [id])
 
   @@unique([referrerId, refereeId])
+  @@unique([refereeId])
 }
 
 model PromotionRecord {

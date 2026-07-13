@@ -40,7 +40,6 @@ export function SystemGuide() {
 
       <section className="guide-section">
         <div className="guide-section-heading">
-          <span>01</span>
           <div><h2>核心工作流程</h2><p>建议新用户按以下顺序完成一次完整操作。</p></div>
         </div>
         <div className="guide-flow" aria-label="核心工作流程">
@@ -57,12 +56,12 @@ export function SystemGuide() {
       <div className="guide-columns">
         <section className="guide-section">
           <div className="guide-section-heading">
-            <span>02</span>
             <div><h2>审核操作要点</h2><p>审核结果会直接影响奖励与付款。</p></div>
           </div>
           <div className="guide-checklist">
-            <GuideCheck title="有效通告" text="先核对来源状态，再检查上传视频与通告内容是否一致；仅待人工核验的记录需要给出结论。" />
-            <GuideCheck title="新增签约" text="以签约者用户 ID 和历史订单为依据判重，资料不符时先标记，避免重复计奖。" />
+            <GuideCheck title="有效通告发布" text="来源状态有效、视频凭证与通告内容一致且人工审核通过后，才进入奖励名额；每日最多 3 条、每周最多 12 条，超出部分作为候选待定，前序记录不通过后按发布时间顺序递补。" />
+            <GuideCheck title="有效新增签约" text="通告先满足有效发布，签约者资料通过人工核验，并且用户 ID 未出现在历史合作订单中，才计为有效新增；身份不符或历史重复均不计奖。" />
+            <GuideCheck title="上下级关系" text="每位经纪人只能关联一个直接上线；已有上线时不能改绑其他上线，但仍可在获得引荐权限后继续发展自己的直接下线。" />
             <GuideCheck title="费用结算" text="确认周期、奖励明细和抵扣金额后再提交；沟通有变时可撤销付款并重新审核提报。" />
             <GuideCheck title="财务驳回" text="运营在付款状态中查看驳回理由，修正通告或费用后重新提交付款单。" />
           </div>
@@ -70,7 +69,6 @@ export function SystemGuide() {
 
         <section className="guide-section">
           <div className="guide-section-heading">
-            <span>03</span>
             <div><h2>角色分工</h2><p>页面与操作权限随账号角色变化。</p></div>
           </div>
           <div className="guide-role-list">
@@ -83,7 +81,6 @@ export function SystemGuide() {
 
       <section className="guide-section">
         <div className="guide-section-heading">
-          <span>04</span>
           <div><h2>页面速查</h2><p>不知道从哪里开始时，可按任务选择入口。</p></div>
         </div>
         <div className="guide-map">

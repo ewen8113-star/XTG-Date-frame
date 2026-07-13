@@ -3201,13 +3201,6 @@ textarea:focus {
   gap: 12px;
 }
 
-.guide-section-heading > span {
-  color: var(--primary);
-  font-family: "JetBrains Mono", ui-monospace, monospace;
-  font-size: 12px;
-  font-weight: 800;
-}
-
 .guide-section-heading h2 {
   margin-bottom: 3px;
   font-size: 19px;
@@ -3236,12 +3229,26 @@ textarea:focus {
 .guide-step:not(:last-child)::after {
   position: absolute;
   z-index: 2;
-  top: 31px;
-  right: -18px;
-  width: 22px;
-  height: 1px;
+  top: 50%;
+  right: -19px;
+  width: 24px;
+  height: 2px;
   background: var(--primary);
   content: "";
+  transform: translateY(-50%);
+}
+
+.guide-step:not(:last-child)::before {
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  right: -19px;
+  width: 7px;
+  height: 7px;
+  border-top: 2px solid var(--primary);
+  border-right: 2px solid var(--primary);
+  content: "";
+  transform: translateY(-50%) rotate(45deg);
 }
 
 .guide-step:hover {
@@ -3349,6 +3356,10 @@ textarea:focus {
   .guide-step:nth-child(2)::after {
     display: none;
   }
+
+  .guide-step:nth-child(2)::before {
+    display: none;
+  }
 }
 
 @media (max-width: 760px) {
@@ -3439,7 +3450,8 @@ textarea:focus {
     min-height: auto;
   }
 
-  .guide-step::after {
+  .guide-step::after,
+  .guide-step::before {
     display: none;
   }
 
