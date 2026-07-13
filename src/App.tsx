@@ -700,6 +700,7 @@ export function App() {
   );
   const [financeOrders, setFinanceOrders] = useState<FinanceOrder[]>(() => savedViewState.financeOrders ?? []);
   const [lastListPage, setLastListPage] = useState<PageKey>("brokers");
+  const [brokerListPage, setBrokerListPage] = useState(1);
   const [selectedBriefingId, setSelectedBriefingId] = useState(savedViewState.selectedBriefingId ?? "");
   const [theme, setTheme] = useState<"light" | "dark">(() =>
     window.localStorage.getItem("xtg-theme") === "dark" ? "dark" : "light"
@@ -1170,7 +1171,15 @@ export function App() {
           />
         )}
         {page === "stats" && <Stats brokersData={brokerRows} briefingsData={briefingRows} />}
-        {page === "brokers" && <BrokerList brokersData={brokerRows} onOpenBroker={openBroker} onRefresh={refreshData} />}
+        {page === "brokers" && (
+          <BrokerList
+            brokersData={brokerRows}
+            onOpenBroker={openBroker}
+            onPageChange={setBrokerListPage}
+            onRefresh={refreshData}
+            pageNumber={brokerListPage}
+          />
+        )}
         {page === "workspace" && (
           <BrokerWorkspace
             broker={selectedBroker}
@@ -1593,10 +1602,14 @@ function Stats({ brokersData, briefingsData }: { brokersData: Broker[]; briefing
 function BrokerList({
   brokersData,
   onOpenBroker,
+  onPageChange,
+  pageNumber,
   onRefresh
 }: {
   brokersData: Broker[];
   onOpenBroker: (broker: Broker) => void;
+  onPageChange: (page: number) => void;
+  pageNumber: number;
   onRefresh: () => Promise<void>;
 }) {
   const [filter, setFilter] = useState<BrokerFilter>("all");
@@ -1605,7 +1618,6 @@ function BrokerList({
   const [importStatus, setImportStatus] = useState("");
   const [importTone, setImportTone] = useState<"neutral" | "success" | "error">("neutral");
   const [isImporting, setIsImporting] = useState(false);
-  const [pageNumber, setPageNumber] = useState(1);
 
   const filteredBrokers = brokersData.filter((broker) => {
     const matchesFilter =
@@ -1627,10 +1639,6 @@ function BrokerList({
     return matchesFilter && matchesSeedPhase && matchesKeyword;
   });
   const brokerPage = paginate(filteredBrokers, pageNumber);
-
-  useEffect(() => {
-    setPageNumber(1);
-  }, [filter, seedPhaseFilter, keyword]);
 
   function exportBrokers() {
     const header = ["昵称", "用户ID", "绑定手机号", "微信手机号", "实名", "级别", "种子期数", "引荐权限", "注册时间", "最后登录", "发布通告", "完成通告", "报名人次", "签约人次", "报名人数", "签约人数", "账号状态"];
@@ -1705,15 +1713,15 @@ function BrokerList({
         <div className="table-toolbar">
           <div className="broker-filter-cluster">
             <div className="segmented">
-              <button className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")} type="button">全部</button>
-              <button className={filter === "normal" ? "active" : ""} onClick={() => setFilter("normal")} type="button">普通经纪人</button>
-              <button className={filter === "seed" ? "active" : ""} onClick={() => setFilter("seed")} type="button">种子经纪人</button>
+              <button className={filter === "all" ? "active" : ""} onClick={() => { setFilter("all"); onPageChange(1); }} type="button">全部</button>
+              <button className={filter === "normal" ? "active" : ""} onClick={() => { setFilter("normal"); onPageChange(1); }} type="button">普通经纪人</button>
+              <button className={filter === "seed" ? "active" : ""} onClick={() => { setFilter("seed"); onPageChange(1); }} type="button">种子经纪人</button>
             </div>
             {filter === "seed" ? (
               <div className="seed-phase-filter derived-filter" aria-label="种子期数筛选">
-                <button className={seedPhaseFilter === "all" ? "active" : ""} onClick={() => setSeedPhaseFilter("all")} type="button">全部</button>
+                <button className={seedPhaseFilter === "all" ? "active" : ""} onClick={() => { setSeedPhaseFilter("all"); onPageChange(1); }} type="button">全部</button>
                 {[1, 2, 3, 4, 5, 6].map((phase) => (
-                  <button className={seedPhaseFilter === String(phase) ? "active" : ""} key={phase} onClick={() => setSeedPhaseFilter(String(phase) as SeedPhaseFilter)} title={`第${phase}期种子经纪人`} type="button">
+                  <button className={seedPhaseFilter === String(phase) ? "active" : ""} key={phase} onClick={() => { setSeedPhaseFilter(String(phase) as SeedPhaseFilter); onPageChange(1); }} title={`第${phase}期种子经纪人`} type="button">
                     <Sprout size={16} /><span>{phase}</span>
                   </button>
                 ))}
@@ -1722,7 +1730,7 @@ function BrokerList({
           </div>
           <input
             className="search-input"
-            onChange={(event) => setKeyword(event.target.value)}
+            onChange={(event) => { setKeyword(event.target.value); onPageChange(1); }}
             placeholder="搜索手机号 / 昵称 / 用户ID"
             value={keyword}
           />
@@ -1774,7 +1782,7 @@ function BrokerList({
           pageSize={brokerPage.pageSize}
           total={filteredBrokers.length}
           totalPages={brokerPage.totalPages}
-          onPageChange={setPageNumber}
+          onPageChange={onPageChange}
         />
       </section>
     </section>
