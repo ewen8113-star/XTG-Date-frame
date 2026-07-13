@@ -117,6 +117,32 @@ function dateValue(value: string) {
   return Number.isNaN(date.getTime()) ? 0 : date.getTime();
 }
 
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("无法读取头像文件"));
+    reader.onerror = () => reject(new Error("无法读取头像文件"));
+    reader.readAsDataURL(file);
+  });
+}
+
+function AccountAvatar({ account, fallback = "" }: { account?: StoredAccount; fallback?: string }) {
+  const initial = (account?.account ?? fallback).slice(0, 1).toUpperCase();
+  return (
+    <span className="admin-avatar">
+      {initial}
+      {account?.avatarUrl ? (
+        <img
+          alt=""
+          key={account.avatarUrl}
+          onError={(event) => { event.currentTarget.style.display = "none"; }}
+          src={account.avatarUrl}
+        />
+      ) : null}
+    </span>
+  );
+}
+
 function cleanRequirement(value: string) {
   return (value || "-").split("报名列表")[0].split("签约列表")[0].replace(/^要求描述\s*/, "").trim() || "-";
 }
@@ -987,6 +1013,12 @@ export function App() {
     setAccounts(savedAccounts);
   }
 
+  async function updateSystemAccountAvatar(accountName: string, avatarDataUrl: string) {
+    const savedAccounts = await updateRemoteAccount(accountName, { avatarDataUrl });
+    saveAccounts(savedAccounts);
+    setAccounts(savedAccounts);
+  }
+
   function logout() {
     window.sessionStorage.removeItem("xtg-authenticated");
     window.sessionStorage.removeItem("xtg-current-account");
@@ -1137,7 +1169,7 @@ export function App() {
             </button>
             <div className="account-menu-wrap">
               <button aria-expanded={profileOpen} className="account-menu-trigger" onClick={() => setProfileOpen((current) => !current)} type="button">
-                <span className="admin-avatar">{currentAccountName.slice(0, 1).toUpperCase()}</span>
+                <AccountAvatar account={currentAccount} fallback={currentAccountName} />
                 <span className="account-menu-name">{currentAccountName}</span>
                 <ChevronDown size={15} />
               </button>
@@ -1224,7 +1256,12 @@ export function App() {
         {page === "financeReport" && <FinanceReport orders={financeOrders} />}
         {page === "guide" && <SystemGuide />}
         {page === "system" && currentAccount && (
-          <SystemManagement accounts={accounts} currentAccount={currentAccount} onAccountsChange={updateSystemAccounts} />
+          <SystemManagement
+            accounts={accounts}
+            currentAccount={currentAccount}
+            onAccountsChange={updateSystemAccounts}
+            onAvatarChange={updateSystemAccountAvatar}
+          />
         )}
       </main>
       {releaseDetailOpen ? (
@@ -3710,14 +3747,45 @@ function paginate<T>(rows: T[], page: number, pageSize = 10) {
 function SystemManagement({
   accounts,
   currentAccount,
-  onAccountsChange
+  onAccountsChange,
+  onAvatarChange
 }: {
   accounts: StoredAccount[];
   currentAccount: StoredAccount;
   onAccountsChange: (accounts: StoredAccount[]) => void;
+  onAvatarChange: (accountName: string, avatarDataUrl: string) => Promise<void>;
 }) {
+  const [avatarStatus, setAvatarStatus] = useState<Record<string, string>>({});
+  const [uploadingAccount, setUploadingAccount] = useState("");
+
   function updateAccount(accountName: string, changes: Partial<Pick<StoredAccount, "role" | "enabled">>) {
     onAccountsChange(accounts.map((account) => account.account === accountName ? { ...account, ...changes } : account));
+  }
+
+  async function uploadAvatar(accountName: string, file?: File) {
+    if (!file) return;
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+      setAvatarStatus((current) => ({ ...current, [accountName]: "仅支持 PNG、JPG 或 WebP 格式" }));
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setAvatarStatus((current) => ({ ...current, [accountName]: "头像文件不能超过 2MB" }));
+      return;
+    }
+    setUploadingAccount(accountName);
+    setAvatarStatus((current) => ({ ...current, [accountName]: "" }));
+    try {
+      const avatarDataUrl = await readFileAsDataUrl(file);
+      await onAvatarChange(accountName, avatarDataUrl);
+      setAvatarStatus((current) => ({ ...current, [accountName]: "头像已更新" }));
+    } catch (error) {
+      setAvatarStatus((current) => ({
+        ...current,
+        [accountName]: error instanceof Error ? error.message : "头像上传失败"
+      }));
+    } finally {
+      setUploadingAccount("");
+    }
   }
 
   return (
@@ -3735,10 +3803,24 @@ function SystemManagement({
             return (
               <div className="account-admin-row" key={account.account}>
                 <div className="account-admin-identity">
-                  <span className="admin-avatar">{account.account.slice(0, 1).toUpperCase()}</span>
+                  <AccountAvatar account={account} />
                   <div>
                     <strong>{account.account}{isSelf ? "（当前账号）" : ""}</strong>
                     <span>注册于 {new Date(account.createdAt).toLocaleString("zh-CN", { hour12: false })}</span>
+                    <label className="avatar-upload-action">
+                      <Upload size={14} />
+                      <span>{uploadingAccount === account.account ? "上传中..." : account.avatarUrl ? "更换头像" : "上传头像"}</span>
+                      <input
+                        accept="image/png,image/jpeg,image/webp"
+                        disabled={Boolean(uploadingAccount)}
+                        onChange={(event) => {
+                          void uploadAvatar(account.account, event.target.files?.[0]);
+                          event.target.value = "";
+                        }}
+                        type="file"
+                      />
+                    </label>
+                    {avatarStatus[account.account] ? <span className="avatar-upload-status">{avatarStatus[account.account]}</span> : null}
                   </div>
                 </div>
                 <div className="account-admin-controls">

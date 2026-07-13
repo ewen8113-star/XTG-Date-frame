@@ -2,6 +2,7 @@ export type SystemRole = "super_admin" | "operations" | "finance";
 
 export type StoredAccount = {
   account: string;
+  avatarUrl?: string;
   passwordHash: string;
   salt: string;
   createdAt: string;
@@ -32,6 +33,7 @@ export function readAccounts(): StoredAccount[] {
       )
       .map((item, index) => ({
         account: item.account,
+        avatarUrl: typeof item.avatarUrl === "string" ? item.avatarUrl : undefined,
         passwordHash: item.passwordHash,
         salt: item.salt,
         createdAt: item.createdAt,
@@ -90,7 +92,10 @@ export async function fetchAccounts() {
   return authRequest<StoredAccount[]>("/api/auth/accounts");
 }
 
-export async function updateRemoteAccount(account: string, changes: Partial<Pick<StoredAccount, "role" | "enabled">>) {
+export async function updateRemoteAccount(
+  account: string,
+  changes: Partial<Pick<StoredAccount, "role" | "enabled">> & { avatarDataUrl?: string }
+) {
   return authRequest<StoredAccount[]>(`/api/auth/accounts/${encodeURIComponent(account)}`, {
     method: "PATCH",
     body: JSON.stringify(changes)

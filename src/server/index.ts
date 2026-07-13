@@ -39,6 +39,7 @@ app.get("/api/health", (_req, res) => {
 type AuthRole = "super_admin" | "operations" | "finance";
 type AuthAccount = {
   account: string;
+  avatarUrl?: string;
   passwordHash: string;
   salt: string;
   createdAt: string;
@@ -79,6 +80,7 @@ app.post("/api/auth/import-local", async (req, res) => {
     .filter((item: any) => item?.account && item?.passwordHash && item?.salt && item?.createdAt)
     .map((item: any, index: number) => ({
       account: String(item.account).trim().toLowerCase(),
+      avatarUrl: typeof item.avatarUrl === "string" ? item.avatarUrl : undefined,
       passwordHash: String(item.passwordHash),
       salt: String(item.salt),
       createdAt: String(item.createdAt),
@@ -136,8 +138,28 @@ app.get("/api/auth/accounts", async (_req, res) => {
 app.patch("/api/auth/accounts/:account", async (req, res) => {
   const accounts = await readAuthAccounts();
   const accountName = String(req.params.account).toLowerCase();
+  let avatarUrl: string | undefined;
+  if (typeof req.body?.avatarDataUrl === "string") {
+    const match = req.body.avatarDataUrl.match(/^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$/);
+    if (!match) {
+      res.status(400).json({ error: "头像仅支持 PNG、JPG 或 WebP 格式" });
+      return;
+    }
+    const image = Buffer.from(match[2], "base64");
+    if (!image.length || image.length > 2 * 1024 * 1024) {
+      res.status(400).json({ error: "头像文件不能超过 2MB" });
+      return;
+    }
+    const extension = match[1] === "jpeg" ? "jpg" : match[1];
+    const avatarDirectory = path.join(uploadRoot, "system-avatars");
+    const avatarName = `${createHash("sha256").update(accountName).digest("hex").slice(0, 20)}.${extension}`;
+    await fs.mkdir(avatarDirectory, { recursive: true });
+    await fs.writeFile(path.join(avatarDirectory, avatarName), image);
+    avatarUrl = `/uploads/system-avatars/${avatarName}?v=${Date.now()}`;
+  }
   const next = accounts.map((item) => item.account === accountName ? {
     ...item,
+    avatarUrl: avatarUrl ?? item.avatarUrl,
     role: (["super_admin", "operations", "finance"] as string[]).includes(req.body?.role) ? req.body.role as AuthRole : item.role,
     enabled: typeof req.body?.enabled === "boolean" ? req.body.enabled : item.enabled
   } : item);
