@@ -963,23 +963,26 @@ export function App() {
               <UsersRound size={18} />
               <span>经纪人管理</span>
             </div>
-            {navItems.filter((item) => item.key !== "system").map((item) => (
-              <button
-                className={`nav-subitem ${page === item.key ? "active" : ""}`}
-                key={item.key}
-                onClick={() => navigateToPage(item.key)}
-                type="button"
-              >
-                {item.label}
-              </button>
+            {navItems.filter((item) => item.key !== "system" && item.key !== "workspace").map((item) => (
+              <div className="nav-entry" key={item.key}>
+                <button
+                  className={`nav-subitem ${page === item.key ? "active" : ""}`}
+                  onClick={() => navigateToPage(item.key)}
+                  type="button"
+                >
+                  {item.label}
+                </button>
+                {item.key === "brokers" ? (
+                  <button
+                    className={`nav-subitem nav-tertiary ${page === "workspace" ? "active" : ""}`}
+                    onClick={() => navigateToPage("workspace")}
+                    type="button"
+                  >
+                    经纪人工作台
+                  </button>
+                ) : null}
+              </div>
             ))}
-          </div> : null}
-          {currentRole === "super_admin" ? <div className="nav-group">
-            <div className="nav-group-label">
-              <UserCog size={18} />
-              <span>账户管理</span>
-            </div>
-            <button className={`nav-subitem ${page === "system" ? "active" : ""}`} onClick={() => navigateToPage("system")} type="button">系统用户</button>
           </div> : null}
           {canManageFinance ? <div className="nav-group">
             <div className="nav-group-label">
@@ -1008,10 +1011,17 @@ export function App() {
               财务报表
             </button>
           </div> : null}
+          {currentRole === "super_admin" ? <div className="nav-group">
+            <div className="nav-group-label">
+              <UserCog size={18} />
+              <span>账户管理</span>
+            </div>
+            <button className={`nav-subitem ${page === "system" ? "active" : ""}`} onClick={() => navigateToPage("system")} type="button">系统用户</button>
+          </div> : null}
         </nav>
 
         <div className="sidebar-note">
-          <span>ver 1.02</span>
+          <span>ver 1.02 (BY EWEN)</span>
         </div>
       </aside>
 
