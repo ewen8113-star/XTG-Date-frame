@@ -41,10 +41,10 @@ import {
 import type { Briefing, Broker, BrokerLevelUpdate, EvidenceFile, ImportBatch, ReferralNode, ReviewStatus } from "./types";
 
 type PageKey = "dashboard" | "audit" | "stats" | "brokers" | "workspace" | "briefingReview" | "financePending" | "financePaid" | "financeReport" | "system";
-type WorkspaceTab = "briefings" | "signedModels" | "level" | "network" | "settlement";
+type WorkspaceTab = "briefings" | "signedModels" | "level" | "network" | "settlement" | "paymentStatus";
 type BrokerFilter = "all" | "normal" | "seed";
 type SeedPhaseFilter = "all" | "none" | `${number}`;
-type FinanceOrderStatus = "pending" | "paid";
+type FinanceOrderStatus = "pending" | "paid" | "rejected";
 type SettlementLineItem = {
   id: string;
   title: string;
@@ -63,6 +63,8 @@ type FinanceOrder = {
   amount: number;
   submittedAt: string;
   paidAt?: string;
+  rejectedAt?: string;
+  rejectionReason?: string;
   status: FinanceOrderStatus;
   rows: SettlementLineItem[];
   carryForward: number;
@@ -86,9 +88,9 @@ type BrowserViewState = Omit<SavedViewState, "page"> & {
 const navItems = [
   { key: "dashboard" as const, label: "工作总览", icon: LayoutDashboard },
   { key: "audit" as const, label: "审核中心", icon: ListChecks },
-  { key: "brokers" as const, label: "经纪人管理", icon: UsersRound },
+  { key: "brokers" as const, label: "经纪人用户", icon: UsersRound },
   { key: "workspace" as const, label: "经纪人工作台", icon: BriefcaseBusiness },
-  { key: "stats" as const, label: "数据与规则", icon: BarChart3 },
+  { key: "stats" as const, label: "数据分析", icon: BarChart3 },
   { key: "system" as const, label: "账户管理", icon: UserCog }
 ];
 
@@ -100,7 +102,7 @@ const reviewText: Record<ReviewStatus, string> = {
 
 const viewStateKey = "xtg-review-admin-view-state";
 const pageKeys: PageKey[] = ["dashboard", "audit", "stats", "brokers", "workspace", "briefingReview", "financePending", "financePaid", "financeReport", "system"];
-const workspaceTabs: WorkspaceTab[] = ["briefings", "signedModels", "level", "network", "settlement"];
+const workspaceTabs: WorkspaceTab[] = ["briefings", "signedModels", "level", "network", "settlement", "paymentStatus"];
 const seedPlanStartDate = new Date("2026-04-01T00:00:00");
 const pastCycleKey = "past";
 
@@ -724,8 +726,7 @@ export function App() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    const allowed = page === "dashboard"
-      || (canOperate && ["audit", "stats", "brokers", "workspace", "briefingReview"].includes(page))
+    const allowed = canOperate && ["dashboard", "audit", "stats", "brokers", "workspace", "briefingReview"].includes(page)
       || (canManageFinance && ["financePending", "financePaid", "financeReport"].includes(page))
       || (currentRole === "super_admin" && page === "system");
     if (!allowed) setPage(canManageFinance ? "financePending" : "dashboard");
@@ -871,13 +872,14 @@ export function App() {
     const submittedAt = new Date().toISOString();
     const orderId = `${order.brokerId}:${order.cycleKey}`;
     setFinanceOrders((current) => {
-      const existing = current.find((item) => item.id === orderId);
       const nextOrder: FinanceOrder = {
         ...order,
         id: orderId,
-        submittedAt: existing?.submittedAt ?? submittedAt,
-        paidAt: existing?.status === "paid" ? existing.paidAt : undefined,
-        status: existing?.status ?? "pending"
+        submittedAt,
+        paidAt: undefined,
+        rejectedAt: undefined,
+        rejectionReason: undefined,
+        status: "pending"
       };
       return [...current.filter((item) => item.id !== orderId), nextOrder].sort((left, right) => right.submittedAt.localeCompare(left.submittedAt));
     });
@@ -893,6 +895,20 @@ export function App() {
       )
     );
     navigateToPage("financePaid");
+  }
+
+  function rejectFinanceOrder(orderId: string, reason: string) {
+    setFinanceOrders((current) => current.map((order) => order.id === orderId ? {
+      ...order,
+      status: "rejected",
+      rejectedAt: new Date().toISOString(),
+      rejectionReason: reason,
+      paidAt: undefined
+    } : order));
+  }
+
+  function cancelFinanceOrder(orderId: string) {
+    setFinanceOrders((current) => current.filter((order) => order.id !== orderId));
   }
 
   async function updateSystemAccounts(nextAccounts: StoredAccount[]) {
@@ -942,20 +958,29 @@ export function App() {
         </div>
 
         <nav className="nav-list" aria-label="主导航">
-          {visibleNavItems.map((item) => {
-            const Icon = item.icon;
-            return (
+          {canOperate ? <div className="nav-group broker-nav-group">
+            <div className="nav-group-label">
+              <UsersRound size={18} />
+              <span>经纪人管理</span>
+            </div>
+            {navItems.filter((item) => item.key !== "system").map((item) => (
               <button
-                className={`nav-item ${page === item.key ? "active" : ""}`}
+                className={`nav-subitem ${page === item.key ? "active" : ""}`}
                 key={item.key}
                 onClick={() => navigateToPage(item.key)}
                 type="button"
               >
-                <Icon size={18} />
-                <span>{item.label}</span>
+                {item.label}
               </button>
-            );
-          })}
+            ))}
+          </div> : null}
+          {currentRole === "super_admin" ? <div className="nav-group">
+            <div className="nav-group-label">
+              <UserCog size={18} />
+              <span>账户管理</span>
+            </div>
+            <button className={`nav-subitem ${page === "system" ? "active" : ""}`} onClick={() => navigateToPage("system")} type="button">系统用户</button>
+          </div> : null}
           {canManageFinance ? <div className="nav-group">
             <div className="nav-group-label">
               <WalletCards size={18} />
@@ -1064,6 +1089,7 @@ export function App() {
             onOpenBroker={openBroker}
             onOpenBriefingReview={openBriefingReview}
             onSubmitFinanceOrder={submitFinanceOrder}
+            onCancelFinanceOrder={cancelFinanceOrder}
             financeOrders={financeOrders}
           />
         )}
@@ -1084,6 +1110,7 @@ export function App() {
             activeTab={page === "financePaid" ? "paid" : "pending"}
             brokersData={brokerRows}
             onMarkPaid={markFinanceOrderPaid}
+            onReject={rejectFinanceOrder}
             orders={financeOrders}
           />
         )}
@@ -1556,30 +1583,23 @@ function BrokerList({
 
       <section className="panel table-panel">
         <div className="table-toolbar">
-          <div className="segmented">
-            <button className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")} type="button">全部</button>
-            <button className={filter === "normal" ? "active" : ""} onClick={() => setFilter("normal")} type="button">普通经纪人</button>
-            <button className={filter === "seed" ? "active" : ""} onClick={() => setFilter("seed")} type="button">
-              种子经纪人
-            </button>
-          </div>
-          {filter === "seed" ? (
-            <div className="seed-phase-filter" aria-label="种子期数筛选">
-              <button className={seedPhaseFilter === "all" ? "active" : ""} onClick={() => setSeedPhaseFilter("all")} type="button">全部</button>
-              {[1, 2, 3, 4, 5, 6].map((phase) => (
-                <button
-                  className={seedPhaseFilter === String(phase) ? "active" : ""}
-                  key={phase}
-                  onClick={() => setSeedPhaseFilter(String(phase) as SeedPhaseFilter)}
-                  title={`第${phase}期种子经纪人`}
-                  type="button"
-                >
-                  <Sprout size={16} />
-                  <span>{phase}</span>
-                </button>
-              ))}
+          <div className="broker-filter-cluster">
+            <div className="segmented">
+              <button className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")} type="button">全部</button>
+              <button className={filter === "normal" ? "active" : ""} onClick={() => setFilter("normal")} type="button">普通经纪人</button>
+              <button className={filter === "seed" ? "active" : ""} onClick={() => setFilter("seed")} type="button">种子经纪人</button>
             </div>
-          ) : null}
+            {filter === "seed" ? (
+              <div className="seed-phase-filter derived-filter" aria-label="种子期数筛选">
+                <button className={seedPhaseFilter === "all" ? "active" : ""} onClick={() => setSeedPhaseFilter("all")} type="button">全部</button>
+                {[1, 2, 3, 4, 5, 6].map((phase) => (
+                  <button className={seedPhaseFilter === String(phase) ? "active" : ""} key={phase} onClick={() => setSeedPhaseFilter(String(phase) as SeedPhaseFilter)} title={`第${phase}期种子经纪人`} type="button">
+                    <Sprout size={16} /><span>{phase}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
           <input
             className="search-input"
             onChange={(event) => setKeyword(event.target.value)}
@@ -1656,6 +1676,7 @@ function BrokerWorkspace({
   onOpenBroker,
   onOpenBriefingReview,
   onSubmitFinanceOrder,
+  onCancelFinanceOrder,
   financeOrders
 }: {
   broker: Broker;
@@ -1672,6 +1693,7 @@ function BrokerWorkspace({
   onOpenBroker: (broker: Broker) => void;
   onOpenBriefingReview: (briefing: Briefing) => void;
   onSubmitFinanceOrder: (order: Omit<FinanceOrder, "id" | "submittedAt" | "status">) => void;
+  onCancelFinanceOrder: (orderId: string) => void;
   financeOrders: FinanceOrder[];
 }) {
   const brokerBriefings = briefingsData
@@ -1762,6 +1784,7 @@ function BrokerWorkspace({
         <button className={tab === "level" ? "active" : ""} onClick={() => onTabChange("level")} type="button">用户级别</button>
         <button className={tab === "network" ? "active" : ""} onClick={() => onTabChange("network")} type="button">关系网络</button>
         <button className={tab === "settlement" ? "active" : ""} onClick={() => onTabChange("settlement")} type="button">费用结算</button>
+        <button className={tab === "paymentStatus" ? "active" : ""} onClick={() => onTabChange("paymentStatus")} type="button">付款状态</button>
       </div>
 
       {tab === "briefings" && (
@@ -1804,8 +1827,10 @@ function BrokerWorkspace({
           financeOrders={financeOrders}
           onCycleChange={onCycleChange}
           onSubmitFinanceOrder={onSubmitFinanceOrder}
+          onCancelFinanceOrder={onCancelFinanceOrder}
         />
       )}
+      {tab === "paymentStatus" && <PaymentStatusTab broker={broker} orders={financeOrders} onOpenSettlement={() => onTabChange("settlement")} />}
 
       {showPromotionModal ? (
         <div className="modal-backdrop" role="presentation">
@@ -2404,6 +2429,40 @@ function NetworkTab({
   );
 }
 
+function PaymentStatusTab({ broker, orders, onOpenSettlement }: { broker: Broker; orders: FinanceOrder[]; onOpenSettlement: () => void }) {
+  const brokerOrders = orders
+    .filter((order) => order.brokerId === broker.id)
+    .sort((left, right) => right.submittedAt.localeCompare(left.submittedAt));
+  const statusText: Record<FinanceOrderStatus, string> = {
+    pending: "财务审批中",
+    paid: "订单已付款",
+    rejected: "财务驳回"
+  };
+
+  return (
+    <section className="panel table-panel">
+      <PanelTitle icon={<WalletCards size={18} />} title="付款单状态" />
+      {brokerOrders.length ? (
+        <table>
+          <thead><tr><th>结算周期</th><th>提交时间</th><th>结算金额</th><th>付款状态</th><th>说明</th><th>操作</th></tr></thead>
+          <tbody>
+            {brokerOrders.map((order) => (
+              <tr key={order.id}>
+                <td>{order.cycleLabel}</td>
+                <td>{new Date(order.submittedAt).toLocaleString("zh-CN", { hour12: false })}</td>
+                <td>{money(order.amount)}</td>
+                <td><span className={`status-pill ${order.status === "paid" ? "success" : order.status === "rejected" ? "danger" : "warning"}`}>{statusText[order.status]}</span></td>
+                <td>{order.status === "rejected" ? order.rejectionReason || "财务未填写驳回理由" : order.status === "paid" && order.paidAt ? `付款于 ${new Date(order.paidAt).toLocaleString("zh-CN", { hour12: false })}` : "等待财务处理"}</td>
+                <td>{order.status === "rejected" ? <button className="secondary-action compact-action" onClick={onOpenSettlement} type="button">重新核对费用</button> : "-"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : <p className="empty-state">该经纪人暂无已提交的付款单。</p>}
+    </section>
+  );
+}
+
 function SettlementTab({
   broker,
   briefingsData,
@@ -2411,7 +2470,8 @@ function SettlementTab({
   cycleOptions,
   financeOrders,
   onCycleChange,
-  onSubmitFinanceOrder
+  onSubmitFinanceOrder,
+  onCancelFinanceOrder
 }: {
   broker: Broker;
   briefingsData: Briefing[];
@@ -2420,6 +2480,7 @@ function SettlementTab({
   financeOrders: FinanceOrder[];
   onCycleChange: (cycleKey: string) => void;
   onSubmitFinanceOrder: (order: Omit<FinanceOrder, "id" | "submittedAt" | "status">) => void;
+  onCancelFinanceOrder: (orderId: string) => void;
 }) {
   const [referrals, setReferrals] = useState<ReferralNode[]>([]);
   const [expandedReward, setExpandedReward] = useState("");
@@ -2628,10 +2689,13 @@ function SettlementTab({
                 <option key={item.key} value={item.key}>{item.label}</option>
               ))}
             </select>
-            <button className="primary-action" disabled={Boolean(financeOrder)} onClick={submitPayment} type="button">
+            <button className="primary-action" disabled={financeOrder?.status === "pending" || financeOrder?.status === "paid"} onClick={submitPayment} type="button">
               <ListChecks size={16} />
-              {financeOrder ? "已提交付款" : "提交付款"}
+              {financeOrder?.status === "pending" ? "已提交付款" : financeOrder?.status === "paid" ? "订单已付款" : financeOrder?.status === "rejected" ? "重新提交付款" : "提交付款"}
             </button>
+            {financeOrder && financeOrder.status !== "paid" ? (
+              <button className="secondary-action danger-action" onClick={() => onCancelFinanceOrder(financeOrder.id)} type="button">撤销付款</button>
+            ) : null}
           </div>
         </div>
         <table>
@@ -2689,7 +2753,9 @@ function SettlementTab({
             <p className="form-status">本周可发放 {money(settlementLedger.payout)}。</p>
           ) : null}
           {financeOrder ? (
-            <p className="form-status">该周期付款单已提交，当前状态：{financeOrder.status === "paid" ? "已付款" : "待付款"}。</p>
+            <p className={`form-status ${financeOrder.status === "rejected" ? "error" : ""}`}>
+              该周期付款单状态：{financeOrder.status === "paid" ? "订单已付款" : financeOrder.status === "rejected" ? `财务驳回${financeOrder.rejectionReason ? `：${financeOrder.rejectionReason}` : ""}` : "财务审批中"}。
+            </p>
           ) : null}
           {submitStatus ? <p className="form-status">{submitStatus}</p> : null}
         </div>
@@ -3579,6 +3645,7 @@ function SystemManagement({
 function FinanceReport({ orders }: { orders: FinanceOrder[] }) {
   const paidOrders = orders.filter((order) => order.status === "paid");
   const pendingOrders = orders.filter((order) => order.status === "pending");
+  const rejectedOrders = orders.filter((order) => order.status === "rejected");
   const paidAmount = paidOrders.reduce((sum, order) => sum + order.amount, 0);
   const pendingAmount = pendingOrders.reduce((sum, order) => sum + order.amount, 0);
   const brokerRows = Array.from(new Set(orders.map((order) => order.brokerId))).map((brokerId) => {
@@ -3599,7 +3666,8 @@ function FinanceReport({ orders }: { orders: FinanceOrder[] }) {
       <div className="metric-grid finance-report-metrics">
         <MetricCard label="待付款金额" value={money(pendingAmount)} delta={`${pendingOrders.length} 笔待处理`} />
         <MetricCard label="已付款金额" value={money(paidAmount)} delta={`${paidOrders.length} 笔已完成`} />
-        <MetricCard label="结算总额" value={money(pendingAmount + paidAmount)} delta={`${orders.length} 笔付款单`} />
+        <MetricCard label="结算总额" value={money(pendingAmount + paidAmount)} delta={`${pendingOrders.length + paidOrders.length} 笔有效付款单`} />
+        <MetricCard label="财务驳回" value={rejectedOrders.length} delta="待运营重新核对" />
       </div>
       <section className="panel">
         <PanelTitle icon={<BarChart3 size={18} />} title="经纪人结算汇总" />
@@ -3624,14 +3692,18 @@ function FinanceManagementPage({
   orders,
   activeTab,
   onMarkPaid,
+  onReject,
   brokersData
 }: {
   orders: FinanceOrder[];
   activeTab: "pending" | "paid";
   onMarkPaid: (orderId: string) => void;
+  onReject: (orderId: string, reason: string) => void;
   brokersData: Broker[];
 }) {
   const [selectedOrderId, setSelectedOrderId] = useState("");
+  const [rejectingOrderId, setRejectingOrderId] = useState("");
+  const [rejectionReason, setRejectionReason] = useState("");
   const filteredOrders = orders
     .filter((order) => order.status === activeTab)
     .sort((left, right) => {
@@ -3690,7 +3762,10 @@ function FinanceManagementPage({
                   {selectedOrder.paidAt ? <p>付款时间 {new Date(selectedOrder.paidAt).toLocaleString("zh-CN", { hour12: false })}</p> : null}
                 </div>
                 {activeTab === "pending" ? (
-                  <button className="primary-action" onClick={() => onMarkPaid(selectedOrder.id)} type="button">确认付款</button>
+                  <div className="inline-actions">
+                    <button className="secondary-action danger-action" onClick={() => { setRejectingOrderId(selectedOrder.id); setRejectionReason(""); }} type="button">驳回</button>
+                    <button className="primary-action" onClick={() => onMarkPaid(selectedOrder.id)} type="button">确认付款</button>
+                  </div>
                 ) : (
                   <span className="status-pill success">已付款</span>
                 )}
@@ -3738,6 +3813,22 @@ function FinanceManagementPage({
           )}
         </section>
       </div>
+      {rejectingOrderId ? (
+        <div className="modal-backdrop" role="presentation">
+          <section className="notice-modal finance-reject-modal" role="dialog" aria-modal="true" aria-labelledby="finance-reject-title">
+            <h2 id="finance-reject-title">驳回付款订单</h2>
+            <p>请填写明确的驳回理由，运营将在经纪人工作台中看到该说明，并重新核对通告与费用。</p>
+            <label>
+              <span>驳回理由</span>
+              <textarea autoFocus onChange={(event) => setRejectionReason(event.target.value)} placeholder="例如：通告有效性有变化，需要重新审核结算金额" rows={4} value={rejectionReason} />
+            </label>
+            <div className="drawer-actions">
+              <button className="secondary-action" onClick={() => setRejectingOrderId("")} type="button">取消</button>
+              <button className="primary-action" disabled={!rejectionReason.trim()} onClick={() => { onReject(rejectingOrderId, rejectionReason.trim()); setRejectingOrderId(""); }} type="button">提交驳回</button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </section>
   );
 }
