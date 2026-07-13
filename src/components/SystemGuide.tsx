@@ -14,10 +14,10 @@ import {
 import type { ReactNode } from "react";
 
 const workflowSteps = [
-  { icon: UsersRound, title: "找到经纪人", text: "在经纪人用户中搜索目标用户，点击用户行进入专属工作台。" },
-  { icon: ListChecks, title: "审核通告与签约", text: "核对通告来源、视频凭证和新增签约名单，分别给出人工审核结论。" },
-  { icon: ReceiptText, title: "核对费用", text: "在费用结算中选择周期，确认有效通告、签约奖励与抵扣项目。" },
-  { icon: WalletCards, title: "提交与付款", text: "运营提交付款单，财务确认付款或填写理由驳回，状态会同步回工作台。" }
+  { icon: UsersRound, title: "找到经纪人", text: "在经纪人用户中搜索目标用户，点击用户行进入专属工作台。", outcome: "进入专属工作台" },
+  { icon: ListChecks, title: "审核通告与签约", text: "核对通告来源、视频凭证和新增签约名单，分别给出人工审核结论。", outcome: "形成审核结论" },
+  { icon: ReceiptText, title: "核对费用", text: "在费用结算中选择周期，确认有效通告、签约奖励与抵扣项目。", outcome: "生成结算金额" },
+  { icon: WalletCards, title: "提交与付款", text: "运营提交付款单，财务确认付款或填写理由驳回，状态会同步回工作台。", outcome: "完成状态同步" }
 ];
 
 const roleGuides = [
@@ -43,11 +43,14 @@ export function SystemGuide() {
           <div><h2>核心工作流程</h2><p>建议新用户按以下顺序完成一次完整操作。</p></div>
         </div>
         <div className="guide-flow" aria-label="核心工作流程">
-          {workflowSteps.map(({ icon: Icon, title, text }, index) => (
+          {workflowSteps.map(({ icon: Icon, title, text, outcome }) => (
             <article className="guide-step" key={title}>
-              <div className="guide-step-top"><span>{index + 1}</span><Icon size={20} /></div>
-              <h3>{title}</h3>
-              <p>{text}</p>
+              <div className="guide-step-marker"><Icon size={20} aria-hidden="true" /></div>
+              <div className="guide-step-body">
+                <h3>{title}</h3>
+                <p>{text}</p>
+                <span className="guide-step-outcome">{outcome}</span>
+              </div>
             </article>
           ))}
         </div>
@@ -73,7 +76,7 @@ export function SystemGuide() {
           </div>
           <div className="guide-role-list">
             {roleGuides.map(({ icon: Icon, role, text }) => (
-              <article key={role}><Icon size={20} /><div><h3>{role}</h3><p>{text}</p></div></article>
+              <article key={role}><h3><Icon size={18} />{role}</h3><p>{text}</p></article>
             ))}
           </div>
         </section>

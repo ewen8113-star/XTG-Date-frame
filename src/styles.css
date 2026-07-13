@@ -3211,67 +3211,63 @@ textarea:focus {
 }
 
 .guide-flow {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: 28px;
+  padding-top: 4px;
+}
+
+.guide-flow::before {
+  position: absolute;
+  z-index: 0;
+  top: 25px;
+  right: 12.5%;
+  left: 12.5%;
+  height: 2px;
+  background: var(--border-strong);
+  content: "";
 }
 
 .guide-step {
   position: relative;
-  min-height: 174px;
+  z-index: 1;
+  display: grid;
+  grid-template-rows: 48px 1fr;
+  gap: 16px;
+}
+
+.guide-step-body {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: 208px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 16px;
+  padding: 18px;
   background: var(--surface-card);
   transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
 }
 
-.guide-step:not(:last-child)::after {
-  position: absolute;
-  z-index: 2;
-  top: 50%;
-  right: -19px;
-  width: 24px;
-  height: 2px;
-  background: var(--primary);
-  content: "";
-  transform: translateY(-50%);
-}
-
-.guide-step:not(:last-child)::before {
-  position: absolute;
-  z-index: 3;
-  top: 50%;
-  right: -19px;
-  width: 7px;
-  height: 7px;
-  border-top: 2px solid var(--primary);
-  border-right: 2px solid var(--primary);
-  content: "";
-  transform: translateY(-50%) rotate(45deg);
-}
-
-.guide-step:hover {
+.guide-step:hover .guide-step-body {
   border-color: var(--primary);
   box-shadow: 0 10px 28px color-mix(in srgb, var(--primary) 10%, transparent);
   transform: translateY(-3px);
 }
 
-.guide-step-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.guide-step-marker {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin: 0 auto;
+  border: 2px solid var(--primary);
+  border-radius: 50%;
+  background: var(--surface-canvas);
   color: var(--primary);
 }
 
-.guide-step-top span {
-  font-family: "JetBrains Mono", ui-monospace, monospace;
-  font-size: 12px;
-  font-weight: 800;
-}
-
 .guide-step h3 {
-  margin: 22px 0 7px;
+  margin: 0 0 7px;
   font-size: 16px;
 }
 
@@ -3279,10 +3275,22 @@ textarea:focus {
   font-size: 13px;
 }
 
+.guide-step-outcome {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin-top: 18px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .guide-columns {
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
-  gap: 32px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
+  gap: 72px;
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
   padding: 28px 0;
@@ -3292,15 +3300,34 @@ textarea:focus {
 .guide-role-list,
 .guide-map {
   display: grid;
-  gap: 10px;
+  gap: 16px;
 }
 
 .guide-checklist article,
-.guide-role-list article,
 .guide-map article {
   display: flex;
   align-items: flex-start;
   gap: 11px;
+}
+
+.guide-checklist article > div {
+  min-width: 0;
+}
+
+.guide-checklist p {
+  max-width: 700px;
+}
+
+.guide-role-list article {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+}
+
+.guide-role-list h3 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
 }
 
 .guide-checklist svg,
@@ -3353,11 +3380,7 @@ textarea:focus {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .guide-step:nth-child(2)::after {
-    display: none;
-  }
-
-  .guide-step:nth-child(2)::before {
+  .guide-flow::before {
     display: none;
   }
 }
@@ -3450,9 +3473,8 @@ textarea:focus {
     min-height: auto;
   }
 
-  .guide-step::after,
-  .guide-step::before {
-    display: none;
+  .guide-step-marker {
+    margin-left: 0;
   }
 
   .broker-filter-cluster {
