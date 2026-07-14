@@ -1,0 +1,9 @@
+[     106ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://localhost:5174/node_modules/.vite/deps/chunk-SVG7M4VJ.js?v=739be4fd:21606
+[     150ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5174/favicon.ico:0
+[   19814ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://localhost:5174/node_modules/.vite/deps/chunk-SVG7M4VJ.js?v=739be4fd:21606
+[ 2956665ms] [LOG] [vite] server connection lost. Polling for restart... @ http://localhost:5174/@vite/client:963
+[ 2956667ms] [ERROR] WebSocket connection to 'ws://localhost:5174/' failed: Error during WebSocket handshake: net::ERR_CONNECTION_RESET @ http://localhost:5174/@vite/client:1034
+[ 2958230ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://localhost:5174/node_modules/.vite/deps/chunk-SVG7M4VJ.js?v=739be4fd:21606
+[ 2972622ms] [LOG] [vite] server connection lost. Polling for restart... @ http://localhost:5174/@vite/client:963
+[ 2972623ms] [ERROR] WebSocket connection to 'ws://localhost:5174/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5174/@vite/client:1034
+[ 2974040ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://localhost:5174/node_modules/.vite/deps/chunk-SVG7M4VJ.js?v=739be4fd:21606

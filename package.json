@@ -1,6 +1,6 @@
 {
   "name": "xtg-review-admin",
-  "version": "0.1.0",
+  "version": "1.4.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,11 +8,12 @@
     "dev:web": "vite --host 0.0.0.0 --port 5174 --strictPort",
     "dev:api": "API_PORT=3131 tsx src/server/index.ts",
     "build": "tsc && vite build",
-    "test": "tsc --noEmit",
+    "test": "tsc --noEmit && tsx --test src/lib/*.test.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed-test": "tsx prisma/seed-test.ts",
     "db:clear-preview": "tsx prisma/clear-preview.ts"
   },
   "dependencies": {

@@ -4,6 +4,7 @@ import baseImageUrl from "../assets/login-network-dark-base-hq.avif";
 import revealImageUrl from "../assets/login-network-dark-reveal-hq.avif";
 import lightBaseImageUrl from "../assets/login-network-light-base-hq.avif";
 import lightRevealImageUrl from "../assets/login-network-light-reveal-hq.avif";
+import { appVersion } from "../data/releaseNotes";
 import { fetchAuthStatus, loginRemoteAccount, readAccounts, registerRemoteAccount, saveAccounts, syncLocalAccounts } from "../lib/auth";
 
 type LoginScreenProps = {
@@ -226,7 +227,7 @@ export function LoginScreen({ theme, onThemeChange, onLogin }: LoginScreenProps)
           <button aria-label="浅色模式" className={theme === "light" ? "active" : ""} onClick={() => onThemeChange("light")} title="浅色模式" type="button"><Sun size={18} /></button>
           <button aria-label="深色模式" className={theme === "dark" ? "active" : ""} onClick={() => onThemeChange("dark")} title="深色模式" type="button"><Moon size={18} /></button>
         </div>
-        <span className="login-version">ver 1.02</span>
+        <span className="login-version">ver {appVersion}</span>
       </section>
     </main>
   );

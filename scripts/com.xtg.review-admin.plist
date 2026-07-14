@@ -8,11 +8,11 @@
   <key>ProgramArguments</key>
   <array>
     <string>/bin/zsh</string>
-    <string>/Users/ewen/Desktop/My Project/XTG-Date-frame/scripts/start-local-system.sh</string>
+    <string>/Users/ewen/.xtg-review-admin/start-local-system.sh</string>
   </array>
 
   <key>WorkingDirectory</key>
-  <string>/Users/ewen/Desktop/My Project/XTG-Date-frame</string>
+  <string>/Users/ewen</string>
 
   <key>RunAtLoad</key>
   <true/>
@@ -21,9 +21,9 @@
   <true/>
 
   <key>StandardOutPath</key>
-  <string>/Users/ewen/Desktop/My Project/XTG-Date-frame/.tmp/launchd.out.log</string>
+  <string>/Users/ewen/.xtg-review-admin/launchd.out.log</string>
 
   <key>StandardErrorPath</key>
-  <string>/Users/ewen/Desktop/My Project/XTG-Date-frame/.tmp/launchd.err.log</string>
+  <string>/Users/ewen/.xtg-review-admin/launchd.err.log</string>
 </dict>
 </plist>

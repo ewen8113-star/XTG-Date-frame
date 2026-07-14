@@ -1,0 +1,142 @@
+- generic [ref=f1e3]:
+  - main [ref=f1e28]:
+    - generic [ref=f1e29]:
+      - strong [ref=f1e31]: 审核与结算
+      - generic [ref=f1e33]:
+        - button "系统使用白皮书" [ref=f1e39] [cursor=pointer]
+        - button "版本更新" [ref=f1e43] [cursor=pointer]
+        - button "切换亮色模式" [ref=f1e1080] [cursor=pointer]
+        - button "Q" [ref=f1e1087] [cursor=pointer]
+    - generic [ref=f1e1113]:
+      - button "返回" [ref=f1e1115] [cursor=pointer]
+      - generic [ref=f1e1116]:
+        - generic [ref=f1e1118]:
+          - generic [ref=f1e1119]:
+            - heading "测试-小华已晋升 · 经纪人工作台" [level=1] [ref=f1e1120]
+            - generic "第1期种子经纪人" [ref=f1e1121]:
+              - generic "第1期种子标签" [ref=f1e1122]: "1"
+              - generic "引荐权限" [ref=f1e1128]
+            - generic [ref=f1e1134]: 正常
+          - paragraph [ref=f1e1135]: "18800000003 · 用户ID #190000000000000003"
+        - generic [ref=f1e1136]:
+          - generic [ref=f1e1137]:
+            - generic [ref=f1e1138]: 用户ID
+            - strong [ref=f1e1139]:
+              - generic [ref=f1e1140]: "#190000000000000003"
+              - button "复制用户ID" [ref=f1e1141] [cursor=pointer]
+          - generic [ref=f1e1145]:
+            - generic [ref=f1e1146]: 绑定手机号
+            - strong [ref=f1e1147]:
+              - generic [ref=f1e1148]: "18800000003"
+              - button "复制绑定手机号" [ref=f1e1149] [cursor=pointer]
+          - generic [ref=f1e1153]:
+            - generic [ref=f1e1154]: 微信手机号
+            - strong [ref=f1e1155]:
+              - generic [ref=f1e1156]: "18800000003"
+              - button "复制微信手机号" [ref=f1e1157] [cursor=pointer]
+          - generic [ref=f1e1161]:
+            - generic [ref=f1e1162]: 实名状态
+            - strong [ref=f1e1163]: 已认证
+          - generic [ref=f1e1164]:
+            - generic [ref=f1e1165]: 注册时间
+            - strong [ref=f1e1166]: 2026/5/1 10:00:00
+          - generic [ref=f1e1167]:
+            - generic [ref=f1e1168]: 最后登录
+            - strong [ref=f1e1169]: 2026/7/14 08:30:00
+          - generic [ref=f1e1170]:
+            - generic [ref=f1e1171]: 违规次数
+            - strong [ref=f1e1172]: "0"
+          - generic [ref=f1e1173]:
+            - generic [ref=f1e1174]: 引荐权限
+            - strong [ref=f1e1175]: 已开通
+        - generic [ref=f1e1176]:
+          - generic [ref=f1e1177]:
+            - generic [ref=f1e1178]: 已发通告
+            - strong [ref=f1e1179]: "10"
+            - generic [ref=f1e1180]: 已导入 10 条明细
+          - generic [ref=f1e1181]:
+            - generic [ref=f1e1182]: 新增通告
+            - strong [ref=f1e1183]: "4"
+            - generic [ref=f1e1184]: 较上周 +4
+          - generic [ref=f1e1185]:
+            - generic [ref=f1e1186]: 有效通告
+            - strong [ref=f1e1187]: "3"
+            - generic [ref=f1e1188]: 较上周 +3 · 1 条待审核
+          - generic [ref=f1e1189]:
+            - generic [ref=f1e1190]: 新增签约
+            - strong [ref=f1e1191]: "2"
+            - generic [ref=f1e1192]: 较上周 +2 · 需人工核验身份
+          - generic [ref=f1e1193]:
+            - generic [ref=f1e1194]: 报名 / 签约
+            - strong [ref=f1e1195]: 15 / 5
+            - generic [ref=f1e1196]: 15 / 5 人
+      - tablist [ref=f1e1197]:
+        - button "通告数据" [ref=f1e1198] [cursor=pointer]
+        - button "已签约名单" [ref=f1e1199] [cursor=pointer]
+        - button "用户级别" [ref=f1e1200] [cursor=pointer]
+        - button "关系网络" [ref=f1e1201] [cursor=pointer]
+        - button "费用结算" [ref=f1e1202] [cursor=pointer]
+        - button "付款状态" [ref=f1e1203] [cursor=pointer]
+      - generic [ref=f1e1204]:
+        - heading "已签约名单" [level=2] [ref=f1e1209]
+        - generic [ref=f1e1210]:
+          - generic [ref=f1e1211]:
+            - generic [ref=f1e1212]: 已签约模特
+            - strong [ref=f1e1213]: "2"
+            - generic [ref=f1e1214]: 按手机号累计去重
+          - generic [ref=f1e1215]:
+            - generic [ref=f1e1216]: 新增已签约模特
+            - strong [ref=f1e1217]: "2"
+            - generic [ref=f1e1218]: 最新导入 2026-07-14
+          - generic [ref=f1e1219]:
+            - generic [ref=f1e1220]: 签约通告记录
+            - strong [ref=f1e1221]: "3"
+            - generic [ref=f1e1222]: 用于新增签约判定
+        - table [ref=f1e1223]:
+          - rowgroup [ref=f1e1224]:
+            - row [ref=f1e1225]:
+              - columnheader "模特" [ref=f1e1226]
+              - columnheader "首次签约通告" [ref=f1e1227]
+              - columnheader "首次签约时间" [ref=f1e1228]
+              - columnheader "累计签约通告" [ref=f1e1229]
+              - columnheader "最近签约通告" [ref=f1e1230]
+          - rowgroup [ref=f1e1231]:
+            - row [ref=f1e1232]:
+              - cell [ref=f1e1233]:
+                - generic [ref=f1e1234]:
+                  - strong [ref=f1e1235]:
+                    - button "测试模特-沐晴" [ref=f1e1236] [cursor=pointer]
+                  - generic [ref=f1e1237]:
+                    - text: "17700000005"
+                    - button "复制手机号" [ref=f1e1238] [cursor=pointer]
+                    - text: "· #195000000000000005"
+                    - button "复制用户ID" [ref=f1e1242] [cursor=pointer]
+              - cell "测试-小华晋升后第二新签" [ref=f1e1246]
+              - cell "2026/7/10 13:00:00" [ref=f1e1247]
+              - cell "1" [ref=f1e1248]
+              - cell "测试-小华晋升后第二新签 2026/7/10 13:00:00" [ref=f1e1249]:
+                - generic [ref=f1e1250]:
+                  - strong [ref=f1e1251]: 测试-小华晋升后第二新签
+                  - generic [ref=f1e1252]: 2026/7/10 13:00:00
+            - row [ref=f1e1253]:
+              - cell [ref=f1e1254]:
+                - generic [ref=f1e1255]:
+                  - strong [ref=f1e1256]:
+                    - button "测试模特-初夏" [ref=f1e1257] [cursor=pointer]
+                  - generic [ref=f1e1258]:
+                    - text: "17700000003"
+                    - button "复制手机号" [ref=f1e1259] [cursor=pointer]
+                    - text: "· #195000000000000003"
+                    - button "复制用户ID" [ref=f1e1263] [cursor=pointer]
+              - cell "测试-小华晋升后新签" [ref=f1e1267]
+              - cell "2026/7/8 13:00:00" [ref=f1e1268]
+              - cell "2" [ref=f1e1269]
+              - cell "测试-小华晋升后重复 2026/7/9 13:00:00" [ref=f1e1270]:
+                - generic [ref=f1e1271]:
+                  - strong [ref=f1e1272]: 测试-小华晋升后重复
+                  - generic [ref=f1e1273]: 2026/7/9 13:00:00
+  - navigation "移动端主导航" [ref=f1e1088]:
+    - button "工作总览" [ref=f1e1089] [cursor=pointer]
+    - button "审核中心" [ref=f1e1096] [cursor=pointer]
+    - button "经纪用户" [ref=f1e1101] [cursor=pointer]
+    - button "经纪工作台" [ref=f1e1107] [cursor=pointer]

@@ -1,0 +1,193 @@
+- generic [ref=f3e3]:
+  - complementary [ref=f3e4]:
+    - generic [ref=f3e6]:
+      - generic [ref=f3e7]: 鑫通告
+      - generic [ref=f3e8]: 运营结算后台
+    - navigation "主导航" [ref=f3e9]:
+      - generic [ref=f3e10]:
+        - generic [ref=f3e11]: 经纪人管理
+        - button "工作总览" [ref=f3e18] [cursor=pointer]
+        - button "审核中心" [ref=f3e20] [cursor=pointer]
+        - generic [ref=f3e21]:
+          - button "经纪人用户" [ref=f3e22] [cursor=pointer]
+          - button "经纪人工作台" [ref=f3e23] [cursor=pointer]
+        - button "数据分析" [ref=f3e25] [cursor=pointer]
+      - generic [ref=f3e26]:
+        - generic [ref=f3e27]: 财务管理
+        - button "待付款订单" [ref=f3e33] [cursor=pointer]
+        - button "已付款订单" [ref=f3e34] [cursor=pointer]
+        - button "财务报表" [ref=f3e35] [cursor=pointer]
+      - generic [ref=f3e36]:
+        - generic [ref=f3e37]: 账户管理
+        - button "系统用户" [ref=f3e51] [cursor=pointer]
+    - generic [ref=f3e52]: ver 1.03 (BY EWEN)
+  - main [ref=f3e54]:
+    - generic [ref=f3e55]:
+      - generic [ref=f3e56]:
+        - strong [ref=f3e57]: 审核与结算
+        - generic [ref=f3e58]: 运营工作台
+      - generic [ref=f3e59]:
+        - textbox "全局搜索" [ref=f3e64]:
+          - /placeholder: 搜索经纪人或通告 ID
+        - button "系统使用白皮书" [ref=f3e65] [cursor=pointer]
+        - button "版本更新" [ref=f3e69] [cursor=pointer]
+        - button "切换亮色模式" [active] [ref=f3e477] [cursor=pointer]
+        - button "E ewen_chen" [ref=f3e78] [cursor=pointer]:
+          - generic [ref=f3e79]: E
+          - generic [ref=f3e80]: ewen_chen
+    - generic [ref=f3e239]:
+      - generic [ref=f3e240]:
+        - generic [ref=f3e241]:
+          - text: Brokers
+          - heading "用户管理" [level=1] [ref=f3e242]
+          - paragraph [ref=f3e243]: 这里管理小程序经纪人用户，支持导入、快照对比和进入个人工作台。数据来源：鑫通告管理系统。
+        - generic [ref=f3e245]:
+          - button "导出 Excel" [ref=f3e246] [cursor=pointer]
+          - button "导入经纪人数据" [ref=f3e247] [cursor=pointer]
+      - generic [ref=f3e251]:
+        - generic [ref=f3e252]:
+          - generic [ref=f3e254]:
+            - button "全部" [ref=f3e255] [cursor=pointer]
+            - button "普通经纪人" [ref=f3e256] [cursor=pointer]
+            - button "种子经纪人" [ref=f3e257] [cursor=pointer]
+          - textbox "搜索手机号 / 昵称 / 用户ID" [ref=f3e258]
+        - table [ref=f3e259]:
+          - rowgroup [ref=f3e260]:
+            - row [ref=f3e261]:
+              - columnheader "经纪人" [ref=f3e262]
+              - columnheader "实名" [ref=f3e263]
+              - columnheader "级别" [ref=f3e264]
+              - columnheader "注册时间" [ref=f3e265]
+              - columnheader "发布 / 新增签约" [ref=f3e266]
+              - columnheader "报名 / 签约" [ref=f3e267]
+              - columnheader "状态" [ref=f3e268]
+          - rowgroup [ref=f3e269]:
+            - row [ref=f3e270] [cursor=pointer]:
+              - cell [ref=f3e271]:
+                - generic [ref=f3e272]:
+                  - strong [ref=f3e273]: 测试-小明待晋升
+                  - generic [ref=f3e274]:
+                    - text: "18800000002"
+                    - button "复制手机号" [ref=f3e275]
+                    - text: "· #190000000000000002"
+                    - button "复制用户ID" [ref=f3e279]
+              - cell "已认证" [ref=f3e283]
+              - cell [ref=f3e284]:
+                - generic "普通经纪人｜种子1" [ref=f3e285]:
+                  - generic "第1期种子标签" [ref=f3e290]: "1"
+              - cell "2026/5/1 10:00:00" [ref=f3e296]
+              - cell "8 / 8" [ref=f3e297]
+              - cell "10 / 2 10 / 2 人" [ref=f3e298]:
+                - generic [ref=f3e299]:
+                  - strong [ref=f3e300]: 10 / 2
+                  - generic [ref=f3e301]: 10 / 2 人
+              - cell "正常" [ref=f3e302]
+            - row [ref=f3e304] [cursor=pointer]:
+              - cell [ref=f3e305]:
+                - generic [ref=f3e306]:
+                  - strong [ref=f3e307]: 测试-无身份经纪人
+                  - generic [ref=f3e308]:
+                    - text: "18800000006"
+                    - button "复制手机号" [ref=f3e309]
+                    - text: "· #190000000000000006"
+                    - button "复制用户ID" [ref=f3e313]
+              - cell "已认证" [ref=f3e317]
+              - cell "无身份" [ref=f3e318]
+              - cell "2026/5/1 10:00:00" [ref=f3e319]
+              - cell "2 / 1" [ref=f3e320]
+              - cell "2 / 0 2 / 0 人" [ref=f3e321]:
+                - generic [ref=f3e322]:
+                  - strong [ref=f3e323]: 2 / 0
+                  - generic [ref=f3e324]: 2 / 0 人
+              - cell "正常" [ref=f3e325]
+            - row [ref=f3e327] [cursor=pointer]:
+              - cell [ref=f3e328]:
+                - generic [ref=f3e329]:
+                  - strong [ref=f3e330]: 测试-第二期种子
+                  - generic [ref=f3e331]:
+                    - text: "18800000005"
+                    - button "复制手机号" [ref=f3e332]
+                    - text: "· #190000000000000005"
+                    - button "复制用户ID" [ref=f3e336]
+              - cell "已认证" [ref=f3e340]
+              - cell [ref=f3e341]:
+                - generic "种子经纪人｜种子2" [ref=f3e342]:
+                  - generic "种子经纪人" [ref=f3e343]
+                  - generic "第2期种子标签" [ref=f3e344]: "2"
+                  - generic "引荐权限" [ref=f3e350]
+              - cell "2026/5/1 10:00:00" [ref=f3e356]
+              - cell "2 / 2" [ref=f3e357]
+              - cell "3 / 1 3 / 1 人" [ref=f3e358]:
+                - generic [ref=f3e359]:
+                  - strong [ref=f3e360]: 3 / 1
+                  - generic [ref=f3e361]: 3 / 1 人
+              - cell "正常" [ref=f3e362]
+            - row [ref=f3e364] [cursor=pointer]:
+              - cell [ref=f3e365]:
+                - generic [ref=f3e366]:
+                  - strong [ref=f3e367]: 测试-小周二级下线
+                  - generic [ref=f3e368]:
+                    - text: "18800000004"
+                    - button "复制手机号" [ref=f3e369]
+                    - text: "· #190000000000000004"
+                    - button "复制用户ID" [ref=f3e373]
+              - cell "已认证" [ref=f3e377]
+              - cell [ref=f3e378]:
+                - generic "普通经纪人｜种子1" [ref=f3e379]:
+                  - generic "第1期种子标签" [ref=f3e384]: "1"
+              - cell "2026/5/1 10:00:00" [ref=f3e390]
+              - cell "3 / 3" [ref=f3e391]
+              - cell "5 / 2 5 / 2 人" [ref=f3e392]:
+                - generic [ref=f3e393]:
+                  - strong [ref=f3e394]: 5 / 2
+                  - generic [ref=f3e395]: 5 / 2 人
+              - cell "正常" [ref=f3e396]
+            - row [ref=f3e398] [cursor=pointer]:
+              - cell [ref=f3e399]:
+                - generic [ref=f3e400]:
+                  - strong [ref=f3e401]: 测试-小华已晋升
+                  - generic [ref=f3e402]:
+                    - text: "18800000003"
+                    - button "复制手机号" [ref=f3e403]
+                    - text: "· #190000000000000003"
+                    - button "复制用户ID" [ref=f3e407]
+              - cell "已认证" [ref=f3e411]
+              - cell [ref=f3e412]:
+                - generic "种子经纪人｜种子1" [ref=f3e413]:
+                  - generic "种子经纪人" [ref=f3e414]
+                  - generic "第1期种子标签" [ref=f3e415]: "1"
+                  - generic "引荐权限" [ref=f3e421]
+              - cell "2026/5/1 10:00:00" [ref=f3e427]
+              - cell "10 / 10" [ref=f3e428]
+              - cell "15 / 5 15 / 5 人" [ref=f3e429]:
+                - generic [ref=f3e430]:
+                  - strong [ref=f3e431]: 15 / 5
+                  - generic [ref=f3e432]: 15 / 5 人
+              - cell "正常" [ref=f3e433]
+            - row [ref=f3e435] [cursor=pointer]:
+              - cell [ref=f3e436]:
+                - generic [ref=f3e437]:
+                  - strong [ref=f3e438]: 测试-小肉
+                  - generic [ref=f3e439]:
+                    - text: "18800000001"
+                    - button "复制手机号" [ref=f3e440]
+                    - text: "· #190000000000000001"
+                    - button "复制用户ID" [ref=f3e444]
+              - cell "已认证" [ref=f3e448]
+              - cell [ref=f3e449]:
+                - generic "种子经纪人｜种子1" [ref=f3e450]:
+                  - generic "种子经纪人" [ref=f3e451]
+                  - generic "第1期种子标签" [ref=f3e452]: "1"
+                  - generic "引荐权限" [ref=f3e458]
+              - cell "2026/5/1 10:00:00" [ref=f3e464]
+              - cell "4 / 3" [ref=f3e465]
+              - cell "6 / 2 6 / 2 人" [ref=f3e466]:
+                - generic [ref=f3e467]:
+                  - strong [ref=f3e468]: 6 / 2
+                  - generic [ref=f3e469]: 6 / 2 人
+              - cell "正常" [ref=f3e470]
+        - generic [ref=f3e472]:
+          - generic [ref=f3e473]: 共 6 条 · 1-6 · 第 1 / 1 页
+          - generic [ref=f3e474]:
+            - button "上一页" [disabled] [ref=f3e475]
+            - button "下一页" [disabled] [ref=f3e476]

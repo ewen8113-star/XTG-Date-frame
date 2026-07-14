@@ -4,26 +4,29 @@ import {
   BookOpen,
   CheckCircle2,
   GitBranch,
+  Handshake,
   ListChecks,
   ReceiptText,
   ShieldCheck,
+  Sprout,
   UserCog,
   UsersRound,
   WalletCards
 } from "lucide-react";
 import type { ReactNode } from "react";
+import { appVersion } from "../data/releaseNotes";
 
 const workflowSteps = [
   { icon: UsersRound, title: "找到经纪人", text: "在经纪人用户中搜索目标用户，点击用户行进入专属工作台。", outcome: "进入专属工作台" },
   { icon: ListChecks, title: "审核通告与签约", text: "核对通告来源、视频凭证和新增签约名单，分别给出人工审核结论。", outcome: "形成审核结论" },
   { icon: ReceiptText, title: "核对费用", text: "在费用结算中选择周期，确认有效通告、签约奖励与抵扣项目。", outcome: "生成结算金额" },
-  { icon: WalletCards, title: "提交与付款", text: "运营提交付款单，财务确认付款或填写理由驳回，状态会同步回工作台。", outcome: "完成状态同步" }
+  { icon: WalletCards, title: "提交与付款", text: "运营提交付款单，财务先审核订单，再在实际付款后标记已付款；驳回理由会同步回工作台。", outcome: "完成状态同步" }
 ];
 
 const roleGuides = [
   { icon: ShieldCheck, role: "超级管理员", text: "管理系统账号、角色权限，并可查看运营与财务全部功能。" },
   { icon: ListChecks, role: "运营", text: "负责经纪人资料、通告与签约审核，以及费用核对和付款提报。" },
-  { icon: WalletCards, role: "财务", text: "处理待付款订单、确认付款或驳回，并查看财务报表。" }
+  { icon: WalletCards, role: "财务", text: "审核待付款订单、准备款项、确认实际付款或驳回，并查看财务报表。" }
 ];
 
 export function SystemGuide() {
@@ -32,7 +35,7 @@ export function SystemGuide() {
       <header className="guide-hero">
         <div className="guide-hero-icon"><BookOpen size={26} /></div>
         <div>
-          <span className="eyebrow">SYSTEM GUIDE · VER 1.03</span>
+          <span className="eyebrow">SYSTEM GUIDE · VER {appVersion}</span>
           <h1>系统使用白皮书</h1>
           <p>从经纪人审核到财务付款，一页掌握日常操作路径。</p>
         </div>
@@ -62,11 +65,12 @@ export function SystemGuide() {
             <div><h2>审核操作要点</h2><p>审核结果会直接影响奖励与付款。</p></div>
           </div>
           <div className="guide-checklist">
-            <GuideCheck title="有效通告发布" text="来源状态有效、视频凭证与通告内容一致且人工审核通过后，才进入奖励名额；每日最多 3 条、每周最多 12 条，超出部分作为候选待定，前序记录不通过后按发布时间顺序递补。" />
-            <GuideCheck title="有效新增签约" text="通告先满足有效发布，签约者资料通过人工核验，并且用户 ID 未出现在历史合作订单中，才计为有效新增；身份不符或历史重复均不计奖。" />
-            <GuideCheck title="上下级关系" text="每位经纪人只能关联一个直接上线；已有上线时不能改绑其他上线，但仍可在获得引荐权限后继续发展自己的直接下线。" />
-            <GuideCheck title="费用结算" text="确认周期、奖励明细和抵扣金额后再提交；沟通有变时可撤销付款并重新审核提报。" />
-            <GuideCheck title="财务驳回" text="运营在付款状态中查看驳回理由，修正通告或费用后重新提交付款单。" />
+            <GuideCheck title="有效通告发布" text="在具备引荐权限的种子经纪人关系网络中关联下线后，下线自动成为普通经纪人并继承相同种子期数，关联时间即计划生效时间。其后发布的通告立即进入计划审核、本人奖励和 6 + 2 统计，同时贡献直属上线收益。" />
+            <GuideCheck title="有效新增签约" text="新增签约去重从计划身份生效时间开始，与该时间之后发布的历史通告签约者比较。晋升不会重置去重范围；晋升前后通告都沿用同一计划周期。" />
+            <GuideCheck title="上下级关系" text="每位经纪人只能关联一个直接上线；关系建立后自动继承上线的种子期数。满足 6 + 2 后，系统提醒运营确认晋升，晋升时间默认当前时间并可按实际情况回填；晋升后才开通发展下线的权限。" />
+            <GuideCheck title="初始种子身份" text="没有上线的第一期、第二期等初始种子经纪人，由运营在用户级别中手动设置种子期数、身份生效时间和引荐权限；被引荐经纪人不能通过此入口绕过 6 + 2 晋升流程。" />
+            <GuideCheck title="费用结算" text="上线本人和每个直接下线分别执行每日 3 条、每周 12 条上限；下线每条有效新增签约通告给上线 1 元提成，多名下线独立计算后汇总。下线满足 6 + 2 并由运营确认晋升为种子经纪人后，给上线 10 元且每名下线仅发一次。" />
+            <GuideCheck title="财务流程" text="付款单先显示财务审批中；审核通过且款项准备完成后显示财务审批通过，实际付款后再标记财务已付款。若被驳回，运营在付款状态中查看理由，修正通告或费用后重新提交。" />
           </div>
         </section>
 
@@ -81,6 +85,29 @@ export function SystemGuide() {
           </div>
         </section>
       </div>
+
+      <section className="guide-section">
+        <div className="guide-section-heading">
+          <div><h2>身份图标速查</h2><p>在经纪人列表、工作台和关系网络中，通过图标快速辨识身份与权限。</p></div>
+        </div>
+        <div className="guide-identity-list">
+          <GuideIdentity
+            icon={<img alt="种子经纪人身份图标" src="/assets/seed-broker-icon.png" />}
+            title="种子经纪人"
+            text="圆形幼苗与根系图标表示该经纪人已经运营审核晋升为种子经纪人。"
+          />
+          <GuideIdentity
+            icon={<Sprout aria-hidden="true" size={28} />}
+            title="种子期数"
+            text="幼苗右下角的数字表示种子计划归属期数；晋升和继续发展下线不会改变该期数。"
+          />
+          <GuideIdentity
+            icon={<Handshake aria-hidden="true" size={26} />}
+            title="引荐权限"
+            text="握手图标表示该种子经纪人已经开通引荐权限，可以发展自己的直接下线。"
+          />
+        </div>
+      </section>
 
       <section className="guide-section">
         <div className="guide-section-heading">
@@ -105,4 +132,8 @@ function GuideCheck({ title, text }: { title: string; text: string }) {
 
 function GuideMapItem({ icon, title, text }: { icon: ReactNode; title: string; text: string }) {
   return <article>{icon}<div><h3>{title}</h3><p>{text}</p></div></article>;
+}
+
+function GuideIdentity({ icon, title, text }: { icon: ReactNode; title: string; text: string }) {
+  return <article><span className="guide-identity-icon">{icon}</span><div><h3>{title}</h3><p>{text}</p></div></article>;
 }

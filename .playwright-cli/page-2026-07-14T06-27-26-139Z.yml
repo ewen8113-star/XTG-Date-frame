@@ -1,0 +1,135 @@
+- generic [ref=f1e3]:
+  - complementary [ref=f1e4]:
+    - generic [ref=f1e6]:
+      - generic [ref=f1e7]: 鑫通告
+      - generic [ref=f1e8]: 运营结算后台
+    - navigation "主导航" [ref=f1e9]:
+      - generic [ref=f1e10]:
+        - generic [ref=f1e11]: 经纪人管理
+        - button "工作总览" [ref=f1e18] [cursor=pointer]
+        - button "审核中心" [ref=f1e20] [cursor=pointer]
+        - generic [ref=f1e21]:
+          - button "经纪人用户" [ref=f1e22] [cursor=pointer]
+          - button "经纪人工作台" [active] [ref=f1e23] [cursor=pointer]
+        - button "数据分析" [ref=f1e25] [cursor=pointer]
+      - generic [ref=f1e26]:
+        - generic [ref=f1e27]: 财务管理
+        - button "待付款订单" [ref=f1e33] [cursor=pointer]
+        - button "已付款订单" [ref=f1e34] [cursor=pointer]
+        - button "财务报表" [ref=f1e35] [cursor=pointer]
+      - generic [ref=f1e36]:
+        - generic [ref=f1e37]: 账户管理
+        - button "系统用户" [ref=f1e51] [cursor=pointer]
+    - generic [ref=f1e52]: ver 1.03 (BY EWEN)
+  - main [ref=f1e54]:
+    - generic [ref=f1e55]:
+      - generic [ref=f1e56]:
+        - strong [ref=f1e57]: 审核与结算
+        - generic [ref=f1e58]: 运营工作台
+      - generic [ref=f1e59]:
+        - textbox "全局搜索" [ref=f1e64]:
+          - /placeholder: 搜索经纪人或通告 ID
+        - button "系统使用白皮书" [ref=f1e65] [cursor=pointer]
+        - button "版本更新" [ref=f1e69] [cursor=pointer]
+        - button "切换暗色模式" [ref=f1e74] [cursor=pointer]
+        - button "E ewen_chen" [ref=f1e78] [cursor=pointer]:
+          - generic [ref=f1e79]: E
+          - generic [ref=f1e80]: ewen_chen
+    - generic [ref=f1e221]:
+      - button "返回" [ref=f1e223] [cursor=pointer]
+      - generic [ref=f1e224]:
+        - generic [ref=f1e226]:
+          - generic [ref=f1e227]:
+            - heading "平台官方经纪平台官方经纪平台官方经纪平台官方经纪 18801142844 · · 经纪人工作台" [level=1] [ref=f1e228]
+            - generic "种子经纪人｜种子1" [ref=f1e229]:
+              - generic "种子经纪人" [ref=f1e230]
+              - generic "第1期种子标签" [ref=f1e231]: "1"
+              - generic "引荐权限" [ref=f1e237]
+            - generic [ref=f1e243]: 正常
+          - paragraph [ref=f1e244]: "18801142844 · 用户ID #1337680568952356864"
+        - generic [ref=f1e245]:
+          - generic [ref=f1e246]:
+            - generic [ref=f1e247]: 用户ID
+            - strong [ref=f1e248]:
+              - generic [ref=f1e249]: "#1337680568952356864"
+              - button "复制用户ID" [ref=f1e250] [cursor=pointer]
+          - generic [ref=f1e254]:
+            - generic [ref=f1e255]: 绑定手机号
+            - strong [ref=f1e256]:
+              - generic [ref=f1e257]: "18801142844"
+              - button "复制绑定手机号" [ref=f1e258] [cursor=pointer]
+          - generic [ref=f1e262]:
+            - generic [ref=f1e263]: 微信手机号
+            - strong [ref=f1e264]:
+              - generic [ref=f1e265]: "18801142844"
+              - button "复制微信手机号" [ref=f1e266] [cursor=pointer]
+          - generic [ref=f1e270]:
+            - generic [ref=f1e271]: 实名状态
+            - strong [ref=f1e272]: 已认证
+          - generic [ref=f1e273]:
+            - generic [ref=f1e274]: 注册时间
+            - strong [ref=f1e275]: 2025/2/8 17:22:00
+          - generic [ref=f1e276]:
+            - generic [ref=f1e277]: 最后登录
+            - strong [ref=f1e278]: 2025/2/8 15:05:00
+          - generic [ref=f1e279]:
+            - generic [ref=f1e280]: 违规次数
+            - strong [ref=f1e281]: "0"
+          - generic [ref=f1e282]:
+            - generic [ref=f1e283]: 引荐权限
+            - strong [ref=f1e284]: 已开通
+        - generic [ref=f1e285]:
+          - generic [ref=f1e286]:
+            - generic [ref=f1e287]: 已发通告
+            - strong [ref=f1e288]: "36"
+            - generic [ref=f1e289]: 已导入 0 条明细
+          - generic [ref=f1e290]:
+            - generic [ref=f1e291]: 新增通告
+            - strong [ref=f1e292]: "0"
+            - generic [ref=f1e293]: 往期通告不纳入结算
+          - generic [ref=f1e294]:
+            - generic [ref=f1e295]: 有效通告
+            - strong [ref=f1e296]: "0"
+            - generic [ref=f1e297]: 往期数据不参与审核
+          - generic [ref=f1e298]:
+            - generic [ref=f1e299]: 新增签约
+            - strong [ref=f1e300]: "0"
+            - generic [ref=f1e301]: 较上周持平 · 需人工核验身份
+          - generic [ref=f1e302]:
+            - generic [ref=f1e303]: 报名 / 签约
+            - strong [ref=f1e304]: 24 / 9
+            - generic [ref=f1e305]: 6 / 2 人
+      - tablist [ref=f1e306]:
+        - button "通告数据" [ref=f1e307] [cursor=pointer]
+        - button "已签约名单" [ref=f1e308] [cursor=pointer]
+        - button "用户级别" [ref=f1e309] [cursor=pointer]
+        - button "关系网络" [ref=f1e310] [cursor=pointer]
+        - button "费用结算" [ref=f1e311] [cursor=pointer]
+        - button "付款状态" [ref=f1e312] [cursor=pointer]
+      - generic [ref=f1e313]:
+        - generic [ref=f1e314]:
+          - heading "发布通告审核" [level=2] [ref=f1e320]
+          - generic [ref=f1e321]:
+            - combobox [ref=f1e322]:
+              - option "往期通告" [selected]
+            - button "刷新" [ref=f1e323] [cursor=pointer]
+            - button "上传凭证库" [ref=f1e324] [cursor=pointer]
+            - button "清除通告" [disabled] [ref=f1e328]
+            - button "导入通告数据" [ref=f1e332] [cursor=pointer]
+        - paragraph [ref=f1e336]: 当前周期：往期通告；本周期 0 条（跨周延续 0 条），全部已导入 0 条。每次导入会重新读取全部通告来源状态；手动取消、举报取消将自动判定为有效通告不通过，仅对待审核通告做凭证审核。种子身份生效前发布的通告归入往期通告，不纳入结算。
+        - table [ref=f1e337]:
+          - rowgroup [ref=f1e338]:
+            - row [ref=f1e339]:
+              - columnheader "通告" [ref=f1e340]
+              - columnheader "报名 / 签约" [ref=f1e341]
+              - columnheader "状态 / 取消原因" [ref=f1e342]
+              - columnheader "凭证" [ref=f1e343]
+              - columnheader "有效通告" [ref=f1e344]
+              - columnheader "新增签约" [ref=f1e345]
+              - columnheader "状态" [ref=f1e346]
+          - rowgroup
+        - generic [ref=f1e347]:
+          - generic [ref=f1e348]: 共 0 条 · 0-0 · 第 1 / 1 页
+          - generic [ref=f1e349]:
+            - button "上一页" [disabled] [ref=f1e350]
+            - button "下一页" [disabled] [ref=f1e351]

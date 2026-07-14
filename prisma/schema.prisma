@@ -17,6 +17,7 @@ model Broker {
   accountStatus      AccountStatus      @default(NORMAL)
   brokerLevel        BrokerLevel        @default(NORMAL)
   seedPhase          Int?
+  seedProgramJoinedAt DateTime?
   referralUnlocked   Boolean            @default(false)
   registeredAt       DateTime?
   lastLoginAt        DateTime?
@@ -86,6 +87,58 @@ model Briefing {
   review              BriefingReview?
   evidences           EvidenceFile[]
   settlementItems     SettlementItem[]
+  signers             BriefingSigner[]
+}
+
+model SignerProfile {
+  id                    String            @id @default(cuid())
+  jarvisUserId          String            @unique
+  nickname              String
+  phone                 String?
+  avatarUrl             String?
+  userType              String            @default("模特")
+  accountStatus         String            @default("正常")
+  gender                String?
+  age                   Int?
+  birthDate             DateTime?
+  region                String?
+  heightCm              Int?
+  weightKg              Int?
+  bustCm                Int?
+  waistCm               Int?
+  hipCm                 Int?
+  shoulderCm            Int?
+  shoeSize              String?
+  clothingSize          String?
+  tattoo                String?
+  hairColor             String?
+  hairLength            String?
+  languages             String?
+  bio                   String?           @db.Text
+  imageUrls             Json?
+  videoUrls             Json?
+  registeredAt          DateTime?
+  lastLoginAt           DateTime?
+  violationCount        Int               @default(0)
+  acceptedBriefingCount Int               @default(0)
+  completedBriefingCount Int              @default(0)
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  briefings             BriefingSigner[]
+}
+
+model BriefingSigner {
+  id          String        @id @default(cuid())
+  briefingId  String
+  signerId    String
+  signedAt    DateTime?
+  sourceStatus String       @default("已签约")
+  createdAt   DateTime      @default(now())
+  briefing    Briefing      @relation(fields: [briefingId], references: [id])
+  signer      SignerProfile @relation(fields: [signerId], references: [id])
+
+  @@unique([briefingId, signerId])
+  @@index([signerId])
 }
 
 model BriefingSnapshot {

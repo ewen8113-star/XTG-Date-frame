@@ -1,0 +1,154 @@
+- generic [ref=f1e3]:
+  - complementary [ref=f1e4]:
+    - generic [ref=f1e6]:
+      - generic [ref=f1e7]: 鑫通告
+      - generic [ref=f1e8]: 运营结算后台
+    - navigation "主导航" [ref=f1e9]:
+      - generic [ref=f1e10]:
+        - generic [ref=f1e11]: 经纪人管理
+        - button "工作总览" [ref=f1e18] [cursor=pointer]
+        - button "审核中心" [ref=f1e20] [cursor=pointer]
+        - generic [ref=f1e21]:
+          - button "经纪人用户" [ref=f1e22] [cursor=pointer]
+          - button "经纪人工作台" [ref=f1e23] [cursor=pointer]
+        - button "数据分析" [ref=f1e25] [cursor=pointer]
+      - generic [ref=f1e26]:
+        - generic [ref=f1e27]: 财务管理
+        - button "待付款订单" [ref=f1e33] [cursor=pointer]
+        - button "已付款订单" [ref=f1e34] [cursor=pointer]
+        - button "财务报表" [ref=f1e35] [cursor=pointer]
+      - generic [ref=f1e36]:
+        - generic [ref=f1e37]: 账户管理
+        - button "系统用户" [ref=f1e51] [cursor=pointer]
+    - generic [ref=f1e52]: ver 1.03 (BY EWEN)
+  - main [ref=f1e54]:
+    - generic [ref=f1e55]:
+      - generic [ref=f1e56]:
+        - strong [ref=f1e57]: 审核与结算
+        - generic [ref=f1e58]: 运营工作台
+      - generic [ref=f1e59]:
+        - textbox "全局搜索" [ref=f1e64]:
+          - /placeholder: 搜索经纪人或通告 ID
+        - button "系统使用白皮书" [ref=f1e65] [cursor=pointer]
+        - button "版本更新" [ref=f1e69] [cursor=pointer]
+        - button "切换亮色模式" [active] [ref=f1e445] [cursor=pointer]
+        - button "E ewen_chen" [ref=f1e78] [cursor=pointer]:
+          - generic [ref=f1e79]: E
+          - generic [ref=f1e80]: ewen_chen
+    - generic [ref=f1e237]:
+      - generic [ref=f1e242]:
+        - text: SYSTEM GUIDE · VER 1.03
+        - heading "系统使用白皮书" [level=1] [ref=f1e243]
+        - paragraph [ref=f1e244]: 从经纪人审核到财务付款，一页掌握日常操作路径。
+      - generic [ref=f1e245]:
+        - generic [ref=f1e247]:
+          - heading "核心工作流程" [level=2] [ref=f1e248]
+          - paragraph [ref=f1e249]: 建议新用户按以下顺序完成一次完整操作。
+        - generic "核心工作流程" [ref=f1e250]:
+          - article [ref=f1e251]:
+            - generic [ref=f1e257]:
+              - heading "找到经纪人" [level=3] [ref=f1e258]
+              - paragraph [ref=f1e259]: 在经纪人用户中搜索目标用户，点击用户行进入专属工作台。
+              - generic [ref=f1e260]: 进入专属工作台
+          - article [ref=f1e261]:
+            - generic [ref=f1e266]:
+              - heading "审核通告与签约" [level=3] [ref=f1e267]
+              - paragraph [ref=f1e268]: 核对通告来源、视频凭证和新增签约名单，分别给出人工审核结论。
+              - generic [ref=f1e269]: 形成审核结论
+          - article [ref=f1e270]:
+            - generic [ref=f1e274]:
+              - heading "核对费用" [level=3] [ref=f1e275]
+              - paragraph [ref=f1e276]: 在费用结算中选择周期，确认有效通告、签约奖励与抵扣项目。
+              - generic [ref=f1e277]: 生成结算金额
+          - article [ref=f1e278]:
+            - generic [ref=f1e284]:
+              - heading "提交与付款" [level=3] [ref=f1e285]
+              - paragraph [ref=f1e286]: 运营提交付款单，财务先审核订单，再在实际付款后标记已付款；驳回理由会同步回工作台。
+              - generic [ref=f1e287]: 完成状态同步
+      - generic [ref=f1e288]:
+        - generic [ref=f1e289]:
+          - generic [ref=f1e291]:
+            - heading "审核操作要点" [level=2] [ref=f1e292]
+            - paragraph [ref=f1e293]: 审核结果会直接影响奖励与付款。
+          - generic [ref=f1e294]:
+            - article [ref=f1e295]:
+              - generic [ref=f1e299]:
+                - heading "有效通告发布" [level=3] [ref=f1e300]
+                - paragraph [ref=f1e301]: 普通经纪人获得种子期数并设置计划生效时间后，其后发布的通告立即进入计划审核、本人奖励和 6 + 2 统计，同时贡献直属上线收益。晋升只改变种子经纪人身份并开启引荐权限，不重置奖励起点。
+            - article [ref=f1e302]:
+              - generic [ref=f1e306]:
+                - heading "有效新增签约" [level=3] [ref=f1e307]
+                - paragraph [ref=f1e308]: 新增签约去重从计划身份生效时间开始，与该时间之后发布的历史通告签约者比较。晋升不会重置去重范围；晋升前后通告都沿用同一计划周期。
+            - article [ref=f1e309]:
+              - generic [ref=f1e313]:
+                - heading "上下级关系" [level=3] [ref=f1e314]
+                - paragraph [ref=f1e315]: 每位经纪人只能关联一个直接上线；已有上线时不能改绑其他上线，但仍可在获得引荐权限后继续发展自己的直接下线。
+            - article [ref=f1e316]:
+              - generic [ref=f1e320]:
+                - heading "费用结算" [level=3] [ref=f1e321]
+                - paragraph [ref=f1e322]: 确认周期、奖励明细和抵扣金额后再提交；沟通有变时可撤销付款并重新审核提报。已获奖励的通告若被手动取消或举报下架，将在发现失效的周期抵扣 1 元发布奖励；若曾获得新增签约奖励，同时抵扣 2 元。
+            - article [ref=f1e323]:
+              - generic [ref=f1e327]:
+                - heading "财务流程" [level=3] [ref=f1e328]
+                - paragraph [ref=f1e329]: 付款单先显示财务审批中；审核通过且款项准备完成后显示财务审批通过，实际付款后再标记财务已付款。若被驳回，运营在付款状态中查看理由，修正通告或费用后重新提交。
+        - generic [ref=f1e330]:
+          - generic [ref=f1e332]:
+            - heading "角色分工" [level=2] [ref=f1e333]
+            - paragraph [ref=f1e334]: 页面与操作权限随账号角色变化。
+          - generic [ref=f1e335]:
+            - article [ref=f1e336]:
+              - heading "超级管理员" [level=3] [ref=f1e337]
+              - paragraph [ref=f1e341]: 管理系统账号、角色权限，并可查看运营与财务全部功能。
+            - article [ref=f1e342]:
+              - heading "运营" [level=3] [ref=f1e343]
+              - paragraph [ref=f1e347]: 负责经纪人资料、通告与签约审核，以及费用核对和付款提报。
+            - article [ref=f1e348]:
+              - heading "财务" [level=3] [ref=f1e349]
+              - paragraph [ref=f1e354]: 审核待付款订单、准备款项、确认实际付款或驳回，并查看财务报表。
+      - generic [ref=f1e355]:
+        - generic [ref=f1e357]:
+          - heading "身份图标速查" [level=2] [ref=f1e358]
+          - paragraph [ref=f1e359]: 在经纪人列表、工作台和关系网络中，通过图标快速辨识身份与权限。
+        - generic [ref=f1e360]:
+          - article [ref=f1e361]:
+            - img "种子经纪人身份图标" [ref=f1e363]
+            - generic [ref=f1e364]:
+              - heading "种子经纪人" [level=3] [ref=f1e365]
+              - paragraph [ref=f1e366]: 圆形幼苗与根系图标表示该经纪人已经运营审核晋升为种子经纪人。
+          - article [ref=f1e367]:
+            - generic [ref=f1e373]:
+              - heading "种子期数" [level=3] [ref=f1e374]
+              - paragraph [ref=f1e375]: 幼苗右下角的数字表示种子计划归属期数；晋升和继续发展下线不会改变该期数。
+          - article [ref=f1e376]:
+            - generic [ref=f1e383]:
+              - heading "引荐权限" [level=3] [ref=f1e384]
+              - paragraph [ref=f1e385]: 握手图标表示该种子经纪人已经开通引荐权限，可以发展自己的直接下线。
+      - generic [ref=f1e386]:
+        - generic [ref=f1e388]:
+          - heading "页面速查" [level=2] [ref=f1e389]
+          - paragraph [ref=f1e390]: 不知道从哪里开始时，可按任务选择入口。
+        - generic [ref=f1e391]:
+          - article [ref=f1e392]:
+            - generic [ref=f1e395]:
+              - heading "工作总览 / 数据分析" [level=3] [ref=f1e396]
+              - paragraph [ref=f1e397]: 查看待办、关键指标与审核漏斗。
+          - article [ref=f1e398]:
+            - generic [ref=f1e403]:
+              - heading "经纪人用户 / 工作台" [level=3] [ref=f1e404]
+              - paragraph [ref=f1e405]: 查询用户、关系网络、通告、签约和付款状态。
+          - article [ref=f1e406]:
+            - generic [ref=f1e411]:
+              - heading "关系网络" [level=3] [ref=f1e412]
+              - paragraph [ref=f1e413]: 桌面端横向查看上下级，手机端自动切换纵向布局。
+          - article [ref=f1e414]:
+            - generic [ref=f1e419]:
+              - heading "财务管理" [level=3] [ref=f1e420]
+              - paragraph [ref=f1e421]: 处理付款审批、已付款订单和结算报表。
+          - article [ref=f1e422]:
+            - generic [ref=f1e435]:
+              - heading "账户管理" [level=3] [ref=f1e436]
+              - paragraph [ref=f1e437]: 超级管理员创建账号并分配运营、财务等权限。
+          - article [ref=f1e438]:
+            - generic [ref=f1e442]:
+              - heading "版本更新" [level=3] [ref=f1e443]
+              - paragraph [ref=f1e444]: 点击右上角铃铛查看每次功能更新与问题修复。

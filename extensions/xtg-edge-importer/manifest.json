@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "鑫通告数据导入助手",
+  "description": "从已登录的鑫通告页面读取经纪人和通告数据，并提交到运营后台。",
+  "version": "0.3.0",
+  "permissions": ["alarms", "scripting", "storage"],
+  "host_permissions": [
+    "https://jarvis.tong-gao.com/*",
+    "http://192.168.71.140/*"
+  ],
+  "optional_host_permissions": ["http://*/*", "https://*/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "打开鑫通告数据导入助手"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://jarvis.tong-gao.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["http://192.168.71.140/*"],
+      "js": ["system-bridge.js"],
+      "run_at": "document_start"
+    }
+  ]
+}

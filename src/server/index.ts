@@ -6,7 +6,9 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { briefings, brokers, importBatches, referralNodes, settlementSummary } from "../data/mockData";
-import { isSourceInvalidForPublish, resolveImportReview } from "../lib/briefing-rules";
+import { clearEvidenceDisputeReason, isSourceInvalidForPublish, resolveImportReview } from "../lib/briefing-rules";
+import { resolveStoredCompleteStatus } from "../lib/signer-review";
+import { importedSignerDisplayNickname, importedSignerNickname, isImportedSignerPlaceholder } from "../lib/signed-model-import";
 import { prisma } from "./prisma";
 
 const app = express();
@@ -35,6 +37,101 @@ async function withFallback<T>(query: () => Promise<unknown>, fallback: T): Prom
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, service: "xtg-review-admin-api" });
 });
+
+type BrowserImportMode = "brokers" | "briefings" | "briefing-detail";
+type BrowserImportJob = {
+  id: string;
+  mode: BrowserImportMode;
+  payload: Record<string, unknown>;
+  status: "pending" | "claimed" | "completed" | "failed";
+  createdAt: string;
+  updatedAt: string;
+  workerId?: string;
+  result?: unknown;
+  error?: string;
+};
+
+const browserImportJobs = new Map<string, BrowserImportJob>();
+
+app.post("/api/browser-import/jobs", (req, res) => {
+  const mode = safeText(req.body?.mode) as BrowserImportMode;
+  if (!["brokers", "briefings", "briefing-detail"].includes(mode)) {
+    res.status(400).json({ error: "不支持的浏览器导入类型" });
+    return;
+  }
+  const now = new Date().toISOString();
+  const job: BrowserImportJob = {
+    id: randomUUID(),
+    mode,
+    payload: typeof req.body === "object" && req.body ? req.body : {},
+    status: "pending",
+    createdAt: now,
+    updatedAt: now
+  };
+  browserImportJobs.set(job.id, job);
+  cleanupBrowserImportJobs();
+  res.status(201).json(job);
+});
+
+app.get("/api/browser-import/jobs/next", (req, res) => {
+  const workerId = safeText(req.query.workerId);
+  if (!workerId) {
+    res.status(400).json({ error: "workerId is required" });
+    return;
+  }
+  const now = Date.now();
+  for (const job of browserImportJobs.values()) {
+    if (job.status === "claimed" && now - new Date(job.updatedAt).getTime() > 10 * 60 * 1000) {
+      job.status = "pending";
+      job.workerId = undefined;
+    }
+  }
+  const job = [...browserImportJobs.values()]
+    .filter((item) => item.status === "pending")
+    .sort((left, right) => left.createdAt.localeCompare(right.createdAt))[0];
+  if (!job) {
+    res.status(204).end();
+    return;
+  }
+  job.status = "claimed";
+  job.workerId = workerId;
+  job.updatedAt = new Date().toISOString();
+  res.json(job);
+});
+
+app.get("/api/browser-import/jobs/:id", (req, res) => {
+  const job = browserImportJobs.get(req.params.id);
+  if (!job) {
+    res.status(404).json({ error: "导入任务不存在或已过期" });
+    return;
+  }
+  res.json(job);
+});
+
+app.post("/api/browser-import/jobs/:id/complete", (req, res) => {
+  const job = browserImportJobs.get(req.params.id);
+  if (!job) {
+    res.status(404).json({ error: "导入任务不存在或已过期" });
+    return;
+  }
+  const workerId = safeText(req.body?.workerId);
+  if (job.workerId && job.workerId !== workerId) {
+    res.status(409).json({ error: "导入任务已由其他扩展领取" });
+    return;
+  }
+  job.status = req.body?.error ? "failed" : "completed";
+  job.error = safeText(req.body?.error) || undefined;
+  job.result = req.body?.result;
+  job.updatedAt = new Date().toISOString();
+  res.json(job);
+});
+
+function cleanupBrowserImportJobs() {
+  const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+  for (const [id, job] of browserImportJobs) {
+    if (new Date(job.createdAt).getTime() < cutoff) browserImportJobs.delete(id);
+  }
+}
 
 type AuthRole = "super_admin" | "operations" | "finance";
 type AuthAccount = {
@@ -189,8 +286,15 @@ app.get("/api/brokers", async (_req, res) => {
         include: {
           snapshots: {
             orderBy: { capturedAt: "desc" },
-            take: 1
           },
+          promotions: { where: { toLevel: "SEED" }, orderBy: { promotedAt: "desc" }, take: 1 },
+          refereeRelations: {
+            orderBy: { boundAt: "desc" },
+            take: 1,
+            include: { referrer: { select: { nickname: true } } }
+          },
+          referrerRelations: { orderBy: { boundAt: "desc" }, take: 1, select: { boundAt: true } },
+          _count: { select: { referrerRelations: true } },
           briefings: {
             include: {
               snapshots: true
@@ -222,25 +326,145 @@ app.get("/api/brokers/:id", async (req, res) => {
 app.patch("/api/brokers/:id/level", async (req, res) => {
   const brokerLevel = req.body?.brokerLevel === "seed" ? "SEED" : "NORMAL";
   const rawSeedPhase = req.body?.seedPhase;
-  const seedPhase = rawSeedPhase == null || rawSeedPhase === "" ? null : Math.max(1, Math.min(6, Number(rawSeedPhase)));
-  const referralUnlocked = Boolean(req.body?.referralUnlocked);
+  const requestedSeedPhase = rawSeedPhase == null || rawSeedPhase === "" ? null : Math.max(1, Math.min(6, Number(rawSeedPhase)));
+  const seedQualifiedAt = parseNullableDate(req.body?.seedQualifiedAt);
+  const requestedProgramJoinedAt = parseNullableDate(req.body?.seedProgramJoinedAt);
+  const referralUnlocked = brokerLevel === "SEED" && Boolean(req.body?.referralUnlocked);
 
   try {
-    const broker = await prisma.broker.update({
-      where: { id: req.params.id },
-      data: {
-        brokerLevel,
-        seedPhase,
-        referralUnlocked
-      },
+    const currentBroker = await prisma.broker.findUnique({ where: { id: req.params.id } });
+    if (!currentBroker) {
+      res.status(404).json({ error: "经纪人不存在" });
+      return;
+    }
+    const directReferrer = await prisma.referralRelation.findFirst({
+      where: { refereeId: req.params.id },
+      include: { referrer: { select: { seedPhase: true } } }
+    });
+    if (directReferrer && currentBroker.brokerLevel !== "SEED" && brokerLevel === "SEED") {
+      res.status(409).json({ error: "被引荐经纪人请通过 6 + 2 达标提醒确认晋升" });
+      return;
+    }
+    const inheritedPhase = directReferrer?.referrer.seedPhase ?? null;
+    const seedPhase = requestedSeedPhase ? inheritedPhase ?? requestedSeedPhase : null;
+    const seedProgramJoinedAt = seedPhase ? requestedProgramJoinedAt ?? (brokerLevel === "SEED" ? seedQualifiedAt : null) : null;
+    if (brokerLevel === "SEED" && !seedPhase) {
+      res.status(400).json({ error: "请选择种子期数" });
+      return;
+    }
+    if (seedPhase && !seedProgramJoinedAt) {
+      res.status(400).json({ error: "请选择种子计划生效日期和时间" });
+      return;
+    }
+    if (brokerLevel === "SEED" && !seedQualifiedAt) {
+      res.status(400).json({ error: "请选择种子经纪人晋升日期和时间" });
+      return;
+    }
+    const broker = await prisma.$transaction(async (transaction) => {
+      const updatedBroker = await transaction.broker.update({
+        where: { id: req.params.id },
+        data: { brokerLevel, seedPhase, seedProgramJoinedAt, referralUnlocked }
+      });
+      if (brokerLevel === "SEED" && seedQualifiedAt) {
+        const latestPromotion = currentBroker.brokerLevel === "SEED"
+          ? await transaction.promotionRecord.findFirst({
+              where: { brokerId: req.params.id, toLevel: "SEED" },
+              orderBy: { promotedAt: "desc" }
+            })
+          : null;
+        if (latestPromotion) {
+          await transaction.promotionRecord.update({
+            where: { id: latestPromotion.id },
+            data: { promotedAt: seedQualifiedAt }
+          });
+        } else {
+          await transaction.promotionRecord.create({
+            data: {
+              brokerId: req.params.id,
+              fromLevel: currentBroker.brokerLevel,
+              toLevel: "SEED",
+              promotedAt: seedQualifiedAt,
+              reason: safeText(req.body?.reason, "运营确认种子经纪人身份"),
+              operator: safeText(req.body?.operator, "开发预览账号")
+            }
+          });
+        }
+      }
+      return updatedBroker;
+    });
+    const mappedBroker = await prisma.broker.findUnique({
+      where: { id: broker.id },
       include: {
-        snapshots: { orderBy: { capturedAt: "desc" }, take: 1 },
+        snapshots: { orderBy: { capturedAt: "desc" } },
+        promotions: { where: { toLevel: "SEED" }, orderBy: { promotedAt: "desc" }, take: 1 },
         briefings: { include: { snapshots: true } }
       }
     });
-    res.json(mapBroker(broker));
+    res.json(mappedBroker ? mapBroker(mappedBroker) : null);
   } catch (error) {
     res.status(400).json({ error: error instanceof Error ? error.message : "更新失败" });
+  }
+});
+
+app.post("/api/brokers/:id/promote", async (req, res) => {
+  const promotedAt = parseNullableDate(req.body?.promotedAt);
+  if (!promotedAt) {
+    res.status(400).json({ error: "请选择晋升日期和时间" });
+    return;
+  }
+
+  try {
+    const currentBroker = await prisma.broker.findUnique({ where: { id: req.params.id } });
+    if (!currentBroker) {
+      res.status(404).json({ error: "经纪人不存在" });
+      return;
+    }
+    if (!currentBroker.seedPhase || !currentBroker.seedProgramJoinedAt) {
+      res.status(409).json({ error: "该经纪人尚未通过关系网络加入种子计划" });
+      return;
+    }
+    const directReferrer = await prisma.referralRelation.findFirst({ where: { refereeId: req.params.id } });
+    if (!directReferrer) {
+      res.status(409).json({ error: "只有关系网络中的被引荐经纪人可以通过达标提醒晋升" });
+      return;
+    }
+    if (currentBroker.brokerLevel === "SEED" || currentBroker.referralUnlocked) {
+      res.status(409).json({ error: "该经纪人已经完成晋升" });
+      return;
+    }
+    if (promotedAt.getTime() < currentBroker.seedProgramJoinedAt.getTime()) {
+      res.status(400).json({ error: "晋升时间不能早于加入种子计划的时间" });
+      return;
+    }
+
+    await prisma.$transaction(async (transaction) => {
+      await transaction.broker.update({
+        where: { id: req.params.id },
+        data: { brokerLevel: "SEED", referralUnlocked: true }
+      });
+      await transaction.promotionRecord.create({
+        data: {
+          brokerId: req.params.id,
+          fromLevel: currentBroker.brokerLevel,
+          toLevel: "SEED",
+          promotedAt,
+          reason: safeText(req.body?.reason, "运营确认满足 6 + 2 后晋升"),
+          operator: safeText(req.body?.operator, "开发预览账号")
+        }
+      });
+    });
+
+    const mappedBroker = await prisma.broker.findUnique({
+      where: { id: req.params.id },
+      include: {
+        snapshots: { orderBy: { capturedAt: "desc" } },
+        promotions: { where: { toLevel: "SEED" }, orderBy: { promotedAt: "desc" }, take: 1 },
+        briefings: { include: { snapshots: true } }
+      }
+    });
+    res.json(mappedBroker ? mapBroker(mappedBroker) : null);
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : "晋升失败" });
   }
 });
 
@@ -254,7 +478,7 @@ app.get("/api/brokers/:id/briefings", async (req, res) => {
         include: {
           review: true,
           evidences: true,
-          snapshots: { orderBy: { capturedAt: "desc" }, take: 1 }
+          snapshots: { orderBy: { capturedAt: "desc" } }
         }
       }),
     fallback
@@ -350,7 +574,8 @@ app.get("/api/brokers/:id/referrals", (_req, res) => {
       include: {
         referee: {
           include: {
-            snapshots: { orderBy: { capturedAt: "desc" }, take: 1 },
+            snapshots: { orderBy: { capturedAt: "desc" } },
+            promotions: { where: { toLevel: "SEED" }, orderBy: { promotedAt: "desc" }, take: 1 },
             briefings: { include: { snapshots: true } }
           }
         }
@@ -368,7 +593,8 @@ app.get("/api/brokers/:id/referrers", (_req, res) => {
       include: {
         referrer: {
           include: {
-            snapshots: { orderBy: { capturedAt: "desc" }, take: 1 },
+            snapshots: { orderBy: { capturedAt: "desc" } },
+            promotions: { where: { toLevel: "SEED" }, orderBy: { promotedAt: "desc" }, take: 1 },
             briefings: { include: { snapshots: true } }
           }
         }
@@ -389,6 +615,10 @@ app.post("/api/brokers/:id/referrals", async (req, res) => {
     const referrer = await prisma.broker.findUnique({ where: { id: req.params.id } });
     if (!referrer) {
       res.status(404).json({ error: "上线经纪人不存在" });
+      return;
+    }
+    if (referrer.brokerLevel !== "SEED" || !referrer.referralUnlocked || !referrer.seedPhase) {
+      res.status(403).json({ error: "该经纪人尚未晋升并开通引荐权限" });
       return;
     }
 
@@ -415,33 +645,51 @@ app.post("/api/brokers/:id/referrals", async (req, res) => {
       return;
     }
 
-    const inheritedPhase = referrer.seedPhase ?? 1;
-    await prisma.referralRelation.upsert({
-      where: {
-        referrerId_refereeId: {
+    const inheritedPhase = referrer.seedPhase;
+    if (!existingReferrer && (referee.seedPhase || referee.brokerLevel === "SEED")) {
+      res.status(409).json({ error: "该经纪人已有种子计划身份，不能重复加入其他裂变链路" });
+      return;
+    }
+    const boundAtText = safeText(req.body?.boundAt);
+    const requestedBoundAt = parseNullableDate(boundAtText);
+    if (boundAtText && !requestedBoundAt) {
+      res.status(400).json({ error: "引荐时间格式无效" });
+      return;
+    }
+    const joinedAt = requestedBoundAt ?? new Date();
+    if (joinedAt.getTime() > Date.now()) {
+      res.status(400).json({ error: "引荐时间不能晚于当前时间" });
+      return;
+    }
+    await prisma.$transaction(async (transaction) => {
+      await transaction.referralRelation.upsert({
+        where: {
+          referrerId_refereeId: {
+            referrerId: referrer.id,
+            refereeId: referee.id
+          }
+        },
+        update: {
+          bindPhone: phone,
+          boundAt: joinedAt,
+          notes: `由 ${referrer.nickname} 引荐，继承第 ${inheritedPhase} 期种子链路`
+        },
+        create: {
           referrerId: referrer.id,
-          refereeId: referee.id
+          refereeId: referee.id,
+          bindPhone: phone,
+          boundAt: joinedAt,
+          notes: `由 ${referrer.nickname} 引荐，继承第 ${inheritedPhase} 期种子链路`
         }
-      },
-      update: {
-        bindPhone: phone,
-        notes: `由 ${referrer.nickname} 引荐，继承第 ${inheritedPhase} 期种子链路`
-      },
-      create: {
-        referrerId: referrer.id,
-        refereeId: referee.id,
-        bindPhone: phone,
-        notes: `由 ${referrer.nickname} 引荐，继承第 ${inheritedPhase} 期种子链路`
-      }
-    });
-
-    await prisma.broker.update({
-      where: { id: referee.id },
-      data: {
-        seedPhase: inheritedPhase,
-        brokerLevel: referee.brokerLevel,
-        referralUnlocked: referee.referralUnlocked
-      }
+      });
+      await transaction.broker.update({
+        where: { id: referee.id },
+        data: {
+          seedPhase: inheritedPhase,
+          seedProgramJoinedAt: joinedAt,
+          ...(referee.brokerLevel === "SEED" ? {} : { brokerLevel: "NORMAL", referralUnlocked: false })
+        }
+      });
     });
 
     const relations = await prisma.referralRelation.findMany({
@@ -450,7 +698,8 @@ app.post("/api/brokers/:id/referrals", async (req, res) => {
       include: {
         referee: {
           include: {
-            snapshots: { orderBy: { capturedAt: "desc" }, take: 1 },
+            snapshots: { orderBy: { capturedAt: "desc" } },
+            promotions: { where: { toLevel: "SEED" }, orderBy: { promotedAt: "desc" }, take: 1 },
             briefings: { include: { snapshots: true } }
           }
         }
@@ -465,6 +714,53 @@ app.post("/api/brokers/:id/referrals", async (req, res) => {
 
 app.get("/api/brokers/:id/settlement", (_req, res) => {
   res.json(settlementSummary);
+});
+
+app.get("/api/signers/:jarvisUserId", async (req, res) => {
+  try {
+    const signer = await prisma.signerProfile.findUnique({
+      where: { jarvisUserId: req.params.jarvisUserId },
+      include: {
+        briefings: {
+          orderBy: { signedAt: "desc" },
+          include: { briefing: { include: { broker: { select: { nickname: true } } } } }
+        }
+      }
+    });
+    if (!signer) {
+      res.status(404).json({ error: "尚未同步该签约者资料" });
+      return;
+    }
+    const recoveredNicknames = signer.briefings
+      .flatMap((item) => unpackBriefingDetails(item.briefing.requirementText).signedModelNames)
+      .map(parseSignedModelIdentity)
+      .filter((identity) => identity.jarvisUserId === signer.jarvisUserId)
+      .map((identity) => identity.nickname);
+    const nickname = importedSignerDisplayNickname(signer.nickname, signer.accountStatus, recoveredNicknames);
+    res.json(mapSignerProfile({ ...signer, nickname }));
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : "签约者资料读取失败" });
+  }
+});
+
+app.post("/api/import/jarvis-signer-profile", async (req, res) => {
+  const row = req.body?.row ?? req.body ?? {};
+  const jarvisUserId = safeText(row.jarvisUserId ?? row.userId);
+  if (!jarvisUserId) {
+    res.status(400).json({ error: "jarvisUserId is required" });
+    return;
+  }
+  const data = signerProfileData(row);
+  try {
+    const signer = await prisma.signerProfile.upsert({
+      where: { jarvisUserId },
+      update: data,
+      create: { jarvisUserId, ...data }
+    });
+    res.json(mapSignerProfile({ ...signer, briefings: [] }));
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : "签约者资料导入失败" });
+  }
 });
 
 app.post("/api/briefings/:id/evidence", express.raw({ type: "*/*", limit: "800mb" }), async (req, res) => {
@@ -550,13 +846,24 @@ app.delete("/api/briefings/:id/evidence/:evidenceId", async (req, res) => {
 
 app.delete("/api/brokers/:id/referrals/:refereeId", async (req, res) => {
   try {
-    await prisma.referralRelation.delete({
-      where: {
-        referrerId_refereeId: {
-          referrerId: req.params.id,
-          refereeId: req.params.refereeId
+    await prisma.$transaction(async (transaction) => {
+      await transaction.referralRelation.delete({
+        where: {
+          referrerId_refereeId: {
+            referrerId: req.params.id,
+            refereeId: req.params.refereeId
+          }
         }
-      }
+      });
+      await transaction.broker.update({
+        where: { id: req.params.refereeId },
+        data: {
+          brokerLevel: "NORMAL",
+          seedPhase: null,
+          seedProgramJoinedAt: null,
+          referralUnlocked: false
+        }
+      });
     });
     const relations = await prisma.referralRelation.findMany({
       where: { referrerId: req.params.id },
@@ -564,7 +871,8 @@ app.delete("/api/brokers/:id/referrals/:refereeId", async (req, res) => {
       include: {
         referee: {
           include: {
-            snapshots: { orderBy: { capturedAt: "desc" }, take: 1 },
+            snapshots: { orderBy: { capturedAt: "desc" } },
+            promotions: { where: { toLevel: "SEED" }, orderBy: { promotedAt: "desc" }, take: 1 },
             briefings: { include: { snapshots: true } }
           }
         }
@@ -587,7 +895,21 @@ app.patch("/api/briefings/:id/review", async (req, res) => {
       res.status(404).json({ error: "通告不存在" });
       return;
     }
+    const reviewStartAt = await findSeedReviewStartAt(briefing.brokerId);
+    if (!reviewStartAt || !briefing.publishedAt || briefing.publishedAt < reviewStartAt) {
+      res.status(400).json({ error: "该通告发布于当前激励阶段生效前，属于往期通告，不能进入计划审核" });
+      return;
+    }
     const details = unpackBriefingDetails(briefing.requirementText);
+    const hasSignedModels = details.signedModelNames.length > 0;
+    if (validCompleteStatus === "APPROVED" && !hasSignedModels) {
+      res.status(400).json({ error: "该通告没有已签约人员，新增签约不能审核为通过" });
+      return;
+    }
+    if (validCompleteStatus === "APPROVED" && validPublishStatus !== "APPROVED") {
+      res.status(400).json({ error: "请先审核通告是否符合有效通告，再审核新增签约" });
+      return;
+    }
     const cancelReason = details.cancelReason || briefing.sourceStatus || "";
     if (validPublishStatus === "APPROVED" && isSourceInvalidForPublish(briefing.sourceStatus ?? "", cancelReason)) {
       res.status(400).json({ error: "该通告已手动取消或被举报取消，不能审核为有效通告" });
@@ -602,14 +924,16 @@ app.patch("/api/briefings/:id/review", async (req, res) => {
       const seedPlanStart = new Date("2026-04-01T00:00:00");
       const weekIndex = Math.max(0, Math.floor((dayStart.getTime() - seedPlanStart.getTime()) / (7 * 86400000)));
       const weekStart = new Date(seedPlanStart.getTime() + weekIndex * 7 * 86400000);
+      const eligibleDayStart = reviewStartAt > dayStart ? reviewStartAt : dayStart;
+      const eligibleWeekStart = reviewStartAt > weekStart ? reviewStartAt : weekStart;
       const approvedFilter = {
         brokerId: briefing.brokerId,
         id: { not: briefing.id },
         review: { validPublishStatus: "APPROVED" as const }
       };
       const [dailyApprovedCount, weeklyApprovedCount] = await Promise.all([
-        prisma.briefing.count({ where: { ...approvedFilter, publishedAt: { gte: dayStart, lt: publishedAt } } }),
-        prisma.briefing.count({ where: { ...approvedFilter, publishedAt: { gte: weekStart, lt: publishedAt } } })
+        prisma.briefing.count({ where: { ...approvedFilter, publishedAt: { gte: eligibleDayStart, lt: publishedAt } } }),
+        prisma.briefing.count({ where: { ...approvedFilter, publishedAt: { gte: eligibleWeekStart, lt: publishedAt } } })
       ]);
       isDailyLimitExceeded = dailyApprovedCount >= 3;
       isWeeklyLimitExceeded = weeklyApprovedCount >= 12;
@@ -617,7 +941,7 @@ app.patch("/api/briefings/:id/review", async (req, res) => {
 
     const isPublishCandidate = isDailyLimitExceeded || isWeeklyLimitExceeded;
     const storedPublishStatus = isPublishCandidate ? "PENDING" : validPublishStatus;
-    const storedCompleteStatus = storedPublishStatus === "APPROVED" ? validCompleteStatus : "PENDING";
+    const storedCompleteStatus = resolveStoredCompleteStatus(storedPublishStatus, validCompleteStatus, hasSignedModels);
 
     await prisma.briefingReview.upsert({
       where: { briefingId: req.params.id },
@@ -646,12 +970,46 @@ app.patch("/api/briefings/:id/review", async (req, res) => {
       include: {
         review: true,
         evidences: true,
-        snapshots: { orderBy: { capturedAt: "desc" }, take: 1 }
+        snapshots: { orderBy: { capturedAt: "desc" } }
       }
     });
     res.json(updated ? mapBriefing(updated) : null);
   } catch (error) {
     res.status(400).json({ error: error instanceof Error ? error.message : "审核失败" });
+  }
+});
+
+app.delete("/api/briefings/:id/review/evidence-dispute", async (req, res) => {
+  try {
+    const briefing = await prisma.briefing.findUnique({
+      where: { id: req.params.id },
+      include: { review: true }
+    });
+    if (!briefing) {
+      res.status(404).json({ error: "通告不存在" });
+      return;
+    }
+    if (!briefing.review) {
+      res.status(404).json({ error: "该通告没有凭证异议记录" });
+      return;
+    }
+
+    const invalidReason = clearEvidenceDisputeReason(briefing.review.invalidReason ?? "");
+    await prisma.briefingReview.update({
+      where: { briefingId: briefing.id },
+      data: { invalidReason: invalidReason || null }
+    });
+    const updated = await prisma.briefing.findUnique({
+      where: { id: briefing.id },
+      include: {
+        review: true,
+        evidences: true,
+        snapshots: { orderBy: { capturedAt: "desc" } }
+      }
+    });
+    res.json(updated ? mapBriefing(updated) : null);
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : "清除凭证异议失败" });
   }
 });
 
@@ -954,6 +1312,7 @@ app.post("/api/import/jarvis-briefings", async (req, res) => {
     });
 
     await upsertBriefingReviewFromImport(briefing.id, sourceStatus, cancelReason, now);
+    await syncBriefingSigners(briefing.id, unpackBriefingDetails(detailText).signedModelNames, now);
 
     importedCount += 1;
   }
@@ -1118,7 +1477,7 @@ app.post("/api/import/jarvis-briefing-detail", async (req, res) => {
             include: {
               review: true,
               evidences: true,
-              snapshots: { orderBy: { capturedAt: "desc" }, take: 1 }
+              snapshots: { orderBy: { capturedAt: "desc" } }
             }
           })
         : null;
@@ -1205,13 +1564,14 @@ app.post("/api/import/jarvis-briefing-detail", async (req, res) => {
     });
 
     await upsertBriefingReviewFromImport(briefing.id, sourceStatus, cancelReason, now);
+    await syncBriefingSigners(briefing.id, unpackBriefingDetails(detailText || existingBriefing?.requirementText).signedModelNames, now);
 
     const imported = await prisma.briefing.findUnique({
       where: { id: briefing.id },
       include: {
         review: true,
         evidences: true,
-        snapshots: { orderBy: { capturedAt: "desc" }, take: 1 }
+        snapshots: { orderBy: { capturedAt: "desc" } }
       }
     });
     res.json({
@@ -1340,6 +1700,7 @@ async function importJarvisBriefingRows({
     });
 
     await upsertBriefingReviewFromImport(briefing.id, sourceStatus, cancelReason, now);
+    await syncBriefingSigners(briefing.id, unpackBriefingDetails(detailText).signedModelNames, now);
 
     importedCount += 1;
   }
@@ -1620,24 +1981,30 @@ function jarvisDetailScraperSource(fallbackRow: any) {
     : "";
   const signedModelNames = (() => {
     const names = [];
+    const metadataTokens = new Set(["报名列表","签约列表","模特","模特状态","状态","自荐","报名时间","操作","聊天记录","正常","已报名","待处理","待签约","已签约","已解约","-","—"]);
+    const nicknameOf = (value, rowText) => {
+      if (/该用户已注销|用户已注销|账号已注销|(?:^|\\s)已注销(?:\\s|$)/.test(rowText)) return "该用户已注销";
+      return compact(value).split(/\\s+/).filter((token) => token && !metadataTokens.has(token) && !/^20\\d{2}[-/]\\d{1,2}[-/]\\d{1,2}$/.test(token) && !/^\\d{1,2}:\\d{2}(?::\\d{2})?$/.test(token)).join(" ").trim();
+    };
     const push = (name, phone, userId = "") => {
-      const cleanName = compact(name)
-        .replace(/^(报名列表|签约列表|模特|状态|自荐|报名时间|操作|聊天记录)\\s*/g, "")
-        .replace(/\\s*(已签约|待处理|已报名|自荐|-).*$/g, "")
-        .trim();
+      const cleanName = nicknameOf(name, name);
       if (!cleanName || !phone) return;
       names.push(userId ? cleanName + "（" + phone + "） #" + userId : cleanName + "（" + phone + "）");
     };
-    const rowTexts = Array.from(document.querySelectorAll("tbody tr, .ant-table-row, tr"))
-      .map((row) => compact(row.innerText || row.textContent || ""))
-      .filter((text) => /已签约/.test(text));
-    rowTexts.forEach((rowText) => {
-      const userId = (rowText.match(/#(\\d{12,})/) || [])[1] || "";
+    const rowNodes = Array.from(document.querySelectorAll("tbody tr, .ant-table-row, tr"));
+    rowNodes.forEach((row) => {
+      const rowText = compact(row.innerText || row.textContent || "");
+      if (!/已签约/.test(rowText)) return;
+      const profileLink = row.querySelector('a[href*="/user/detail/"]');
+      const linkedText = compact(profileLink?.innerText || profileLink?.textContent || profileLink?.getAttribute("title") || profileLink?.querySelector("img")?.getAttribute("alt") || "");
+      const userId = (String(profileLink?.getAttribute("href") || "").match(/user\\/detail\\/(\\d{12,})/) || rowText.match(/#(\\d{12,})/) || [])[1] || "";
       const noIdText = rowText.replace(/#\\d{12,}/g, " ");
       const phone = (noIdText.match(/(?:^|\\D)(1\\d{10})(?:\\D|$)/) || noIdText.match(/(?:^|\\D)(\\d{6,15})(?:\\D|$)/) || [])[1] || "";
       const genderIndex = noIdText.search(/\\s(?:男|女|不限)\\s*·\\s*\\d{1,3}岁/);
-      const nameSource = genderIndex >= 0 ? noIdText.slice(0, genderIndex) : noIdText;
-      const name = compact(nameSource).split(/\\s+/).filter(Boolean).slice(-1)[0] || "";
+      const phoneIndex = noIdText.indexOf(phone);
+      const identityEnd = genderIndex >= 0 ? genderIndex : phoneIndex;
+      const nameSource = identityEnd >= 0 ? noIdText.slice(0, identityEnd) : noIdText;
+      const name = nicknameOf(linkedText, rowText) || nicknameOf(nameSource, rowText) || "未命名签约者";
       push(name, phone, userId);
     });
     const regex = /(.{1,45}?)\\s+(?:男|女|不限)\\s*·\\s*\\d{1,3}岁\\s*·\\s*(\\d{6,15})(?:\\s*[·・•]?\\s*#?(\\d{12,}))?\\s+已签约/g;
@@ -1800,6 +2167,87 @@ function normalizeSignedModelNames(value: unknown) {
   return [...new Set(text.split(/[、,，\n]+/).map((item) => safeText(item)).filter(Boolean))];
 }
 
+function parseSignedModelIdentity(value: string) {
+  const text = value.trim();
+  const jarvisUserId = text.match(/#(\d{12,})/)?.[1] ?? "";
+  const textWithoutIds = text.replace(/#\d{12,}/g, "");
+  const phone = textWithoutIds.match(/\d{6,15}/)?.[0] ?? "";
+  const nickname = importedSignerNickname(text
+    .replace(/#\d{12,}/g, "")
+    .replace(/[（(]?\d{6,15}[）)]?/g, "")
+    .replace(/[·\s]+$/g, "")
+    .trim(), text) || "未命名签约者";
+  return { jarvisUserId, phone, nickname };
+}
+
+async function syncBriefingSigners(briefingId: string, signedModelNames: string[], signedAt: Date) {
+  for (const signedModelName of signedModelNames) {
+    const identity = parseSignedModelIdentity(signedModelName);
+    if (!identity.jarvisUserId) continue;
+    const signer = await prisma.signerProfile.upsert({
+      where: { jarvisUserId: identity.jarvisUserId },
+      update: {
+        nickname: isImportedSignerPlaceholder(identity.nickname) ? undefined : identity.nickname,
+        phone: identity.phone || undefined
+      },
+      create: {
+        jarvisUserId: identity.jarvisUserId,
+        nickname: identity.nickname,
+        phone: identity.phone || null
+      }
+    });
+    await prisma.briefingSigner.upsert({
+      where: { briefingId_signerId: { briefingId, signerId: signer.id } },
+      update: { signedAt, sourceStatus: "已签约" },
+      create: { briefingId, signerId: signer.id, signedAt, sourceStatus: "已签约" }
+    });
+  }
+}
+
+function nullableNumber(value: unknown) {
+  if (value === null || value === undefined || value === "" || value === "-") return null;
+  const parsed = Number(String(value).replace(/[^\d.-]/g, ""));
+  return Number.isFinite(parsed) ? Math.round(parsed) : null;
+}
+
+function stringArray(value: unknown) {
+  return Array.isArray(value) ? value.map((item) => safeText(item)).filter(Boolean) : [];
+}
+
+function signerProfileData(row: any) {
+  return {
+    nickname: safeText(row.nickname ?? row.name, "未命名签约者"),
+    phone: safeText(row.phone) || null,
+    avatarUrl: safeText(row.avatarUrl) || null,
+    userType: safeText(row.userType, "模特"),
+    accountStatus: safeText(row.accountStatus, "正常"),
+    gender: safeText(row.gender) || null,
+    age: nullableNumber(row.age),
+    birthDate: parseNullableDate(row.birthDate ?? row.birthday),
+    region: safeText(row.region) || null,
+    heightCm: nullableNumber(row.heightCm ?? row.height),
+    weightKg: nullableNumber(row.weightKg ?? row.weight),
+    bustCm: nullableNumber(row.bustCm ?? row.bust),
+    waistCm: nullableNumber(row.waistCm ?? row.waist),
+    hipCm: nullableNumber(row.hipCm ?? row.hip),
+    shoulderCm: nullableNumber(row.shoulderCm ?? row.shoulder),
+    shoeSize: safeText(row.shoeSize) || null,
+    clothingSize: safeText(row.clothingSize) || null,
+    tattoo: safeText(row.tattoo) || null,
+    hairColor: safeText(row.hairColor) || null,
+    hairLength: safeText(row.hairLength) || null,
+    languages: safeText(row.languages) || null,
+    bio: safeText(row.bio) || null,
+    imageUrls: stringArray(row.imageUrls),
+    videoUrls: stringArray(row.videoUrls),
+    registeredAt: parseNullableDate(row.registeredAt),
+    lastLoginAt: parseNullableDate(row.lastLoginAt),
+    violationCount: nullableNumber(row.violationCount) ?? 0,
+    acceptedBriefingCount: nullableNumber(row.acceptedBriefingCount) ?? 0,
+    completedBriefingCount: nullableNumber(row.completedBriefingCount) ?? 0
+  };
+}
+
 function extractSignedModelNames(value: unknown) {
   const text = safeText(value).replace(/\s+/g, " ");
   if (!text || !text.includes("签约列表")) return [];
@@ -1808,13 +2256,7 @@ function extractSignedModelNames(value: unknown) {
   const regex = /(.{1,45}?)\s+(?:男|女|不限)\s*·\s*\d{1,3}岁\s*·\s*(\d{6,15})(?:\s*[·・•]?\s*#?(\d{12,}))?\s+已签约/g;
   let match: RegExpExecArray | null;
   while ((match = regex.exec(signedSection))) {
-    const name = safeText(match[1])
-      .replace(/^(报名列表|签约列表|操作|聊天记录)\s*/g, "")
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(-1)[0]
-      .replace(/\s*(自荐|报名时间|状态)$/g, "")
-      .trim();
+    const name = importedSignerNickname(safeText(match[1]), match[0]);
     if (name) names.push(match[3] ? `${name}（${match[2]}） #${match[3]}` : `${name}（${match[2]}）`);
   }
   return [...new Set(names.filter(Boolean))];
@@ -1823,12 +2265,11 @@ function extractSignedModelNames(value: unknown) {
 function packBriefingDetails(row: any) {
   const normalizedSignedModelNames = normalizeSignedModelNames(row.signedModelNames);
   const extractedSignedModelNames = extractSignedModelNames(row.rawText ?? row.requirementText);
-  const signedModelNames =
-    extractedSignedModelNames.some((name) => /#\d{12,}/.test(name)) && !normalizedSignedModelNames.some((name) => /#\d{12,}/.test(name))
-      ? extractedSignedModelNames
-      : normalizedSignedModelNames.length
-        ? normalizedSignedModelNames
-        : extractedSignedModelNames;
+  const signedModelNames = extractedSignedModelNames.some((name) => /#\d{12,}/.test(name))
+    ? extractedSignedModelNames
+    : normalizedSignedModelNames.length
+      ? normalizedSignedModelNames
+      : extractedSignedModelNames;
   const payload = {
     __xtgDetail: 1,
     cancelReason: safeText(row.cancelReason),
@@ -1862,10 +2303,9 @@ function unpackBriefingDetails(value: unknown) {
     if (parsed?.__xtgDetail === 1) {
       const normalizedSignedModelNames = normalizeSignedModelNames(parsed.signedModelNames);
       const extractedSignedModelNames = extractSignedModelNames(parsed.rawText);
-      const signedModelNames =
-        extractedSignedModelNames.some((name) => /#\d{12,}/.test(name)) && !normalizedSignedModelNames.some((name) => /#\d{12,}/.test(name))
-          ? extractedSignedModelNames
-          : normalizedSignedModelNames;
+      const signedModelNames = extractedSignedModelNames.some((name) => /#\d{12,}/.test(name))
+        ? extractedSignedModelNames
+        : normalizedSignedModelNames;
       return {
         cancelReason: safeText(parsed.cancelReason),
         requirementText: safeText(parsed.requirementText),
@@ -1896,6 +2336,21 @@ function parseNullableDate(value: unknown) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+async function findSeedReviewStartAt(brokerId: string) {
+  const broker = await prisma.broker.findUnique({
+    where: { id: brokerId },
+    include: {
+      snapshots: { orderBy: { capturedAt: "asc" }, take: 1 },
+      promotions: { where: { toLevel: "SEED" }, orderBy: { promotedAt: "desc" }, take: 1 }
+    }
+  });
+  if (!broker?.seedPhase) return null;
+  return broker.seedProgramJoinedAt
+    ?? broker.promotions[0]?.promotedAt
+    ?? broker.snapshots[0]?.capturedAt
+    ?? broker.createdAt;
+}
+
 function mapReviewStatus(status?: string) {
   if (status === "APPROVED") return "approved";
   if (status === "REJECTED") return "rejected";
@@ -1905,6 +2360,14 @@ function mapReviewStatus(status?: string) {
 function mapBroker(broker: any) {
   const briefingRows = broker.briefings ?? [];
   const latestBrokerSnapshot = broker.snapshots?.[0];
+  const earliestBrokerSnapshot = broker.snapshots?.[broker.snapshots.length - 1];
+  const latestSeedPromotion = broker.promotions?.[0];
+  const referrerRelation = broker.refereeRelations?.[0];
+  const latestRefereeRelation = broker.referrerRelations?.[0];
+  const seedQualifiedAt = broker.brokerLevel === "SEED"
+    ? latestSeedPromotion?.promotedAt ?? earliestBrokerSnapshot?.capturedAt ?? broker.createdAt
+    : null;
+  const seedProgramJoinedAt = broker.seedProgramJoinedAt ?? seedQualifiedAt;
   const snapshots = briefingRows.flatMap((briefing: any) => briefing.snapshots ?? []);
   return {
     id: broker.id,
@@ -1916,7 +2379,13 @@ function mapBroker(broker: any) {
     accountStatus: mapAccountStatus(broker.accountStatus),
     brokerLevel: broker.brokerLevel === "SEED" ? "seed" : "normal",
     seedPhase: broker.seedPhase ?? null,
+    seedProgramJoinedAt: broker.seedPhase && seedProgramJoinedAt ? formatDateTime(seedProgramJoinedAt) : null,
+    seedQualifiedAt: seedQualifiedAt ? formatDateTime(seedQualifiedAt) : null,
     referralUnlocked: broker.referralUnlocked,
+    referrerNickname: referrerRelation?.referrer?.nickname ?? null,
+    referrerBoundAt: referrerRelation?.boundAt ? formatDateTime(referrerRelation.boundAt) : null,
+    refereeCount: broker._count?.referrerRelations ?? broker.referrerRelations?.length ?? 0,
+    latestRefereeBoundAt: latestRefereeRelation?.boundAt ? formatDateTime(latestRefereeRelation.boundAt) : null,
     registeredAt: formatDateTime(broker.registeredAt),
     lastLoginAt: formatDateTime(broker.lastLoginAt),
     violationCount: broker.violationCount,
@@ -1937,14 +2406,65 @@ function mapReferralNode(broker: any) {
     phone: mapped.boundPhone || mapped.wechatPhone,
     brokerLevel: mapped.brokerLevel,
     seedPhase: mapped.seedPhase,
+    seedProgramJoinedAt: mapped.seedProgramJoinedAt,
+    seedQualifiedAt: mapped.seedQualifiedAt,
     referralUnlocked: mapped.referralUnlocked,
     validPublishCount: mapped.publishedBriefings,
     validCompleteCount: mapped.completedBriefings
   };
 }
 
+function mapSignerProfile(signer: any) {
+  const imageUrls = Array.isArray(signer.imageUrls) ? signer.imageUrls.filter((item: unknown) => typeof item === "string") : [];
+  const videoUrls = Array.isArray(signer.videoUrls) ? signer.videoUrls.filter((item: unknown) => typeof item === "string") : [];
+  return {
+    id: signer.id,
+    jarvisUserId: signer.jarvisUserId,
+    nickname: signer.nickname,
+    phone: signer.phone ?? "",
+    avatarUrl: signer.avatarUrl ?? "",
+    userType: signer.userType,
+    accountStatus: signer.accountStatus,
+    gender: signer.gender ?? "",
+    age: signer.age ?? null,
+    birthDate: signer.birthDate ? formatDateTime(signer.birthDate).split(" ")[0] : "",
+    region: signer.region ?? "",
+    heightCm: signer.heightCm ?? null,
+    weightKg: signer.weightKg ?? null,
+    bustCm: signer.bustCm ?? null,
+    waistCm: signer.waistCm ?? null,
+    hipCm: signer.hipCm ?? null,
+    shoulderCm: signer.shoulderCm ?? null,
+    shoeSize: signer.shoeSize ?? "",
+    clothingSize: signer.clothingSize ?? "",
+    tattoo: signer.tattoo ?? "",
+    hairColor: signer.hairColor ?? "",
+    hairLength: signer.hairLength ?? "",
+    languages: signer.languages ?? "",
+    bio: signer.bio ?? "",
+    imageUrls,
+    videoUrls,
+    registeredAt: signer.registeredAt ? formatDateTime(signer.registeredAt) : "",
+    lastLoginAt: signer.lastLoginAt ? formatDateTime(signer.lastLoginAt) : "",
+    violationCount: signer.violationCount,
+    acceptedBriefingCount: signer.acceptedBriefingCount,
+    completedBriefingCount: signer.completedBriefingCount,
+    briefingHistory: (signer.briefings ?? []).map((item: any) => ({
+      id: item.briefing.id,
+      title: item.briefing.title,
+      publishedAt: item.briefing.publishedAt ? formatDateTime(item.briefing.publishedAt) : "",
+      signedAt: item.signedAt ? formatDateTime(item.signedAt) : "",
+      sourceStatus: item.sourceStatus,
+      brokerNickname: item.briefing.broker?.nickname ?? ""
+    }))
+  };
+}
+
 function mapBriefing(briefing: any) {
   const latestSnapshot = briefing.snapshots?.[0];
+  const firstSignedSnapshot = [...(briefing.snapshots ?? [])]
+    .reverse()
+    .find((snapshot: any) => snapshot.contractPeople > 0);
   const details = unpackBriefingDetails(briefing.requirementText);
   const detailImported = Boolean(
     details.publisherText || details.workTimeText || details.requirementText || details.cancelReason || details.signedModelNames.length
@@ -1961,7 +2481,9 @@ function mapBriefing(briefing: any) {
     workDate: details.workDateText || formatDateTime(briefing.workStartAt).split(" ")[0] || "-",
     workTime: details.workTimeText || "-",
     publishedAt: formatDateTime(briefing.publishedAt),
-    importedAt: formatDateTime(briefing.createdAt),
+    finishedAt: briefing.finishedAt ? formatDateTime(briefing.finishedAt) : "",
+    importedAt: formatDateTime(latestSnapshot?.capturedAt ?? briefing.createdAt),
+    firstSignedAt: firstSignedSnapshot?.capturedAt ? formatDateTime(firstSignedSnapshot.capturedAt) : "",
     sourceStatus: briefing.sourceStatus ?? "-",
     cancelReason: details.cancelReason || (briefing.sourceStatus?.includes("已取消") ? safeText(briefing.sourceStatus) : ""),
     requirementText: details.requirementText,

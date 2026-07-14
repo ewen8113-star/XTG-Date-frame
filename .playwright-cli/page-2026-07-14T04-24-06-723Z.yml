@@ -1,0 +1,27 @@
+- main [ref=f1e3]:
+  - generic [ref=f1e4]:
+    - generic [ref=f1e8]:
+      - heading "鑫通告运营结算后台" [level=1] [ref=f1e10]
+      - tablist "账户操作" [ref=f1e11]:
+        - tab "登录" [ref=f1e12] [cursor=pointer]
+        - tab "注册" [selected] [ref=f1e13] [cursor=pointer]
+      - generic [ref=f1e14]:
+        - generic [ref=f1e15]:
+          - generic [ref=f1e16]: 账号 / 手机号
+          - textbox "账号 / 手机号" [ref=f1e21]:
+            - /placeholder: 请输入账号或手机号
+        - generic [ref=f1e22]:
+          - generic [ref=f1e23]: 密码
+          - generic [ref=f1e24]:
+            - textbox "密码 显示密码" [ref=f1e29]:
+              - /placeholder: 请输入密码
+            - button "显示密码" [ref=f1e30] [cursor=pointer]
+        - generic [ref=f1e34]:
+          - generic [ref=f1e35]: 确认密码
+          - textbox "确认密码" [ref=f1e41]:
+            - /placeholder: 请再次输入密码
+        - button "创建账号并进入" [ref=f1e42] [cursor=pointer]
+    - generic "主题模式" [ref=f1e43]:
+      - button "浅色模式" [ref=f1e44] [cursor=pointer]
+      - button "深色模式" [ref=f1e51] [cursor=pointer]
+    - generic [ref=f1e54]: ver 1.02

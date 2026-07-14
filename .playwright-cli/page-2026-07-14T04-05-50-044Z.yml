@@ -1,0 +1,284 @@
+- generic [ref=f1e3]:
+  - complementary [ref=f1e4]:
+    - generic [ref=f1e6]:
+      - generic [ref=f1e7]: 鑫通告
+      - generic [ref=f1e8]: 运营结算后台
+    - navigation "主导航" [ref=f1e9]:
+      - generic [ref=f1e10]:
+        - generic [ref=f1e11]: 经纪人管理
+        - button "工作总览" [ref=f1e18] [cursor=pointer]
+        - button "审核中心" [ref=f1e20] [cursor=pointer]
+        - generic [ref=f1e21]:
+          - button "经纪人用户" [ref=f1e22] [cursor=pointer]
+          - button "经纪人工作台" [ref=f1e23] [cursor=pointer]
+        - button "数据分析" [ref=f1e25] [cursor=pointer]
+    - generic [ref=f1e26]: ver 1.03 (BY EWEN)
+  - main [ref=f1e28]:
+    - generic [ref=f1e29]:
+      - generic [ref=f1e30]:
+        - strong [ref=f1e31]: 审核与结算
+        - generic [ref=f1e32]: 运营工作台
+      - generic [ref=f1e33]:
+        - textbox "全局搜索" [ref=f1e38]:
+          - /placeholder: 搜索经纪人或通告 ID
+        - button "系统使用白皮书" [ref=f1e39] [cursor=pointer]
+        - button "版本更新" [ref=f1e43] [cursor=pointer]
+        - button "切换暗色模式" [ref=f1e48] [cursor=pointer]
+        - button "Q qa_viewer" [ref=f1e52] [cursor=pointer]:
+          - generic [ref=f1e53]: Q
+          - generic [ref=f1e54]: qa_viewer
+    - generic [ref=f1e460]:
+      - button "返回" [ref=f1e462] [cursor=pointer]
+      - generic [ref=f1e463]:
+        - generic [ref=f1e465]:
+          - generic [ref=f1e466]:
+            - heading "测试-小明待晋升 · 经纪人工作台" [level=1] [ref=f1e467]
+            - generic "普通经纪人｜种子1" [ref=f1e468]:
+              - generic "第1期种子标签" [ref=f1e473]: "1"
+            - generic [ref=f1e479]: 正常
+          - paragraph [ref=f1e480]: "18800000002 · 用户ID #190000000000000002"
+        - generic [ref=f1e481]:
+          - generic [ref=f1e482]:
+            - generic [ref=f1e483]: 用户ID
+            - strong [ref=f1e484]:
+              - generic [ref=f1e485]: "#190000000000000002"
+              - button "复制用户ID" [ref=f1e486] [cursor=pointer]
+          - generic [ref=f1e490]:
+            - generic [ref=f1e491]: 绑定手机号
+            - strong [ref=f1e492]:
+              - generic [ref=f1e493]: "18800000002"
+              - button "复制绑定手机号" [ref=f1e494] [cursor=pointer]
+          - generic [ref=f1e498]:
+            - generic [ref=f1e499]: 微信手机号
+            - strong [ref=f1e500]:
+              - generic [ref=f1e501]: "18800000002"
+              - button "复制微信手机号" [ref=f1e502] [cursor=pointer]
+          - generic [ref=f1e506]:
+            - generic [ref=f1e507]: 实名状态
+            - strong [ref=f1e508]: 已认证
+          - generic [ref=f1e509]:
+            - generic [ref=f1e510]: 注册时间
+            - strong [ref=f1e511]: 2026/5/1 10:00:00
+          - generic [ref=f1e512]:
+            - generic [ref=f1e513]: 最后登录
+            - strong [ref=f1e514]: 2026/7/14 08:30:00
+          - generic [ref=f1e515]:
+            - generic [ref=f1e516]: 违规次数
+            - strong [ref=f1e517]: "0"
+          - generic [ref=f1e518]:
+            - generic [ref=f1e519]: 引荐权限
+            - strong [ref=f1e520]: 未开通
+        - generic [ref=f1e521]:
+          - generic [ref=f1e522]:
+            - generic [ref=f1e523]: 已发通告
+            - strong [ref=f1e524]: "8"
+            - generic [ref=f1e525]: 已导入 8 条明细
+          - generic [ref=f1e526]:
+            - generic [ref=f1e527]: 新增通告
+            - strong [ref=f1e528]: "8"
+            - generic [ref=f1e529]: 较上周 +8
+          - generic [ref=f1e530]:
+            - generic [ref=f1e531]: 有效通告
+            - strong [ref=f1e532]: "6"
+            - generic [ref=f1e533]: 较上周 +6 · 1 条待审核
+          - generic [ref=f1e534]:
+            - generic [ref=f1e535]: 新增签约
+            - strong [ref=f1e536]: "0"
+            - generic [ref=f1e537]: 较上周持平 · 需人工核验身份
+          - generic [ref=f1e538]:
+            - generic [ref=f1e539]: 报名 / 签约
+            - strong [ref=f1e540]: 10 / 2
+            - generic [ref=f1e541]: 10 / 2 人
+      - tablist [ref=f1e542]:
+        - button "通告数据" [ref=f1e543] [cursor=pointer]
+        - button "已签约名单" [ref=f1e544] [cursor=pointer]
+        - button "用户级别" [ref=f1e545] [cursor=pointer]
+        - button "关系网络" [ref=f1e546] [cursor=pointer]
+        - button "费用结算" [ref=f1e547] [cursor=pointer]
+        - button "付款状态" [ref=f1e548] [cursor=pointer]
+      - generic [ref=f1e549]:
+        - generic [ref=f1e550]:
+          - heading "发布通告审核" [level=2] [ref=f1e556]
+          - generic [ref=f1e557]:
+            - combobox [ref=f1e558]:
+              - option "2026年7月第一周（07/01 - 07/07）" [selected]
+            - button "刷新" [ref=f1e559] [cursor=pointer]
+            - button "上传凭证库" [ref=f1e560] [cursor=pointer]
+            - button "清除通告" [ref=f1e564] [cursor=pointer]
+            - button "导入通告数据" [ref=f1e568] [cursor=pointer]
+        - paragraph [ref=f1e572]: 当前周期：2026年7月第一周（07/01 - 07/07）；本周期 8 条（跨周延续 0 条），全部已导入 8 条。每次导入会重新读取全部通告来源状态；手动取消、举报取消将自动判定为有效通告不通过，仅对待审核通告做凭证审核。种子身份生效前发布的通告归入往期通告，不纳入结算。
+        - table [ref=f1e573]:
+          - rowgroup [ref=f1e574]:
+            - row [ref=f1e575]:
+              - columnheader "通告" [ref=f1e576]
+              - columnheader "报名 / 签约" [ref=f1e577]
+              - columnheader "状态 / 取消原因" [ref=f1e578]
+              - columnheader "凭证" [ref=f1e579]
+              - columnheader "有效通告" [ref=f1e580]
+              - columnheader "新增签约" [ref=f1e581]
+              - columnheader "状态" [ref=f1e582]
+          - rowgroup [ref=f1e583]:
+            - row [ref=f1e584] [cursor=pointer]:
+              - 'cell "测试-小明来源取消 执行人员 · #196000000000000012" [ref=f1e585]':
+                - generic [ref=f1e586]:
+                  - strong [ref=f1e587]: 测试-小明来源取消
+                  - generic [ref=f1e588]: "执行人员 · #196000000000000012"
+              - cell "2 / 0 2 / 0 人" [ref=f1e589]:
+                - generic [ref=f1e590]:
+                  - strong [ref=f1e591]: 2 / 0
+                  - generic [ref=f1e592]: 2 / 0 人
+              - cell "已取消 系统自动取消：无有效签约" [ref=f1e593]:
+                - generic [ref=f1e594]:
+                  - strong [ref=f1e595]: 已取消
+                  - generic [ref=f1e596]: 系统自动取消：无有效签约
+              - cell [ref=f1e597]:
+                - strong [ref=f1e599]: 未上传
+              - cell [ref=f1e600]
+              - cell [ref=f1e606]
+              - cell [ref=f1e612]
+            - row [ref=f1e617] [cursor=pointer]:
+              - 'cell "测试-小明候选待审核 礼仪模特 · #196000000000000011" [ref=f1e618]':
+                - generic [ref=f1e619]:
+                  - strong [ref=f1e620]: 测试-小明候选待审核
+                  - generic [ref=f1e621]: "礼仪模特 · #196000000000000011"
+              - cell "1 / 0 1 / 0 人" [ref=f1e622]:
+                - generic [ref=f1e623]:
+                  - strong [ref=f1e624]: 1 / 0
+                  - generic [ref=f1e625]: 1 / 0 人
+              - cell "已结束 -" [ref=f1e626]:
+                - generic [ref=f1e627]:
+                  - strong [ref=f1e628]: 已结束
+                  - generic [ref=f1e629]: "-"
+              - cell [ref=f1e630]:
+                - strong [ref=f1e632]: 未上传
+              - cell [ref=f1e633]
+              - cell [ref=f1e638]
+              - cell [ref=f1e643]
+            - row [ref=f1e648] [cursor=pointer]:
+              - 'cell "测试-小明达标06 执行人员 · #196000000000000010" [ref=f1e649]':
+                - generic [ref=f1e650]:
+                  - strong [ref=f1e651]: 测试-小明达标06
+                  - generic [ref=f1e652]: "执行人员 · #196000000000000010"
+              - cell "0 / 0 0 / 0 人" [ref=f1e653]:
+                - generic [ref=f1e654]:
+                  - strong [ref=f1e655]: 0 / 0
+                  - generic [ref=f1e656]: 0 / 0 人
+              - cell "已结束 -" [ref=f1e657]:
+                - generic [ref=f1e658]:
+                  - strong [ref=f1e659]: 已结束
+                  - generic [ref=f1e660]: "-"
+              - cell [ref=f1e661]:
+                - strong [ref=f1e663]: 未上传
+              - cell [ref=f1e664]
+              - cell [ref=f1e669]
+              - cell [ref=f1e674]
+            - row [ref=f1e679] [cursor=pointer]:
+              - 'cell "测试-小明达标05 礼仪模特 · #196000000000000009" [ref=f1e680]':
+                - generic [ref=f1e681]:
+                  - strong [ref=f1e682]: 测试-小明达标05
+                  - generic [ref=f1e683]: "礼仪模特 · #196000000000000009"
+              - cell "2 / 0 2 / 0 人" [ref=f1e684]:
+                - generic [ref=f1e685]:
+                  - strong [ref=f1e686]: 2 / 0
+                  - generic [ref=f1e687]: 2 / 0 人
+              - cell "已结束 -" [ref=f1e688]:
+                - generic [ref=f1e689]:
+                  - strong [ref=f1e690]: 已结束
+                  - generic [ref=f1e691]: "-"
+              - cell [ref=f1e692]:
+                - strong [ref=f1e694]: 未上传
+              - cell [ref=f1e695]
+              - cell [ref=f1e700]
+              - cell [ref=f1e705]
+            - row [ref=f1e710] [cursor=pointer]:
+              - 'cell "测试-小明达标04 执行人员 · #196000000000000008" [ref=f1e711]':
+                - generic [ref=f1e712]:
+                  - strong [ref=f1e713]: 测试-小明达标04
+                  - generic [ref=f1e714]: "执行人员 · #196000000000000008"
+              - cell "1 / 0 1 / 0 人" [ref=f1e715]:
+                - generic [ref=f1e716]:
+                  - strong [ref=f1e717]: 1 / 0
+                  - generic [ref=f1e718]: 1 / 0 人
+              - cell "已结束 -" [ref=f1e719]:
+                - generic [ref=f1e720]:
+                  - strong [ref=f1e721]: 已结束
+                  - generic [ref=f1e722]: "-"
+              - cell [ref=f1e723]:
+                - strong [ref=f1e725]: 未上传
+              - cell [ref=f1e726]
+              - cell [ref=f1e731]
+              - cell [ref=f1e736]
+            - row [ref=f1e741] [cursor=pointer]:
+              - 'cell "测试-小明达标03 礼仪模特 · #196000000000000007" [ref=f1e742]':
+                - generic [ref=f1e743]:
+                  - strong [ref=f1e744]: 测试-小明达标03
+                  - generic [ref=f1e745]: "礼仪模特 · #196000000000000007"
+              - cell "2 / 1 2 / 1 人" [ref=f1e746]:
+                - generic [ref=f1e747]:
+                  - strong [ref=f1e748]: 2 / 1
+                  - generic [ref=f1e749]: 2 / 1 人
+              - cell "已结束 -" [ref=f1e750]:
+                - generic [ref=f1e751]:
+                  - strong [ref=f1e752]: 已结束
+                  - generic [ref=f1e753]: "-"
+              - cell [ref=f1e754]:
+                - strong [ref=f1e756]: 未上传
+              - cell [ref=f1e757]
+              - cell [ref=f1e762]
+              - cell [ref=f1e767]
+            - row [ref=f1e772] [cursor=pointer]:
+              - 'cell "测试-小明达标02 执行人员 · #196000000000000006" [ref=f1e773]':
+                - generic [ref=f1e774]:
+                  - strong [ref=f1e775]: 测试-小明达标02
+                  - generic [ref=f1e776]: "执行人员 · #196000000000000006"
+              - cell "2 / 0 2 / 0 人" [ref=f1e777]:
+                - generic [ref=f1e778]:
+                  - strong [ref=f1e779]: 2 / 0
+                  - generic [ref=f1e780]: 2 / 0 人
+              - cell "已结束 -" [ref=f1e781]:
+                - generic [ref=f1e782]:
+                  - strong [ref=f1e783]: 已结束
+                  - generic [ref=f1e784]: "-"
+              - cell [ref=f1e785]:
+                - strong [ref=f1e787]: 未上传
+              - cell [ref=f1e788]
+              - cell [ref=f1e793]
+              - cell [ref=f1e798]
+            - row [ref=f1e803] [cursor=pointer]:
+              - 'cell "测试-小明达标01 礼仪模特 · #196000000000000005" [ref=f1e804]':
+                - generic [ref=f1e805]:
+                  - strong [ref=f1e806]: 测试-小明达标01
+                  - generic [ref=f1e807]: "礼仪模特 · #196000000000000005"
+              - cell "2 / 1 2 / 1 人" [ref=f1e808]:
+                - generic [ref=f1e809]:
+                  - strong [ref=f1e810]: 2 / 1
+                  - generic [ref=f1e811]: 2 / 1 人
+              - cell "已结束 -" [ref=f1e812]:
+                - generic [ref=f1e813]:
+                  - strong [ref=f1e814]: 已结束
+                  - generic [ref=f1e815]: "-"
+              - cell [ref=f1e816]:
+                - strong [ref=f1e818]: 1 个
+              - cell [ref=f1e819]
+              - cell [ref=f1e824]
+              - cell [ref=f1e829]
+        - generic [ref=f1e834]:
+          - generic [ref=f1e835]: 共 8 条 · 1-8 · 第 1 / 1 页
+          - generic [ref=f1e836]:
+            - button "上一页" [disabled] [ref=f1e837]
+            - button "下一页" [disabled] [ref=f1e838]
+      - generic [ref=f1e839]:
+        - generic [ref=f1e840]:
+          - strong [ref=f1e841]: 该经纪人已满足 6 + 2 晋升条件
+          - generic [ref=f1e842]: 6 条有效通告 · 2 条新增签约，可晋升为种子经纪人并开通引荐权限。
+        - button "处理晋升" [ref=f1e843] [cursor=pointer]
+      - dialog [ref=f1e844]:
+        - heading "经纪人可晋升" [level=2] [ref=f1e845]
+        - paragraph [ref=f1e846]: 测试-小明待晋升 已满足 6 条有效通告 + 2 条新增签约，可由管理员确认晋升为种子经纪人。
+        - paragraph [ref=f1e847]: 裂变归属：种子-1。晋升不会改变其继承的种子期数。
+        - generic [ref=f1e848]:
+          - generic [ref=f1e849]: 身份变更日期和时间
+          - textbox "身份变更日期和时间" [ref=f1e850]: 2026-07-14T12:05
+        - generic [ref=f1e851]:
+          - button "暂不处理" [ref=f1e852] [cursor=pointer]
+          - button "确认晋升并开通引荐" [ref=f1e853] [cursor=pointer]

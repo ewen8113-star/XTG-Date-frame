@@ -1,0 +1,15 @@
+{
+  "ok": true,
+  "spriteVersionNumber": 2,
+  "run_dir": "/Users/ewen/Desktop/My Project/XTG-Date-frame/.hatch-pet-runs/nezuko-v2/run",
+  "spritesheet": ".hatch-pet-runs/nezuko-v2/run/final/spritesheet-extended.webp",
+  "validation": ".hatch-pet-runs/nezuko-v2/run/final/validation-extended.json",
+  "chroma_despill": ".hatch-pet-runs/nezuko-v2/run/qa/chroma-despill-extended.json",
+  "contact_sheet": ".hatch-pet-runs/nezuko-v2/run/qa/contact-sheet-extended.png",
+  "direction_sheet": ".hatch-pet-runs/nezuko-v2/run/qa/look-directions.png",
+  "direction_semantics": ".hatch-pet-runs/nezuko-v2/run/qa/direction-semantics.json",
+  "blind_direction_validation": ".hatch-pet-runs/nezuko-v2/run/qa/direction-blind-validation.json",
+  "continuity": ".hatch-pet-runs/nezuko-v2/run/qa/look-continuity.json",
+  "review": ".hatch-pet-runs/nezuko-v2/run/qa/review.json",
+  "package": "/Users/ewen/.codex/pets/nezuko"
+}

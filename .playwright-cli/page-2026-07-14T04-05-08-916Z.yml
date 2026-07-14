@@ -1,0 +1,120 @@
+- generic [ref=f1e3]:
+  - complementary [ref=f1e4]:
+    - generic [ref=f1e6]:
+      - generic [ref=f1e7]: 鑫通告
+      - generic [ref=f1e8]: 运营结算后台
+    - navigation "主导航" [ref=f1e9]:
+      - generic [ref=f1e10]:
+        - generic [ref=f1e11]: 经纪人管理
+        - button "工作总览" [ref=f1e18] [cursor=pointer]
+        - button "审核中心" [ref=f1e20] [cursor=pointer]
+        - generic [ref=f1e21]:
+          - button "经纪人用户" [ref=f1e22] [cursor=pointer]
+          - button "经纪人工作台" [ref=f1e23] [cursor=pointer]
+        - button "数据分析" [ref=f1e25] [cursor=pointer]
+    - generic [ref=f1e26]: ver 1.03 (BY EWEN)
+  - main [ref=f1e28]:
+    - generic [ref=f1e29]:
+      - generic [ref=f1e30]:
+        - strong [ref=f1e31]: 审核与结算
+        - generic [ref=f1e32]: 运营工作台
+      - generic [ref=f1e33]:
+        - textbox "全局搜索" [ref=f1e38]:
+          - /placeholder: 搜索经纪人或通告 ID
+        - button "系统使用白皮书" [ref=f1e39] [cursor=pointer]
+        - button "版本更新" [ref=f1e43] [cursor=pointer]
+        - button "切换暗色模式" [ref=f1e48] [cursor=pointer]
+        - button "Q qa_viewer" [ref=f1e52] [cursor=pointer]:
+          - generic [ref=f1e53]: Q
+          - generic [ref=f1e54]: qa_viewer
+    - generic [ref=f1e57]:
+      - generic [ref=f1e59]:
+        - text: Dashboard
+        - heading "仪表盘" [level=1] [ref=f1e60]
+        - paragraph [ref=f1e61]: 运营总览：全流程测试数据库 · 2026/7/14 09:00:00。
+      - generic [ref=f1e62]:
+        - generic [ref=f1e63]:
+          - generic [ref=f1e64]: 经纪人总数
+          - strong [ref=f1e65]: "6"
+          - generic [ref=f1e66]: 6 位正常
+        - generic [ref=f1e67]:
+          - generic [ref=f1e68]: 种子经纪人
+          - strong [ref=f1e69]: "3"
+          - generic [ref=f1e70]: 3 位已开引荐
+        - generic [ref=f1e71]:
+          - generic [ref=f1e72]: 已导入通告
+          - strong [ref=f1e73]: "3"
+          - generic [ref=f1e74]: 3 条详情已入库
+        - generic [ref=f1e75]:
+          - generic [ref=f1e76]: 有效通告
+          - strong [ref=f1e77]: "0"
+          - generic [ref=f1e78]: 人工审核通过
+        - generic [ref=f1e79]:
+          - generic [ref=f1e80]: 新增签约
+          - strong [ref=f1e81]: "0"
+          - generic [ref=f1e82]: 仅在种子身份生效后判重
+        - generic [ref=f1e83]:
+          - generic [ref=f1e84]: 待审核
+          - strong [ref=f1e85]: "0"
+          - generic [ref=f1e86]: 0 发布 / 0 完成
+        - generic [ref=f1e87]:
+          - generic [ref=f1e88]: 人工已审核
+          - strong [ref=f1e89]: "0"
+          - generic [ref=f1e90]: 0 条未人工保存
+        - generic [ref=f1e91]:
+          - generic [ref=f1e92]: 已签约模特
+          - strong [ref=f1e93]: "0"
+          - generic [ref=f1e94]: 0 位最近新增
+        - generic [ref=f1e95]:
+          - generic [ref=f1e96]: 当前预估奖金
+          - strong [ref=f1e97]: ¥0
+          - generic [ref=f1e98]: 发布奖 + 完成奖
+      - generic [ref=f1e99]:
+        - generic [ref=f1e100]:
+          - heading "运营待办" [level=2] [ref=f1e105]
+          - generic [ref=f1e106]:
+            - generic [ref=f1e107]:
+              - generic [ref=f1e108]: 有效通告待审核
+              - strong [ref=f1e109]: "0"
+              - generic [ref=f1e110]: 需要核对视频凭证与通告详情
+            - generic [ref=f1e111]:
+              - generic [ref=f1e112]: 新增签约待审核
+              - strong [ref=f1e113]: "0"
+              - generic [ref=f1e114]: 按签约者用户ID与历史订单判重
+            - generic [ref=f1e115]:
+              - generic [ref=f1e116]: 待晋升处理
+              - strong [ref=f1e117]: "0"
+              - generic [ref=f1e118]: 已达到 6 + 2 条件
+            - generic [ref=f1e119]:
+              - generic [ref=f1e120]: 未导入详情
+              - strong [ref=f1e121]: "0"
+              - generic [ref=f1e122]: 需补抓通告详情字段
+            - generic [ref=f1e123]:
+              - generic [ref=f1e124]: 待审核且未上传凭证
+              - strong [ref=f1e125]: "0"
+              - generic [ref=f1e126]: 仅统计仍需人工凭证审核的通告
+        - generic [ref=f1e127]:
+          - heading "晋升候选" [level=2] [ref=f1e133]
+          - paragraph [ref=f1e135]: 暂无新的晋升候选。
+      - generic [ref=f1e136]:
+        - generic [ref=f1e137]:
+          - heading "奖金贡献排行" [level=2] [ref=f1e142]
+          - generic [ref=f1e143]:
+            - table [ref=f1e144]:
+              - rowgroup [ref=f1e145]:
+                - row [ref=f1e146]:
+                  - columnheader "经纪人" [ref=f1e147]
+                  - columnheader "有效通告" [ref=f1e148]
+                  - columnheader "新增签约" [ref=f1e149]
+                  - columnheader "预估奖金" [ref=f1e150]
+              - rowgroup
+            - paragraph [ref=f1e151]: 暂无已形成奖金的数据。
+        - generic [ref=f1e152]:
+          - heading "最近导入批次" [level=2] [ref=f1e158]
+          - generic [ref=f1e159]:
+            - generic [ref=f1e161]:
+              - strong [ref=f1e162]: 鑫通告数据源
+              - generic [ref=f1e163]: 经纪人列表 / 通告列表 / 通告详情 / 已签约名单
+            - generic [ref=f1e167]:
+              - strong [ref=f1e168]: 全流程测试数据库
+              - paragraph [ref=f1e169]: 经纪人 6；通告 29；新增 0 条 · 已导入

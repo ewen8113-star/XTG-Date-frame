@@ -1,0 +1,198 @@
+- generic [ref=f4e3]:
+  - complementary [ref=f4e4]:
+    - generic [ref=f4e6]:
+      - generic [ref=f4e7]: 鑫通告
+      - generic [ref=f4e8]: 运营结算后台
+    - navigation "主导航" [ref=f4e9]:
+      - generic [ref=f4e10]:
+        - generic [ref=f4e11]: 经纪人管理
+        - button "工作总览" [ref=f4e18] [cursor=pointer]
+        - button "审核中心" [ref=f4e20] [cursor=pointer]
+        - generic [ref=f4e21]:
+          - button "经纪人用户" [ref=f4e22] [cursor=pointer]
+          - button "经纪人工作台" [ref=f4e23] [cursor=pointer]
+        - button "数据分析" [ref=f4e25] [cursor=pointer]
+      - generic [ref=f4e26]:
+        - generic [ref=f4e27]: 财务管理
+        - button "待付款订单" [ref=f4e33] [cursor=pointer]
+        - button "已付款订单" [ref=f4e34] [cursor=pointer]
+        - button "财务报表" [ref=f4e35] [cursor=pointer]
+      - generic [ref=f4e36]:
+        - generic [ref=f4e37]: 账户管理
+        - button "系统用户" [ref=f4e51] [cursor=pointer]
+    - generic [ref=f4e52]: ver 1.03 (BY EWEN)
+  - main [ref=f4e54]:
+    - generic [ref=f4e55]:
+      - generic [ref=f4e56]:
+        - strong [ref=f4e57]: 审核与结算
+        - generic [ref=f4e58]: 运营工作台
+      - generic [ref=f4e59]:
+        - textbox "全局搜索" [ref=f4e64]:
+          - /placeholder: 搜索经纪人或通告 ID
+        - button "系统使用白皮书" [ref=f4e65] [cursor=pointer]
+        - button "版本更新" [ref=f4e69] [cursor=pointer]
+        - button "切换暗色模式" [ref=f4e74] [cursor=pointer]
+        - button "E ewen_chen" [ref=f4e78] [cursor=pointer]:
+          - generic [ref=f4e79]: E
+          - generic [ref=f4e80]: ewen_chen
+    - generic [ref=f4e83]:
+      - button "返回" [ref=f4e85] [cursor=pointer]
+      - generic [ref=f4e86]:
+        - generic [ref=f4e88]:
+          - generic [ref=f4e89]:
+            - heading "测试-小明待晋升 · 经纪人工作台" [level=1] [ref=f4e90]
+            - generic "普通经纪人｜种子1" [ref=f4e91]:
+              - generic "第1期种子标签" [ref=f4e96]: "1"
+            - generic [ref=f4e102]: 正常
+          - paragraph [ref=f4e103]: "18800000002 · 用户ID #190000000000000002"
+        - generic [ref=f4e104]:
+          - generic [ref=f4e105]:
+            - generic [ref=f4e106]: 用户ID
+            - strong [ref=f4e107]:
+              - generic [ref=f4e108]: "#190000000000000002"
+              - button "复制用户ID" [ref=f4e109] [cursor=pointer]
+          - generic [ref=f4e113]:
+            - generic [ref=f4e114]: 绑定手机号
+            - strong [ref=f4e115]:
+              - generic [ref=f4e116]: "18800000002"
+              - button "复制绑定手机号" [ref=f4e117] [cursor=pointer]
+          - generic [ref=f4e121]:
+            - generic [ref=f4e122]: 微信手机号
+            - strong [ref=f4e123]:
+              - generic [ref=f4e124]: "18800000002"
+              - button "复制微信手机号" [ref=f4e125] [cursor=pointer]
+          - generic [ref=f4e129]:
+            - generic [ref=f4e130]: 实名状态
+            - strong [ref=f4e131]: 已认证
+          - generic [ref=f4e132]:
+            - generic [ref=f4e133]: 注册时间
+            - strong [ref=f4e134]: 2026/5/1 10:00:00
+          - generic [ref=f4e135]:
+            - generic [ref=f4e136]: 最后登录
+            - strong [ref=f4e137]: 2026/7/14 08:30:00
+          - generic [ref=f4e138]:
+            - generic [ref=f4e139]: 违规次数
+            - strong [ref=f4e140]: "0"
+          - generic [ref=f4e141]:
+            - generic [ref=f4e142]: 引荐权限
+            - strong [ref=f4e143]: 未开通
+        - generic [ref=f4e144]:
+          - generic [ref=f4e145]:
+            - generic [ref=f4e146]: 已发通告
+            - strong [ref=f4e147]: "8"
+            - generic [ref=f4e148]: 已导入 8 条明细
+          - generic [ref=f4e149]:
+            - generic [ref=f4e150]: 新增通告
+            - strong [ref=f4e151]: "0"
+            - generic [ref=f4e152]: 较上周 -8
+          - generic [ref=f4e153]:
+            - generic [ref=f4e154]: 有效通告
+            - strong [ref=f4e155]: "0"
+            - generic [ref=f4e156]: 较上周 -6 · 0 条待审核
+          - generic [ref=f4e157]:
+            - generic [ref=f4e158]: 新增签约
+            - strong [ref=f4e159]: "2"
+            - generic [ref=f4e160]: 较上周 +2 · 需人工核验身份
+          - generic [ref=f4e161]:
+            - generic [ref=f4e162]: 报名 / 签约
+            - strong [ref=f4e163]: 10 / 2
+            - generic [ref=f4e164]: 10 / 2 人
+      - tablist [ref=f4e165]:
+        - button "通告数据" [ref=f4e166] [cursor=pointer]
+        - button "已签约名单" [ref=f4e167] [cursor=pointer]
+        - button "用户级别" [ref=f4e168] [cursor=pointer]
+        - button "关系网络" [ref=f4e169] [cursor=pointer]
+        - button "费用结算" [ref=f4e170] [cursor=pointer]
+        - button "付款状态" [ref=f4e171] [cursor=pointer]
+      - generic [ref=f4e278]:
+        - generic [ref=f4e279]:
+          - strong [ref=f4e280]: 该经纪人已满足 6 + 2 晋升条件
+          - generic [ref=f4e281]: 6 条有效通告 · 2 条新增签约，可晋升为种子经纪人并开通引荐权限。
+        - button "处理晋升" [ref=f4e282] [cursor=pointer]
+      - generic [ref=f4e172]:
+        - generic [ref=f4e173]:
+          - generic [ref=f4e174]:
+            - heading "当前周期费用结算 · 2026年7月第二周" [level=2] [ref=f4e425]
+            - generic [ref=f4e180]:
+              - button "预览明细" [ref=f4e181] [cursor=pointer]
+              - button "导出明细" [ref=f4e185] [cursor=pointer]
+              - combobox [ref=f4e189]:
+                - option "2026年7月第二周（07/08 - 07/14）" [selected]
+                - option "2026年7月第一周（07/01 - 07/07）"
+              - button "提交付款" [ref=f4e190] [cursor=pointer]
+          - table [ref=f4e194]:
+            - rowgroup [ref=f4e195]:
+              - row [ref=f4e196]:
+                - columnheader "奖励项" [ref=f4e197]
+                - columnheader "数量" [ref=f4e198]
+                - columnheader "规则" [ref=f4e199]
+                - columnheader "金额" [ref=f4e200]
+                - columnheader "口径" [ref=f4e201]
+            - rowgroup [ref=f4e202]:
+              - row [ref=f4e426] [cursor=pointer]:
+                - cell [ref=f4e204]:
+                  - button "展开" [ref=f4e205]
+                  - text: 有效通告奖励
+                - cell "0" [ref=f4e427]
+                - cell "1 元/条" [ref=f4e209]
+                - cell "¥0" [ref=f4e428]
+                - cell "本周期发布且人工审核通过的有效通告" [ref=f4e211]
+              - row [ref=f4e212] [cursor=pointer]:
+                - cell [ref=f4e213]:
+                  - button "展开" [ref=f4e214]
+                  - text: 历史有效通告抵扣
+                - cell "0" [ref=f4e217]
+                - cell "-1 元/条" [ref=f4e218]
+                - cell "¥-0" [ref=f4e219]
+                - cell "历史周期已结算通告，在本周期抓取到手动/举报取消" [ref=f4e220]
+              - row [ref=f4e429] [cursor=pointer]:
+                - cell [ref=f4e222]:
+                  - button "展开" [ref=f4e223]
+                  - text: 新增签约奖励
+                - cell "2" [ref=f4e430]
+                - cell "2 元/条" [ref=f4e227]
+                - cell "¥4" [ref=f4e431]
+                - cell "有效通告通过，且签约者未出现在种子计划生效后的其他通告中" [ref=f4e229]
+              - row [ref=f4e230] [cursor=pointer]:
+                - cell [ref=f4e231]:
+                  - button "展开" [ref=f4e232]
+                  - text: 历史新增签约抵扣
+                - cell "0" [ref=f4e235]
+                - cell "-2 元/条" [ref=f4e236]
+                - cell "¥-0" [ref=f4e237]
+                - cell "已获新增签约奖励的通告，在本周期因手动/举报取消而失效" [ref=f4e238]
+              - row [ref=f4e239] [cursor=pointer]:
+                - cell [ref=f4e240]:
+                  - button "展开" [ref=f4e241]
+                  - text: 引荐基础达标奖
+                - cell "0" [ref=f4e244]
+                - cell "10 元/人" [ref=f4e245]
+                - cell "¥0" [ref=f4e246]
+                - cell "直接下线达成 6 条有效通告 + 2 条新增签约" [ref=f4e247]
+              - row [ref=f4e248] [cursor=pointer]:
+                - cell [ref=f4e249]:
+                  - button "展开" [ref=f4e250]
+                  - text: 引荐成交增量奖
+                - cell "0" [ref=f4e253]
+                - cell "1 元/条" [ref=f4e254]
+                - cell "¥0" [ref=f4e255]
+                - cell "直接下线新增签约通告增量" [ref=f4e256]
+          - generic [ref=f4e257]:
+            - generic [ref=f4e258]:
+              - generic [ref=f4e259]: 本周小计
+              - strong [ref=f4e260]: ¥4
+            - generic [ref=f4e261]:
+              - generic [ref=f4e262]: 合计应付
+              - strong [ref=f4e263]: ¥4
+            - paragraph [ref=f4e287]: 本周可发放 ¥4。
+        - generic [ref=f4e264]:
+          - heading "新增签约奖励判定明细" [level=2] [ref=f4e269]
+          - table [ref=f4e270]:
+            - rowgroup [ref=f4e271]:
+              - row [ref=f4e272]:
+                - columnheader "通告" [ref=f4e273]
+                - columnheader "签约名单" [ref=f4e274]
+                - columnheader "新增签约模特" [ref=f4e275]
+                - columnheader "重复签约模特" [ref=f4e276]
+                - columnheader "奖励判定" [ref=f4e277]
+            - rowgroup

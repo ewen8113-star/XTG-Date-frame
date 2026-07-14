@@ -1,0 +1,155 @@
+- generic [ref=f1e3]:
+  - complementary [ref=f1e4]:
+    - generic [ref=f1e6]:
+      - generic [ref=f1e7]: 鑫通告
+      - generic [ref=f1e8]: 运营结算后台
+    - navigation "主导航" [ref=f1e9]:
+      - generic [ref=f1e10]:
+        - generic [ref=f1e11]: 经纪人管理
+        - button "工作总览" [ref=f1e18] [cursor=pointer]
+        - button "审核中心" [ref=f1e20] [cursor=pointer]
+        - generic [ref=f1e21]:
+          - button "经纪人用户" [ref=f1e22] [cursor=pointer]
+          - button "经纪人工作台" [ref=f1e23] [cursor=pointer]
+        - button "数据分析" [ref=f1e25] [cursor=pointer]
+    - generic [ref=f1e26]: ver 1.03 (BY EWEN)
+  - main [ref=f1e28]:
+    - generic [ref=f1e29]:
+      - generic [ref=f1e30]:
+        - strong [ref=f1e31]: 审核与结算
+        - generic [ref=f1e32]: 运营工作台
+      - generic [ref=f1e33]:
+        - textbox "全局搜索" [ref=f1e38]:
+          - /placeholder: 搜索经纪人或通告 ID
+          - text: 测试-小华已晋升
+        - button "系统使用白皮书" [ref=f1e39] [cursor=pointer]
+        - button "版本更新" [ref=f1e43] [cursor=pointer]
+        - button "切换暗色模式" [ref=f1e48] [cursor=pointer]
+        - button "Q qa_viewer" [ref=f1e52] [cursor=pointer]:
+          - generic [ref=f1e53]: Q
+          - generic [ref=f1e54]: qa_viewer
+    - generic [ref=f1e942]:
+      - generic [ref=f1e943]:
+        - button "返回" [ref=f1e944] [cursor=pointer]
+        - link "打开鑫通告资料" [ref=f1e947] [cursor=pointer]:
+          - /url: https://jarvis.tong-gao.com/user/detail/195000000000000003?tab=profile
+      - generic [ref=f1e952]:
+        - generic [ref=f1e954]:
+          - heading "测试模特-初夏" [level=1] [ref=f1e955]
+          - generic [ref=f1e956]:
+            - generic [ref=f1e957]: 模特
+            - generic [ref=f1e958]: 正常
+            - generic [ref=f1e959]: "ID #195000000000000003"
+        - generic [ref=f1e960]:
+          - generic [ref=f1e961]:
+            - generic [ref=f1e962]: 微信
+            - strong [ref=f1e963]: "17700000003"
+          - generic [ref=f1e964]:
+            - generic [ref=f1e965]: 注册
+            - strong [ref=f1e966]: 2026/6/12 10:00:00
+          - generic [ref=f1e967]:
+            - generic [ref=f1e968]: 上次登录
+            - strong [ref=f1e969]: 2026/7/13 20:00:00
+          - generic [ref=f1e970]:
+            - generic [ref=f1e971]: 违规
+            - strong [ref=f1e972]: "0"
+          - generic [ref=f1e973]:
+            - generic [ref=f1e974]: 接通告
+            - strong [ref=f1e975]: 3 / 3
+      - tablist [ref=f1e976]:
+        - button "资料" [ref=f1e977] [cursor=pointer]
+      - generic [ref=f1e978]:
+        - heading "基础资料" [level=2] [ref=f1e979]
+        - generic [ref=f1e980]:
+          - generic [ref=f1e981]:
+            - generic [ref=f1e982]: 性别
+            - strong [ref=f1e983]: 女
+          - generic [ref=f1e984]:
+            - generic [ref=f1e985]: 年龄
+            - strong [ref=f1e986]: 23岁
+          - generic [ref=f1e987]:
+            - generic [ref=f1e988]: 生日
+            - strong [ref=f1e989]: 2003/5/9
+          - generic [ref=f1e990]:
+            - generic [ref=f1e991]: 地区
+            - strong [ref=f1e992]: 浙江省杭州市
+          - generic [ref=f1e993]:
+            - generic [ref=f1e994]: 身高
+            - strong [ref=f1e995]: 172cm
+          - generic [ref=f1e996]:
+            - generic [ref=f1e997]: 体重
+            - strong [ref=f1e998]: 52kg
+          - generic [ref=f1e999]:
+            - generic [ref=f1e1000]: 胸围
+            - strong [ref=f1e1001]: 84cm
+          - generic [ref=f1e1002]:
+            - generic [ref=f1e1003]: 腰围
+            - strong [ref=f1e1004]: 63cm
+          - generic [ref=f1e1005]:
+            - generic [ref=f1e1006]: 臀围
+            - strong [ref=f1e1007]: 89cm
+          - generic [ref=f1e1008]:
+            - generic [ref=f1e1009]: 肩宽
+            - strong [ref=f1e1010]: 40cm
+          - generic [ref=f1e1011]:
+            - generic [ref=f1e1012]: 鞋码
+            - strong [ref=f1e1013]: "39"
+          - generic [ref=f1e1014]:
+            - generic [ref=f1e1015]: 衣服尺码
+            - strong [ref=f1e1016]: M
+          - generic [ref=f1e1017]:
+            - generic [ref=f1e1018]: 纹身
+            - strong [ref=f1e1019]: 脚踝小面积
+          - generic [ref=f1e1020]:
+            - generic [ref=f1e1021]: 发色
+            - strong [ref=f1e1022]: 深棕色
+          - generic [ref=f1e1023]:
+            - generic [ref=f1e1024]: 发长
+            - strong [ref=f1e1025]: 中长发
+          - generic [ref=f1e1026]:
+            - generic [ref=f1e1027]: 语言
+            - strong [ref=f1e1028]: 普通话、英语
+        - generic [ref=f1e1029]:
+          - generic [ref=f1e1030]: 文字介绍
+          - paragraph [ref=f1e1031]: 测试资料：适合时装、电商和品牌快闪活动。
+      - generic [ref=f1e1032]:
+        - generic [ref=f1e1033]:
+          - heading "图片模卡" [level=2] [ref=f1e1038]
+          - generic [ref=f1e1039]: "1"
+        - link [ref=f1e1041] [cursor=pointer]:
+          - /url: /test-assets/model-card-3.jpg
+          - img "测试模特-初夏 图片模卡 1" [ref=f1e1042]
+      - generic [ref=f1e1043]:
+        - generic [ref=f1e1044]:
+          - heading "视频模卡" [level=2] [ref=f1e1048]
+          - generic [ref=f1e1049]: "0"
+        - paragraph [ref=f1e1050]: 暂无视频模卡。
+      - generic [ref=f1e1051]:
+        - heading "签约通告记录" [level=2] [ref=f1e1052]
+        - table [ref=f1e1053]:
+          - rowgroup [ref=f1e1054]:
+            - row [ref=f1e1055]:
+              - columnheader "通告" [ref=f1e1056]
+              - columnheader "经纪人" [ref=f1e1057]
+              - columnheader "发布时间" [ref=f1e1058]
+              - columnheader "签约时间" [ref=f1e1059]
+              - columnheader "状态" [ref=f1e1060]
+          - rowgroup [ref=f1e1061]:
+            - row [ref=f1e1062]:
+              - cell "测试-小华晋升前01" [ref=f1e1063]
+              - cell "测试-小华已晋升" [ref=f1e1064]
+              - cell "2026/6/22 09:00:00" [ref=f1e1065]
+              - cell "2026/7/14 09:00:00" [ref=f1e1066]
+              - cell "已签约" [ref=f1e1067]
+            - row [ref=f1e1068]:
+              - cell "测试-小华晋升后新签" [ref=f1e1069]
+              - cell "测试-小华已晋升" [ref=f1e1070]
+              - cell "2026/7/8 13:00:00" [ref=f1e1071]
+              - cell "2026/7/14 09:00:00" [ref=f1e1072]
+              - cell "已签约" [ref=f1e1073]
+            - row [ref=f1e1074]:
+              - cell "测试-小华晋升后重复" [ref=f1e1075]
+              - cell "测试-小华已晋升" [ref=f1e1076]
+              - cell "2026/7/9 13:00:00" [ref=f1e1077]
+              - cell "2026/7/14 09:00:00" [ref=f1e1078]
+              - cell "已签约" [ref=f1e1079]

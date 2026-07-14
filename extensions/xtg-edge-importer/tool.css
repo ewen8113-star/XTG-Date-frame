@@ -1,0 +1,40 @@
+:root {
+  color: #172033;
+  background: #f4f7fb;
+  font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; }
+main { width: min(820px, calc(100% - 32px)); margin: 36px auto; }
+header { margin-bottom: 24px; }
+h1 { margin: 4px 0 8px; font-size: 30px; }
+h2 { margin: 0 0 16px; font-size: 18px; }
+p { line-height: 1.65; }
+.eyebrow { margin: 0; color: #2e74b5; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; }
+section { margin-top: 16px; padding: 22px; border: 1px solid #dbe3ee; border-radius: 14px; background: #fff; box-shadow: 0 8px 26px rgb(42 65 101 / 6%); }
+label { display: block; margin-bottom: 8px; font-weight: 700; }
+.field-row, .section-title, .actions { display: flex; gap: 10px; align-items: center; }
+.section-title { justify-content: space-between; }
+.section-title h2 { margin: 0; }
+input { flex: 1; min-width: 0; padding: 11px 12px; border: 1px solid #bfcada; border-radius: 8px; font: inherit; }
+button { padding: 10px 16px; border: 0; border-radius: 8px; background: #245f9e; color: #fff; cursor: pointer; font: inherit; font-weight: 700; }
+button:hover { background: #194c82; }
+button:disabled { cursor: not-allowed; opacity: 0.55; }
+button.secondary { padding: 8px 12px; background: #e8eef6; color: #245f9e; }
+.actions { flex-wrap: wrap; }
+.primary { min-width: 230px; }
+.hint, .status { margin: 10px 0 0; color: #68758a; font-size: 13px; }
+dl { margin: 16px 0 0; }
+dl div { display: grid; grid-template-columns: 70px 1fr; padding: 8px 0; border-top: 1px solid #edf1f6; }
+dt { color: #68758a; }
+dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.task-status { margin-top: 16px; padding: 12px 14px; border-radius: 8px; background: #eef2f7; }
+.task-status.running { background: #fff5d8; color: #7a5500; }
+.task-status.success { background: #e4f6eb; color: #17633a; }
+.task-status.error { background: #fde8e8; color: #9b2424; }
+
+@media (max-width: 640px) {
+  .field-row { align-items: stretch; flex-direction: column; }
+  .field-row button, .primary { width: 100%; }
+}

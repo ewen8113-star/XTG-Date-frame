@@ -11,7 +11,13 @@ export interface Broker {
   accountStatus: "正常" | "限制发布" | "临时封号" | "永久封号";
   brokerLevel: BrokerLevel;
   seedPhase: number | null;
+  seedProgramJoinedAt: string | null;
+  seedQualifiedAt: string | null;
   referralUnlocked: boolean;
+  referrerNickname?: string | null;
+  referrerBoundAt?: string | null;
+  refereeCount?: number;
+  latestRefereeBoundAt?: string | null;
   registeredAt: string;
   lastLoginAt: string;
   violationCount: number;
@@ -26,6 +32,8 @@ export interface Broker {
 export interface BrokerLevelUpdate {
   brokerLevel: BrokerLevel;
   seedPhase: number | null;
+  seedProgramJoinedAt: string | null;
+  seedQualifiedAt: string | null;
   referralUnlocked: boolean;
 }
 
@@ -41,7 +49,9 @@ export interface Briefing {
   workDate: string;
   workTime: string;
   publishedAt: string;
+  finishedAt?: string;
   importedAt?: string;
+  firstSignedAt?: string;
   sourceStatus: string;
   cancelReason: string;
   requirementText: string;
@@ -74,12 +84,56 @@ export interface EvidenceFile {
   uploadedAt: string;
 }
 
+export interface SignerProfile {
+  id: string;
+  jarvisUserId: string;
+  nickname: string;
+  phone: string;
+  avatarUrl: string;
+  userType: string;
+  accountStatus: string;
+  gender: string;
+  age: number | null;
+  birthDate: string;
+  region: string;
+  heightCm: number | null;
+  weightKg: number | null;
+  bustCm: number | null;
+  waistCm: number | null;
+  hipCm: number | null;
+  shoulderCm: number | null;
+  shoeSize: string;
+  clothingSize: string;
+  tattoo: string;
+  hairColor: string;
+  hairLength: string;
+  languages: string;
+  bio: string;
+  imageUrls: string[];
+  videoUrls: string[];
+  registeredAt: string;
+  lastLoginAt: string;
+  violationCount: number;
+  acceptedBriefingCount: number;
+  completedBriefingCount: number;
+  briefingHistory: Array<{
+    id: string;
+    title: string;
+    publishedAt: string;
+    signedAt: string;
+    sourceStatus: string;
+    brokerNickname: string;
+  }>;
+}
+
 export interface ReferralNode {
   id: string;
   nickname: string;
   phone: string;
   brokerLevel: BrokerLevel;
   seedPhase: number | null;
+  seedProgramJoinedAt: string | null;
+  seedQualifiedAt: string | null;
   referralUnlocked: boolean;
   validPublishCount: number;
   validCompleteCount: number;

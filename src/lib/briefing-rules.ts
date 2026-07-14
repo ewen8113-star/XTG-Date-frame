@@ -1,6 +1,7 @@
 export const seedPlanStartIso = "2026-04-01T00:00:00";
 export const pastCycleKey = "past";
 export const clawbackMarker = "历史有效通告抵扣";
+export const completeClawbackMarker = "历史新增签约抵扣";
 
 export type SourceRejectKind = "manual" | "report";
 
@@ -14,6 +15,37 @@ export function isCycleBefore(leftKey: string, rightKey: string) {
   return cycleWeekIndex(leftKey) < cycleWeekIndex(rightKey);
 }
 
+export function firstQualificationCycle(
+  events: Array<{ cycleKey: string; kind: "publish" | "complete" }>,
+  publishTarget = 6,
+  completeTarget = 2
+) {
+  let publishCount = 0;
+  let completeCount = 0;
+  const grouped = new Map<string, { publish: number; complete: number }>();
+  events.forEach((event) => {
+    if (cycleWeekIndex(event.cycleKey) < 1) return;
+    const counts = grouped.get(event.cycleKey) ?? { publish: 0, complete: 0 };
+    counts[event.kind] += 1;
+    grouped.set(event.cycleKey, counts);
+  });
+  const cycleKeys = [...grouped.keys()].sort((left, right) => cycleWeekIndex(left) - cycleWeekIndex(right));
+  for (const cycleKey of cycleKeys) {
+    const counts = grouped.get(cycleKey)!;
+    publishCount += counts.publish;
+    completeCount += counts.complete;
+    if (publishCount >= publishTarget && completeCount >= completeTarget) return cycleKey;
+  }
+  return null;
+}
+
+export function referralBaseRewardCycle(qualificationCycle: string | null, promotionCycle: string | null) {
+  const qualificationIndex = qualificationCycle ? cycleWeekIndex(qualificationCycle) : -1;
+  const promotionIndex = promotionCycle ? cycleWeekIndex(promotionCycle) : -1;
+  if (qualificationIndex < 1 || promotionIndex < 1) return null;
+  return promotionIndex >= qualificationIndex ? promotionCycle : qualificationCycle;
+}
+
 export function weekCycleKeyFromDate(value: string | Date) {
   const seedPlanStartDate = new Date(seedPlanStartIso);
   const timestamp = typeof value === "string" ? Date.parse(value.replace(/\//g, "-")) : value.getTime();
@@ -25,6 +57,78 @@ export function weekCycleKeyFromDate(value: string | Date) {
   const offsetDays = Math.floor((dayStart.getTime() - seedPlanStartDate.getTime()) / 86400000);
   const weekIndex = Math.floor(offsetDays / 7);
   return `week-${weekIndex + 1}`;
+}
+
+export function isPublishedAfterSeedQualification(publishedAt: string, seedQualifiedAt?: string | null) {
+  if (seedQualifiedAt === undefined) return true;
+  if (!seedQualifiedAt) return false;
+  const publishedTimestamp = Date.parse(publishedAt.replace(/\//g, "-"));
+  const qualifiedTimestamp = Date.parse(seedQualifiedAt.replace(/\//g, "-"));
+  return !Number.isNaN(publishedTimestamp)
+    && !Number.isNaN(qualifiedTimestamp)
+    && publishedTimestamp >= qualifiedTimestamp;
+}
+
+export function seedProgramStartAt(identity: {
+  brokerLevel: "normal" | "seed";
+  seedPhase: number | null;
+  seedProgramJoinedAt: string | null;
+  seedQualifiedAt: string | null;
+}) {
+  if (!identity.seedPhase) return null;
+  return identity.seedProgramJoinedAt || (identity.brokerLevel === "seed" ? identity.seedQualifiedAt : null);
+}
+
+export function seedSelfRewardStartAt(identity: {
+  brokerLevel: "normal" | "seed";
+  seedPhase: number | null;
+  seedProgramJoinedAt: string | null;
+  seedQualifiedAt: string | null;
+}) {
+  return seedProgramStartAt(identity);
+}
+
+export function seedCurrentIncentiveStartAt(identity: {
+  brokerLevel: "normal" | "seed";
+  seedPhase: number | null;
+  seedProgramJoinedAt: string | null;
+  seedQualifiedAt: string | null;
+}) {
+  return seedSelfRewardStartAt(identity) || seedProgramStartAt(identity);
+}
+
+export function activityEndAt(workDate: string, workTime: string) {
+  const dateMatch = (workDate || "").match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  const timeMatches = Array.from((workTime || "").matchAll(/(?:^|\D)(\d{1,2}):(\d{2})(?=\D|$)/g));
+  if (!dateMatch || timeMatches.length < 2) return null;
+
+  const startMatch = timeMatches[0];
+  const endMatch = timeMatches[timeMatches.length - 1];
+  const year = Number(dateMatch[1]);
+  const month = Number(dateMatch[2]) - 1;
+  const day = Number(dateMatch[3]);
+  const startHour = Number(startMatch[1]);
+  const startMinute = Number(startMatch[2]);
+  const endHour = Number(endMatch[1]);
+  const endMinute = Number(endMatch[2]);
+  if ([startHour, endHour].some((hour) => hour > 23) || [startMinute, endMinute].some((minute) => minute > 59)) return null;
+
+  const start = new Date(year, month, day, startHour, startMinute);
+  const end = new Date(year, month, day, endHour, endMinute);
+  if (end.getTime() <= start.getTime()) end.setDate(end.getDate() + 1);
+  return end;
+}
+
+export function briefingRewardCycleKey(briefing: {
+  publishedAt: string;
+  workDate: string;
+  workTime: string;
+  finishedAt?: string;
+}) {
+  const rewardAt = activityEndAt(briefing.workDate, briefing.workTime)
+    ?? briefing.finishedAt
+    ?? briefing.publishedAt;
+  return weekCycleKeyFromDate(rewardAt);
 }
 
 export function classifySourceReject(sourceStatus: string, cancelReason: string): SourceRejectKind | null {
@@ -61,6 +165,31 @@ export function parseClawbackCycle(invalidReason: string) {
   return match?.[1] ?? "";
 }
 
+export function parseCompleteClawbackCycle(invalidReason: string) {
+  const match = (invalidReason || "").match(/历史新增签约抵扣@(week-\d+)/);
+  return match?.[1] ?? "";
+}
+
+export function clearEvidenceDisputeReason(invalidReason: string) {
+  if (!(invalidReason || "").includes("凭证异议")) return (invalidReason || "").trim();
+  return (invalidReason || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => (
+      /^\[SIGNED_MODEL_MISMATCH:[^\]]+\]$/.test(line)
+      || /^\[SIGNED_MODEL_REVIEW:[^\]]+\]$/.test(line)
+      || line.startsWith(`${clawbackMarker}@`)
+      || line.startsWith(`${completeClawbackMarker}@`)
+    ))
+    .join("\n");
+}
+
+function preservedReviewStatus(value?: string) {
+  if (value === "APPROVED") return "APPROVED" as const;
+  if (value === "REJECTED") return "REJECTED" as const;
+  return "PENDING" as const;
+}
+
 export function resolveImportReview(
   existingReview: {
     validPublishStatus?: string;
@@ -77,17 +206,24 @@ export function resolveImportReview(
       ? existingReview?.invalidReason ?? undefined
       : undefined;
     return {
-      validPublishStatus: "PENDING" as const,
-      validCompleteStatus: "PENDING" as const,
+      validPublishStatus: preservedReviewStatus(existingReview?.validPublishStatus),
+      validCompleteStatus: preservedReviewStatus(existingReview?.validCompleteStatus),
       invalidReason: preservedInvalidReason
     };
   }
 
   const reasonText = buildSourceInvalidReason(sourceStatus, cancelReason);
-  const wasApproved = existingReview?.validPublishStatus === "APPROVED";
-  const clawbackCycle = weekCycleKeyFromDate(importAt);
+  const existingClawbackCycle = parseClawbackCycle(existingReview?.invalidReason ?? "");
+  const existingCompleteClawbackCycle = parseCompleteClawbackCycle(existingReview?.invalidReason ?? "");
+  const wasApproved = existingReview?.validPublishStatus === "APPROVED" || Boolean(existingClawbackCycle);
+  const wasCompleteApproved = existingReview?.validCompleteStatus === "APPROVED" || Boolean(existingCompleteClawbackCycle);
+  const clawbackCycle = existingClawbackCycle || weekCycleKeyFromDate(importAt);
+  const completeClawbackCycle = existingCompleteClawbackCycle || clawbackCycle;
   const invalidReason = wasApproved
-    ? `${clawbackMarker}@${clawbackCycle}：${reasonText}`
+    ? [
+        `${clawbackMarker}@${clawbackCycle}：${reasonText}`,
+        wasCompleteApproved ? `${completeClawbackMarker}@${completeClawbackCycle}：${reasonText}` : ""
+      ].filter(Boolean).join("\n")
     : reasonText;
 
   return {

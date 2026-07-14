@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>鑫通告数据导入助手</title>
+    <link rel="stylesheet" href="tool.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">EDGE / CHROME</p>
+        <h1>鑫通告数据导入助手</h1>
+        <p>从当前已登录的鑫通告页面读取数据，并直接写入运营后台。</p>
+      </header>
+
+      <section>
+        <h2>1. 连接运营后台</h2>
+        <label for="backend-url">运营后台地址</label>
+        <div class="field-row">
+          <input id="backend-url" placeholder="例如：http://192.168.1.20:5174" type="url" />
+          <button id="save-backend" type="button">保存并测试</button>
+        </div>
+        <p class="hint">填写同事电脑访问系统时使用的完整地址，不要填写鑫通告地址。</p>
+        <p class="status" id="backend-status">尚未测试连接</p>
+      </section>
+
+      <section>
+        <div class="section-title">
+          <h2>2. 识别鑫通告页面</h2>
+          <button class="secondary" id="refresh-source" type="button">重新识别</button>
+        </div>
+        <dl>
+          <div><dt>页面</dt><dd id="source-title">正在识别…</dd></div>
+          <div><dt>类型</dt><dd id="source-type">-</dd></div>
+        </dl>
+        <p class="hint">如果没有识别到页面，请先打开并登录鑫通告，再点击“重新识别”。</p>
+      </section>
+
+      <section>
+        <h2>3. 开始导入</h2>
+        <div class="actions">
+          <button class="primary" id="import-brokers" type="button">导入当前经纪人列表</button>
+          <button class="primary" id="import-briefings" type="button">导入当前经纪人的通告</button>
+        </div>
+        <p class="hint">导入通告时会在后台逐条打开详情页面。请保持本工具页面开启，直到显示完成。</p>
+        <div class="task-status neutral" id="task-status">等待操作</div>
+      </section>
+    </main>
+    <script src="tool.js"></script>
+  </body>
+</html>
