@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
+    "dev": "concurrently --restart-tries -1 --restart-after 3000 -n api,web \"npm run dev:api\" \"npm run dev:web\"",
     "dev:web": "vite --host 0.0.0.0 --port 5174 --strictPort",
     "dev:api": "API_PORT=3131 tsx src/server/index.ts",
     "build": "tsc && vite build",
@@ -28,6 +28,7 @@
     "prisma": "^6.10.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "styled-components": "^6.4.4",
     "tsx": "^4.19.2",
     "vite": "^6.0.3",
     "zod": "^3.24.1"

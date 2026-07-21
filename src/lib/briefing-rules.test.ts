@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  cycleKeyRange,
+  disputeRewardAmount,
   activityEndAt,
   briefingRewardCycleKey,
   clearEvidenceDisputeReason,
@@ -14,6 +16,14 @@ import {
   seedProgramStartAt,
   seedSelfRewardStartAt
 } from "./briefing-rules";
+
+test("settlement cycle ranges include weeks without the referrer's own briefings", () => {
+  assert.deepEqual(cycleKeyRange("week-1", "week-6"), ["week-1", "week-2", "week-3", "week-4", "week-5", "week-6"]);
+});
+
+test("an approved signing dispute pays the deferred two-yuan signing reward", () => {
+  assert.equal(disputeRewardAmount({ deferPublishReward: false, deferCompleteReward: true }), 2);
+});
 
 test("a direct referee qualifies for the base reward in the first 6 + 2 cycle", () => {
   const events = [

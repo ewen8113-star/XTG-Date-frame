@@ -1,0 +1,3 @@
+ALTER TABLE `DataSyncRun`
+  ADD COLUMN `progressPercent` INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN `progressStage` VARCHAR(191) NOT NULL DEFAULT '正在准备同步';

@@ -1,0 +1,380 @@
+/* Readability layer: typography, density and cross-theme contrast. */
+:root {
+  --font-ui: "PingFang SC", "Microsoft YaHei", Inter, system-ui, sans-serif;
+  --font-data: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  --text-tertiary: #7c8799;
+  font-family: var(--font-ui);
+  font-size: 16px;
+}
+
+:root[data-theme="dark"] {
+  --surface: #171a20;
+  --surface-canvas: #111318;
+  --surface-low: #1e222a;
+  --surface-card: #181b21;
+  --surface-high: #282d36;
+  --text: #f1f3f5;
+  --text-secondary: #b0b7c3;
+  --text-tertiary: #8f98a6;
+  --primary: #c3c8ff;
+  --primary-container: #646bb8;
+  --primary-soft: #292e4d;
+  --border: #303640;
+  --border-strong: #48505d;
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: var(--font-ui);
+}
+
+body {
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.page {
+  gap: 20px;
+  width: min(100%, 1480px);
+  padding: 28px 30px 36px;
+}
+
+.page-header {
+  min-height: 72px;
+}
+
+.page-header h1 {
+  font-size: 28px;
+  line-height: 1.25;
+}
+
+.page-header p {
+  max-width: 860px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.eyebrow {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.panel {
+  padding: 18px;
+}
+
+.panel-title h2,
+.xtg-detail-card h3,
+.review-section h3 {
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.metric-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metric-card {
+  min-height: 108px;
+  padding: 16px 18px;
+}
+
+.metric-card > span {
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.metric-card strong,
+.info-item strong,
+.network-card h3,
+.rank-metrics b {
+  font-family: var(--font-ui);
+  font-variant-numeric: tabular-nums;
+}
+
+.metric-card strong {
+  font-size: 26px;
+  line-height: 1.25;
+}
+
+.metric-card small {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.task-card {
+  min-height: 104px;
+  padding: 15px;
+}
+
+.task-card span,
+.task-card small {
+  line-height: 1.45;
+}
+
+table {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+thead th {
+  padding: 12px 14px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+tbody td {
+  min-height: 48px;
+  padding: 13px 14px;
+}
+
+.user-cell {
+  min-width: 0;
+  gap: 4px;
+}
+
+.user-cell strong {
+  display: block;
+  max-width: 360px;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-cell span,
+.rank-row span,
+.info-item span {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.copy-line,
+.settlement-report-table td:nth-child(2) {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+}
+
+.copy-line {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status-pill,
+.review-badge,
+.permission-badge {
+  min-height: 26px;
+  padding: 0 9px;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.workspace-profile {
+  gap: 16px;
+  padding: 18px 20px;
+}
+
+.profile-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px 24px;
+  padding-top: 16px;
+}
+
+.profile-summary {
+  gap: 10px;
+}
+
+.info-item {
+  gap: 5px;
+}
+
+.info-item strong {
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.workspace-title-row {
+  gap: 10px;
+}
+
+.workspace-title-row h1 {
+  font-size: 24px;
+  line-height: 1.35;
+}
+
+.audit-summary-grid {
+  gap: 14px;
+}
+
+.audit-filter-bar {
+  padding: 16px;
+}
+
+.audit-queue-table tbody tr {
+  cursor: pointer;
+}
+
+.audit-queue-table .compact-action {
+  min-height: 32px;
+  padding-inline: 10px;
+  font-size: 12px;
+}
+
+.empty-state {
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.compact-empty {
+  min-height: 72px;
+  display: grid;
+  place-items: center;
+}
+
+.identity-review-banner {
+  align-items: flex-start;
+  padding: 16px 18px;
+}
+
+.identity-review-banner strong {
+  color: #713f12;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+:root[data-theme="dark"] .identity-review-banner {
+  border-color: #7c5b26;
+  background: #332817;
+}
+
+:root[data-theme="dark"] .identity-review-banner strong {
+  color: #fde7b0;
+}
+
+:root[data-theme="dark"] .identity-review-banner span,
+:root[data-theme="dark"] .identity-review-banner small {
+  color: #e8c77d;
+}
+
+:root[data-theme="dark"] .identity-review-banner.retained {
+  border-color: #2f6d59;
+  background: #173129;
+}
+
+:root[data-theme="dark"] .identity-review-banner.retained strong,
+:root[data-theme="dark"] .identity-review-banner.retained span,
+:root[data-theme="dark"] .identity-review-banner.retained small {
+  color: #a7f3d0;
+}
+
+:root[data-theme="dark"] .review-badge.pending,
+:root[data-theme="dark"] .status-pill.warning {
+  border-color: #66502b;
+  background: #362b19;
+  color: #f2c978;
+}
+
+:root[data-theme="dark"] .review-badge.approved,
+:root[data-theme="dark"] .status-pill.success {
+  border-color: #245f4e;
+  background: #17362d;
+  color: #78d9b8;
+}
+
+:root[data-theme="dark"] .review-badge.rejected,
+:root[data-theme="dark"] .status-pill.danger {
+  border-color: #713b43;
+  background: #3b2025;
+  color: #f1a0aa;
+}
+
+.settlement-preview-modal {
+  width: min(1180px, 100%);
+}
+
+.settlement-preview-table-wrap .settlement-report-table thead th {
+  font-size: 12px;
+}
+
+.settlement-report-group th {
+  padding-block: 12px;
+  font-size: 14px;
+}
+
+.settlement-report-group span {
+  font-size: 12px;
+}
+
+.timeline strong,
+.timeline span {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1180px) {
+  .metric-grid,
+  .profile-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .page {
+    gap: 16px;
+    padding: 18px 16px 28px;
+  }
+
+  .page-header h1 {
+    font-size: 24px;
+  }
+
+  .metric-grid,
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .panel {
+    padding: 14px;
+  }
+
+  .panel-title.with-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .panel-title.with-actions > div {
+    display: flex;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .panel-title.with-actions select {
+    min-width: 0;
+    width: 100%;
+    flex: 1 0 100%;
+  }
+
+  .user-cell strong {
+    max-width: 260px;
+  }
+}

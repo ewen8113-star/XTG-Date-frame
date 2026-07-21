@@ -9,13 +9,43 @@ import { briefings, brokers, importBatches, referralNodes, settlementSummary } f
 import { clearEvidenceDisputeReason, isSourceInvalidForPublish, resolveImportReview } from "../lib/briefing-rules";
 import { resolveStoredCompleteStatus } from "../lib/signer-review";
 import { importedSignerDisplayNickname, importedSignerNickname, isImportedSignerPlaceholder } from "../lib/signed-model-import";
+import { isActiveSignerRelationship, signerRelationshipStatusLabel } from "../lib/signer-status";
+import { createSystemBackup, listSystemBackups, restoreSystemBackup } from "./data-backup";
+import { operationLogMiddleware, writeOperationLog } from "./operation-log";
 import { prisma } from "./prisma";
+import { currentModelMedia, startXtgSync, startXtgSyncScheduler } from "./xtg-sync";
 
 const app = express();
 const port = Number(process.env.API_PORT ?? 3131);
 const uploadRoot = path.resolve(process.cwd(), "uploads");
 const accountFile = path.join(uploadRoot, "system-accounts.json");
 const execFileAsync = promisify(execFile);
+
+async function saveBrowserCompatibleEvidence(folder: string, fileName: string, fileType: string, bytes: Buffer) {
+  await fs.mkdir(folder, { recursive: true });
+  const storageKey = `${Date.now()}-${randomUUID().slice(0, 8)}`;
+  const originalName = `${storageKey}-${fileName}`;
+  const originalPath = path.join(folder, originalName);
+  await fs.writeFile(originalPath, bytes);
+  const isVideo = fileType.startsWith("video/") || /\.(mp4|mov|m4v|hevc)$/i.test(fileName);
+  if (!isVideo) return { storedName: originalName, storedFileType: fileType };
+
+  const compatibleName = `${storageKey}-browser.mp4`;
+  const compatiblePath = path.join(folder, compatibleName);
+  try {
+    await execFileAsync(process.env.FFMPEG_PATH || "ffmpeg", [
+      "-y", "-i", originalPath,
+      "-map", "0:v:0", "-map", "0:a?",
+      "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p",
+      "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart",
+      compatiblePath
+    ]);
+    return { storedName: compatibleName, storedFileType: "video/mp4" };
+  } catch {
+    await fs.unlink(compatiblePath).catch(() => undefined);
+    return { storedName: originalName, storedFileType: fileType };
+  }
+}
 
 app.use(cors());
 app.use("/uploads", express.static(uploadRoot));
@@ -25,6 +55,7 @@ app.use("/api", (_req, res, next) => {
   res.set("Cache-Control", "no-store");
   next();
 });
+app.use("/api", operationLogMiddleware);
 
 async function withFallback<T>(query: () => Promise<unknown>, fallback: T): Promise<unknown | T> {
   try {
@@ -36,6 +67,75 @@ async function withFallback<T>(query: () => Promise<unknown>, fallback: T): Prom
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, service: "xtg-review-admin-api" });
+});
+
+app.get("/api/operation-logs", async (req, res) => {
+  const take = Math.min(500, Math.max(20, Number(req.query.limit) || 200));
+  const logs = await prisma.operationLog.findMany({ orderBy: { createdAt: "desc" }, take });
+  res.json(logs);
+});
+
+app.post("/api/operation-logs", async (req, res) => {
+  try {
+    const actor = decodeURIComponent(safeText(req.header("x-system-account"), "system"));
+    await writeOperationLog({
+      actor,
+      action: safeText(req.body?.action, "系统操作"),
+      module: safeText(req.body?.module, "系统操作"),
+      result: safeText(req.body?.result, "成功"),
+      detail: safeText(req.body?.detail) || undefined,
+      path: safeText(req.body?.path) || undefined,
+      ipAddress: req.ip
+    });
+    res.status(201).json({ ok: true });
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : "日志写入失败" });
+  }
+});
+
+app.get("/api/data-sync/runs", async (_req, res) => {
+  const runs = await prisma.dataSyncRun.findMany({ orderBy: { startedAt: "desc" }, take: 100 });
+  res.json(runs);
+});
+
+app.get("/api/data-sync/active", async (_req, res) => {
+  const run = await prisma.dataSyncRun.findFirst({ where: { status: "RUNNING" }, orderBy: { startedAt: "desc" } });
+  res.json(run);
+});
+
+app.post("/api/data-sync/run", async (req, res) => {
+  try {
+    const actor = decodeURIComponent(safeText(req.header("x-system-account"), "system"));
+    res.json(await startXtgSync("manual", actor));
+  } catch (error) {
+    res.status(409).json({ error: error instanceof Error ? error.message : "数据同步失败" });
+  }
+});
+
+app.get("/api/system-backups", async (_req, res) => {
+  try {
+    res.json(await listSystemBackups());
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : "备份列表读取失败" });
+  }
+});
+
+app.post("/api/system-backups", async (req, res) => {
+  try {
+    const actor = decodeURIComponent(safeText(req.header("x-system-account"), "system"));
+    res.status(201).json(await createSystemBackup(actor, safeText(req.body?.reason, "管理员手动备份")));
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : "系统备份失败" });
+  }
+});
+
+app.post("/api/system-backups/:name/restore", async (req, res) => {
+  try {
+    const actor = decodeURIComponent(safeText(req.header("x-system-account"), "system"));
+    res.json(await restoreSystemBackup(req.params.name, actor, safeText(req.body?.confirmation)));
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : "系统还原失败" });
+  }
 });
 
 type BrowserImportMode = "brokers" | "briefings" | "briefing-detail";
@@ -134,6 +234,15 @@ function cleanupBrowserImportJobs() {
 }
 
 type AuthRole = "super_admin" | "operations" | "finance";
+type AuthPermission = "dashboard" | "audit" | "brokers" | "workspace" | "stats" | "finance" | "operationLogs" | "dataSync" | "dataBackup";
+const authPermissions: AuthPermission[] = ["dashboard", "audit", "brokers", "workspace", "stats", "finance", "operationLogs", "dataSync", "dataBackup"];
+
+function defaultAuthPermissions(role: AuthRole): AuthPermission[] {
+  if (role === "super_admin") return [...authPermissions];
+  if (role === "finance") return ["finance"];
+  return ["dashboard", "audit", "brokers", "workspace", "stats"];
+}
+
 type AuthAccount = {
   account: string;
   avatarUrl?: string;
@@ -142,12 +251,20 @@ type AuthAccount = {
   createdAt: string;
   role: AuthRole;
   enabled: boolean;
+  permissions: AuthPermission[];
 };
 
 async function readAuthAccounts(): Promise<AuthAccount[]> {
   try {
-    const value = JSON.parse(await fs.readFile(accountFile, "utf8")) as AuthAccount[];
-    return Array.isArray(value) ? value : [];
+    const value = JSON.parse(await fs.readFile(accountFile, "utf8")) as Array<AuthAccount & { permissions?: AuthPermission[] }>;
+    return Array.isArray(value) ? value.map((account) => ({
+      ...account,
+      permissions: account.role === "super_admin"
+        ? [...authPermissions]
+        : Array.isArray(account.permissions)
+          ? account.permissions.filter((permission) => authPermissions.includes(permission))
+          : defaultAuthPermissions(account.role)
+    })) : [];
   } catch {
     return [];
   }
@@ -182,7 +299,8 @@ app.post("/api/auth/import-local", async (req, res) => {
       salt: String(item.salt),
       createdAt: String(item.createdAt),
       role: index === 0 ? "super_admin" : item.role === "finance" ? "finance" : "operations",
-      enabled: item.enabled !== false
+      enabled: item.enabled !== false,
+      permissions: defaultAuthPermissions(index === 0 ? "super_admin" : item.role === "finance" ? "finance" : "operations")
     }));
   if (accounts.length) await writeAuthAccounts(accounts);
   res.json(accounts);
@@ -207,7 +325,8 @@ app.post("/api/auth/register", async (req, res) => {
     salt,
     createdAt: new Date().toISOString(),
     role: accounts.length === 0 ? "super_admin" : "operations",
-    enabled: true
+    enabled: true,
+    permissions: defaultAuthPermissions(accounts.length === 0 ? "super_admin" : "operations")
   };
   await writeAuthAccounts([...accounts, created]);
   res.status(201).json(created);
@@ -258,7 +377,12 @@ app.patch("/api/auth/accounts/:account", async (req, res) => {
     ...item,
     avatarUrl: avatarUrl ?? item.avatarUrl,
     role: (["super_admin", "operations", "finance"] as string[]).includes(req.body?.role) ? req.body.role as AuthRole : item.role,
-    enabled: typeof req.body?.enabled === "boolean" ? req.body.enabled : item.enabled
+    enabled: typeof req.body?.enabled === "boolean" ? req.body.enabled : item.enabled,
+    permissions: req.body?.role === "super_admin"
+      ? [...authPermissions]
+      : Array.isArray(req.body?.permissions)
+        ? req.body.permissions.filter((permission: unknown): permission is AuthPermission => typeof permission === "string" && authPermissions.includes(permission as AuthPermission))
+        : item.permissions
   } : item);
   await writeAuthAccounts(next);
   res.json(next);
@@ -282,7 +406,6 @@ app.get("/api/brokers", async (_req, res) => {
     () =>
       prisma.broker.findMany({
         orderBy: { updatedAt: "desc" },
-        take: 100,
         include: {
           snapshots: {
             orderBy: { capturedAt: "desc" },
@@ -363,7 +486,15 @@ app.patch("/api/brokers/:id/level", async (req, res) => {
     const broker = await prisma.$transaction(async (transaction) => {
       const updatedBroker = await transaction.broker.update({
         where: { id: req.params.id },
-        data: { brokerLevel, seedPhase, seedProgramJoinedAt, referralUnlocked }
+        data: {
+          brokerLevel,
+          seedPhase,
+          seedProgramJoinedAt,
+          referralUnlocked,
+          identityReviewStatus: "NONE",
+          identityReviewTriggeredAt: null,
+          identityReviewResolvedAt: null
+        }
       });
       if (brokerLevel === "SEED" && seedQualifiedAt) {
         const latestPromotion = currentBroker.brokerLevel === "SEED"
@@ -440,7 +571,13 @@ app.post("/api/brokers/:id/promote", async (req, res) => {
     await prisma.$transaction(async (transaction) => {
       await transaction.broker.update({
         where: { id: req.params.id },
-        data: { brokerLevel: "SEED", referralUnlocked: true }
+        data: {
+          brokerLevel: "SEED",
+          referralUnlocked: true,
+          identityReviewStatus: "NONE",
+          identityReviewTriggeredAt: null,
+          identityReviewResolvedAt: null
+        }
       });
       await transaction.promotionRecord.create({
         data: {
@@ -468,6 +605,67 @@ app.post("/api/brokers/:id/promote", async (req, res) => {
   }
 });
 
+app.post("/api/brokers/:id/identity-review/reconcile", async (req, res) => {
+  try {
+    await reconcileBrokerIdentity(req.params.id);
+    const broker = await findMappedBroker(req.params.id);
+    res.json(broker ? mapBroker(broker) : null);
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : "身份复核失败" });
+  }
+});
+
+app.patch("/api/brokers/:id/identity-review", async (req, res) => {
+  const decision = safeText(req.body?.decision);
+  if (!["retain", "demote"].includes(decision)) {
+    res.status(400).json({ error: "身份复核结论无效" });
+    return;
+  }
+  try {
+    const currentBroker = await prisma.broker.findUnique({ where: { id: req.params.id } });
+    if (!currentBroker) {
+      res.status(404).json({ error: "经纪人不存在" });
+      return;
+    }
+    if (currentBroker.identityReviewStatus !== "PENDING") {
+      res.status(409).json({ error: "该经纪人当前无需身份复核" });
+      return;
+    }
+    await prisma.$transaction(async (transaction) => {
+      if (decision === "retain") {
+        await transaction.broker.update({
+          where: { id: req.params.id },
+          data: { identityReviewStatus: "RETAINED", identityReviewResolvedAt: new Date(), referralUnlocked: true }
+        });
+        return;
+      }
+      await transaction.broker.update({
+        where: { id: req.params.id },
+        data: {
+          brokerLevel: "NORMAL",
+          referralUnlocked: false,
+          identityReviewStatus: "NONE",
+          identityReviewResolvedAt: new Date()
+        }
+      });
+      await transaction.promotionRecord.create({
+        data: {
+          brokerId: req.params.id,
+          fromLevel: "SEED",
+          toLevel: "NORMAL",
+          promotedAt: new Date(),
+          reason: safeText(req.body?.reason, "6 + 2 条件失效，运营确认降级"),
+          operator: safeText(req.body?.operator, "开发预览账号")
+        }
+      });
+    });
+    const broker = await findMappedBroker(req.params.id);
+    res.json(broker ? mapBroker(broker) : null);
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : "身份复核保存失败" });
+  }
+});
+
 app.get("/api/brokers/:id/briefings", async (req, res) => {
   const fallback: unknown[] = [];
   const data = await withFallback(
@@ -477,7 +675,9 @@ app.get("/api/brokers/:id/briefings", async (req, res) => {
         orderBy: { publishedAt: "desc" },
         include: {
           review: true,
+          settlementDispute: true,
           evidences: true,
+          signers: { include: { signer: true }, orderBy: { signedAt: "asc" } },
           snapshots: { orderBy: { capturedAt: "desc" } }
         }
       }),
@@ -512,6 +712,7 @@ app.delete("/api/brokers/:id/briefings", async (req, res) => {
       }),
       prisma.settlementItem.deleteMany({ where: { briefingId: { in: briefingIds } } }),
       prisma.briefingReview.deleteMany({ where: { briefingId: { in: briefingIds } } }),
+      prisma.settlementDispute.deleteMany({ where: { briefingId: { in: briefingIds } } }),
       prisma.briefingSnapshot.deleteMany({ where: { briefingId: { in: briefingIds } } }),
       prisma.briefing.deleteMany({ where: { id: { in: briefingIds } } })
     ]);
@@ -538,7 +739,7 @@ app.post("/api/brokers/:id/evidences", express.raw({ type: "*/*", limit: "800mb"
   const fileType = safeText(req.header("x-file-type"), "application/octet-stream");
   const bytes = Buffer.isBuffer(req.body) ? req.body : Buffer.from([]);
   if (bytes.length === 0) {
-    res.status(400).json({ error: "未收到视频文件" });
+    res.status(400).json({ error: "未收到凭证文件" });
     return;
   }
 
@@ -549,15 +750,13 @@ app.post("/api/brokers/:id/evidences", express.raw({ type: "*/*", limit: "800mb"
       return;
     }
     const folder = path.join(uploadRoot, "evidence", broker.id);
-    await fs.mkdir(folder, { recursive: true });
-    const storedName = `${Date.now()}-${fileName}`;
-    await fs.writeFile(path.join(folder, storedName), bytes);
+    const { storedName, storedFileType } = await saveBrowserCompatibleEvidence(folder, fileName, fileType, bytes);
     const evidence = await prisma.evidenceFile.create({
       data: {
         brokerId: broker.id,
         fileName,
         fileUrl: `/uploads/evidence/${broker.id}/${storedName}`,
-        fileType
+        fileType: storedFileType
       }
     });
     res.status(201).json(mapEvidence(evidence));
@@ -605,9 +804,9 @@ app.get("/api/brokers/:id/referrers", (_req, res) => {
 });
 
 app.post("/api/brokers/:id/referrals", async (req, res) => {
-  const phone = safeText(req.body?.phone);
-  if (!phone) {
-    res.status(400).json({ error: "请输入手机号" });
+  const brokerUserId = safeText(req.body?.brokerUserId);
+  if (!brokerUserId) {
+    res.status(400).json({ error: "请输入经纪人ID" });
     return;
   }
 
@@ -622,13 +821,9 @@ app.post("/api/brokers/:id/referrals", async (req, res) => {
       return;
     }
 
-    const referee = await prisma.broker.findFirst({
-      where: {
-        OR: [{ boundPhone: phone }, { wechatPhone: phone }]
-      }
-    });
+    const referee = await prisma.broker.findUnique({ where: { miniProgramUserId: brokerUserId } });
     if (!referee) {
-      res.status(404).json({ error: "未找到该手机号对应经纪人" });
+      res.status(404).json({ error: "未找到该经纪人ID对应的用户" });
       return;
     }
     if (referee.id === referrer.id) {
@@ -670,14 +865,14 @@ app.post("/api/brokers/:id/referrals", async (req, res) => {
           }
         },
         update: {
-          bindPhone: phone,
+          bindPhone: referee.boundPhone ?? referee.wechatPhone,
           boundAt: joinedAt,
           notes: `由 ${referrer.nickname} 引荐，继承第 ${inheritedPhase} 期种子链路`
         },
         create: {
           referrerId: referrer.id,
           refereeId: referee.id,
-          bindPhone: phone,
+          bindPhone: referee.boundPhone ?? referee.wechatPhone,
           boundAt: joinedAt,
           notes: `由 ${referrer.nickname} 引荐，继承第 ${inheritedPhase} 期种子链路`
         }
@@ -737,7 +932,8 @@ app.get("/api/signers/:jarvisUserId", async (req, res) => {
       .filter((identity) => identity.jarvisUserId === signer.jarvisUserId)
       .map((identity) => identity.nickname);
     const nickname = importedSignerDisplayNickname(signer.nickname, signer.accountStatus, recoveredNicknames);
-    res.json(mapSignerProfile({ ...signer, nickname }));
+    const media = await currentModelMedia(req.params.jarvisUserId).catch(() => ({ avatarUrl: "", imageUrls: [] }));
+    res.json(mapSignerProfile({ ...signer, ...media, nickname }));
   } catch (error) {
     res.status(400).json({ error: error instanceof Error ? error.message : "签约者资料读取失败" });
   }
@@ -768,7 +964,7 @@ app.post("/api/briefings/:id/evidence", express.raw({ type: "*/*", limit: "800mb
   const fileType = safeText(req.header("x-file-type"), "application/octet-stream");
   const bytes = Buffer.isBuffer(req.body) ? req.body : Buffer.from([]);
   if (bytes.length === 0) {
-    res.status(400).json({ error: "未收到视频文件" });
+    res.status(400).json({ error: "未收到凭证文件" });
     return;
   }
 
@@ -779,10 +975,7 @@ app.post("/api/briefings/:id/evidence", express.raw({ type: "*/*", limit: "800mb
       return;
     }
     const folder = path.join(uploadRoot, "evidence", req.params.id);
-    await fs.mkdir(folder, { recursive: true });
-    const storedName = `${Date.now()}-${fileName}`;
-    const filePath = path.join(folder, storedName);
-    await fs.writeFile(filePath, bytes);
+    const { storedName, storedFileType } = await saveBrowserCompatibleEvidence(folder, fileName, fileType, bytes);
     const evidence = await prisma.evidenceFile.create({
       data: {
         brokerId: briefing.brokerId,
@@ -790,7 +983,7 @@ app.post("/api/briefings/:id/evidence", express.raw({ type: "*/*", limit: "800mb
         matchedAt: new Date(),
         fileName,
         fileUrl: `/uploads/evidence/${req.params.id}/${storedName}`,
-        fileType
+        fileType: storedFileType
       }
     });
     res.status(201).json(mapEvidence(evidence));
@@ -890,7 +1083,10 @@ app.patch("/api/briefings/:id/review", async (req, res) => {
   const invalidReason = safeText(req.body?.invalidReason);
 
   try {
-    const briefing = await prisma.briefing.findUnique({ where: { id: req.params.id } });
+    const briefing = await prisma.briefing.findUnique({
+      where: { id: req.params.id },
+      include: { signers: { select: { id: true, sourceStatus: true, cancelledAt: true } } }
+    });
     if (!briefing) {
       res.status(404).json({ error: "通告不存在" });
       return;
@@ -901,9 +1097,11 @@ app.patch("/api/briefings/:id/review", async (req, res) => {
       return;
     }
     const details = unpackBriefingDetails(briefing.requirementText);
-    const hasSignedModels = details.signedModelNames.length > 0;
+    const hasSignedModels = briefing.signers.length > 0
+      ? briefing.signers.some(isActiveSignerRelationship)
+      : details.signedModelNames.length > 0;
     if (validCompleteStatus === "APPROVED" && !hasSignedModels) {
-      res.status(400).json({ error: "该通告没有已签约人员，新增签约不能审核为通过" });
+      res.status(400).json({ error: "该通告没有当前有效签约者；已解约人员仅保留为历史记录，新增签约不能审核为通过" });
       return;
     }
     if (validCompleteStatus === "APPROVED" && validPublishStatus !== "APPROVED") {
@@ -965,10 +1163,12 @@ app.patch("/api/briefings/:id/review", async (req, res) => {
         reviewedAt: new Date()
       }
     });
+    await reconcileBrokerIdentity(briefing.brokerId);
     const updated = await prisma.briefing.findUnique({
       where: { id: req.params.id },
       include: {
         review: true,
+        settlementDispute: true,
         evidences: true,
         snapshots: { orderBy: { capturedAt: "desc" } }
       }
@@ -1003,6 +1203,7 @@ app.delete("/api/briefings/:id/review/evidence-dispute", async (req, res) => {
       where: { id: briefing.id },
       include: {
         review: true,
+        settlementDispute: true,
         evidences: true,
         snapshots: { orderBy: { capturedAt: "desc" } }
       }
@@ -1010,6 +1211,148 @@ app.delete("/api/briefings/:id/review/evidence-dispute", async (req, res) => {
     res.json(updated ? mapBriefing(updated) : null);
   } catch (error) {
     res.status(400).json({ error: error instanceof Error ? error.message : "清除凭证异议失败" });
+  }
+});
+
+app.get("/api/settlement-disputes", async (_req, res) => {
+  try {
+    const rows = await prisma.settlementDispute.findMany({
+      orderBy: { submittedAt: "desc" },
+      include: { evidences: { orderBy: { uploadedAt: "desc" } }, briefing: { include: { broker: true, review: true } } }
+    });
+    res.json(rows.map(mapSettlementDispute));
+  } catch {
+    res.json([]);
+  }
+});
+
+app.post("/api/settlement-disputes/import", async (req, res) => {
+  const jarvisBriefingIds: string[] = Array.from(new Set<string>(
+    (Array.isArray(req.body?.jarvisBriefingIds) ? req.body.jarvisBriefingIds : [])
+      .map((value: unknown) => safeText(value) as string)
+      .filter(Boolean)
+  ));
+  const originalCycleKey = safeText(req.body?.originalCycleKey);
+  const reason = safeText(req.body?.reason);
+  if (!jarvisBriefingIds.length || !originalCycleKey) {
+    res.status(400).json({ error: "请输入通告ID并选择原结算周期" });
+    return;
+  }
+
+  const results: any[] = [];
+  for (const jarvisBriefingId of jarvisBriefingIds) {
+    const briefing = await prisma.briefing.findUnique({
+      where: { jarvisBriefingId },
+      include: { review: true, settlementDispute: true, broker: true }
+    });
+    if (!briefing) {
+      results.push({ jarvisBriefingId, status: "not_found", message: "系统内未找到该通告" });
+      continue;
+    }
+    if (briefing.settlementDispute) {
+      results.push({ jarvisBriefingId, status: "duplicate", message: "该通告已在争议复审中" });
+      continue;
+    }
+    if ((briefing.review?.invalidReason ?? "").includes("凭证异议")) {
+      results.push({ jarvisBriefingId, status: "ineligible", message: "凭证异议应在一审流程处理" });
+      continue;
+    }
+    const isRejected = briefing.review?.validPublishStatus === "REJECTED" || briefing.review?.validCompleteStatus === "REJECTED";
+    if (!isRejected) {
+      results.push({ jarvisBriefingId, status: "ineligible", message: "仅支持导入一审不通过的通告" });
+      continue;
+    }
+    const created = await prisma.settlementDispute.create({
+      data: {
+        briefingId: briefing.id,
+        originalCycleKey,
+        reason: reason || null,
+        deferPublishReward: briefing.review?.validPublishStatus === "REJECTED",
+        deferCompleteReward: briefing.review?.validCompleteStatus === "REJECTED"
+      }
+    });
+    results.push({ jarvisBriefingId, status: "imported", message: "已加入争议复审", id: created.id, brokerNickname: briefing.broker.nickname });
+  }
+  res.json({ results, importedCount: results.filter((item) => item.status === "imported").length });
+});
+
+app.patch("/api/settlement-disputes/:id", async (req, res) => {
+  const status = safeText(req.body?.status);
+  if (!["pending", "approved", "rejected"].includes(status)) {
+    res.status(400).json({ error: "复审状态无效" });
+    return;
+  }
+  const statusMap = { pending: "PENDING_REVIEW", approved: "APPROVED", rejected: "REJECTED" } as const;
+  try {
+    const existing = await prisma.settlementDispute.findUnique({ where: { id: req.params.id }, include: { evidences: true, briefing: { include: { review: true } } } });
+    if (!existing) { res.status(404).json({ error: "争议通告不存在" }); return; }
+    if (status === "approved" && existing.evidences.length === 0) {
+      res.status(400).json({ error: "请先上传二审凭证，再判定二审通过" });
+      return;
+    }
+    await prisma.$transaction(async (transaction) => {
+      if (status === "approved" && existing.briefing.review) {
+        await transaction.briefingReview.update({
+          where: { briefingId: existing.briefingId },
+          data: {
+            validPublishStatus: existing.briefing.review.validPublishStatus === "REJECTED" ? "APPROVED" : undefined,
+            validCompleteStatus: existing.briefing.review.validCompleteStatus === "REJECTED" ? "APPROVED" : undefined,
+            reviewerName: "开发预览账号",
+            reviewedAt: new Date()
+          }
+        });
+      }
+      await transaction.settlementDispute.update({
+        where: { id: req.params.id },
+        data: {
+          status: statusMap[status as keyof typeof statusMap],
+          deferredCycleKey: status === "approved" ? safeText(req.body?.deferredCycleKey) || null : undefined,
+          resolution: safeText(req.body?.resolution) || null,
+          reviewedBy: status === "pending" ? null : "开发预览账号",
+          reviewedAt: status === "pending" ? null : new Date()
+        }
+      });
+    });
+    await reconcileBrokerIdentity(existing.briefing.brokerId);
+    const updated = await prisma.settlementDispute.findUnique({
+      where: { id: req.params.id },
+      include: { evidences: { orderBy: { uploadedAt: "desc" } }, briefing: { include: { broker: true, review: true } } }
+    });
+    res.json(mapSettlementDispute(updated));
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : "复审保存失败" });
+  }
+});
+
+app.post("/api/settlement-disputes/:id/evidences", express.raw({ type: "*/*", limit: "800mb" }), async (req, res) => {
+  const fileName = sanitizeFileName(decodeHeaderText(safeText(req.header("x-file-name"), `dispute-evidence-${Date.now()}`)));
+  const fileType = safeText(req.header("x-file-type"), "application/octet-stream");
+  const bytes = Buffer.isBuffer(req.body) ? req.body : Buffer.from([]);
+  if (bytes.length === 0) { res.status(400).json({ error: "未收到二审凭证文件" }); return; }
+  try {
+    const dispute = await prisma.settlementDispute.findUnique({ where: { id: req.params.id } });
+    if (!dispute) { res.status(404).json({ error: "争议通告不存在" }); return; }
+    const folder = path.join(uploadRoot, "settlement-disputes", dispute.id);
+    await fs.mkdir(folder, { recursive: true });
+    const storedName = `${Date.now()}-${fileName}`;
+    await fs.writeFile(path.join(folder, storedName), bytes);
+    const evidence = await prisma.settlementDisputeEvidence.create({
+      data: { disputeId: dispute.id, fileName, fileUrl: `/uploads/settlement-disputes/${dispute.id}/${storedName}`, fileType }
+    });
+    res.status(201).json(mapSettlementDisputeEvidence(evidence));
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : "二审凭证上传失败" });
+  }
+});
+
+app.delete("/api/settlement-disputes/:id/evidences/:evidenceId", async (req, res) => {
+  try {
+    const evidence = await prisma.settlementDisputeEvidence.findUnique({ where: { id: req.params.evidenceId } });
+    if (!evidence || evidence.disputeId !== req.params.id) { res.status(404).json({ error: "二审凭证不存在" }); return; }
+    await prisma.settlementDisputeEvidence.delete({ where: { id: evidence.id } });
+    res.json({ deleted: true });
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : "删除二审凭证失败" });
   }
 });
 
@@ -1313,6 +1656,7 @@ app.post("/api/import/jarvis-briefings", async (req, res) => {
 
     await upsertBriefingReviewFromImport(briefing.id, sourceStatus, cancelReason, now);
     await syncBriefingSigners(briefing.id, unpackBriefingDetails(detailText).signedModelNames, now);
+    await reconcileBrokerIdentity(broker.id);
 
     importedCount += 1;
   }
@@ -1476,6 +1820,7 @@ app.post("/api/import/jarvis-briefing-detail", async (req, res) => {
             where: { id: existingBriefing.id },
             include: {
               review: true,
+              settlementDispute: true,
               evidences: true,
               snapshots: { orderBy: { capturedAt: "desc" } }
             }
@@ -1565,11 +1910,13 @@ app.post("/api/import/jarvis-briefing-detail", async (req, res) => {
 
     await upsertBriefingReviewFromImport(briefing.id, sourceStatus, cancelReason, now);
     await syncBriefingSigners(briefing.id, unpackBriefingDetails(detailText || existingBriefing?.requirementText).signedModelNames, now);
+    await reconcileBrokerIdentity(broker.id);
 
     const imported = await prisma.briefing.findUnique({
       where: { id: briefing.id },
       include: {
         review: true,
+        settlementDispute: true,
         evidences: true,
         snapshots: { orderBy: { capturedAt: "desc" } }
       }
@@ -1587,6 +1934,7 @@ app.post("/api/import/jarvis-briefing-detail", async (req, res) => {
 
 app.listen(port, () => {
   console.log(`XTG review admin API running at http://localhost:${port}`);
+  startXtgSyncScheduler();
 });
 
 async function importJarvisBriefingRows({
@@ -1701,6 +2049,7 @@ async function importJarvisBriefingRows({
 
     await upsertBriefingReviewFromImport(briefing.id, sourceStatus, cancelReason, now);
     await syncBriefingSigners(briefing.id, unpackBriefingDetails(detailText).signedModelNames, now);
+    await reconcileBrokerIdentity(broker.id);
 
     importedCount += 1;
   }
@@ -2351,6 +2700,87 @@ async function findSeedReviewStartAt(brokerId: string) {
     ?? broker.createdAt;
 }
 
+async function findMappedBroker(brokerId: string) {
+  return prisma.broker.findUnique({
+    where: { id: brokerId },
+    include: {
+      snapshots: { orderBy: { capturedAt: "desc" } },
+      promotions: { where: { toLevel: "SEED" }, orderBy: { promotedAt: "desc" }, take: 1 },
+      briefings: { include: { snapshots: true } },
+      refereeRelations: { include: { referrer: true }, orderBy: { boundAt: "desc" }, take: 1 },
+      referrerRelations: { orderBy: { boundAt: "desc" } },
+      _count: { select: { referrerRelations: true } }
+    }
+  });
+}
+
+async function reconcileBrokerIdentity(brokerId: string) {
+  const broker = await prisma.broker.findUnique({
+    where: { id: brokerId },
+    include: {
+      refereeRelations: { take: 1 },
+      briefings: {
+        orderBy: { publishedAt: "asc" },
+        include: { review: true, signers: { include: { signer: true } } }
+      }
+    }
+  });
+  if (!broker || broker.brokerLevel !== "SEED" || broker.refereeRelations.length === 0 || !broker.seedProgramJoinedAt) return;
+
+  const signedHistory = new Set<string>();
+  let validPublishCount = 0;
+  let validCompleteCount = 0;
+  for (const briefing of broker.briefings) {
+    if (!briefing.publishedAt || briefing.publishedAt < broker.seedProgramJoinedAt) continue;
+    const details = unpackBriefingDetails(briefing.requirementText);
+    const historicalSignerKeys = briefing.signers.length > 0
+      ? briefing.signers.map(({ signer }) => `id:${signer.jarvisUserId}`)
+      : details.signedModelNames.map((name) => {
+          const userId = name.match(/#(\d{12,})/)?.[1];
+          return userId ? `id:${userId}` : `name:${name.trim().toLowerCase()}`;
+        });
+    const activeSignerKeys = briefing.signers.length > 0
+      ? briefing.signers
+          .filter(isActiveSignerRelationship)
+          .map(({ signer }) => `id:${signer.jarvisUserId}`)
+      : historicalSignerKeys;
+    const hasNewSigner = [...new Set(activeSignerKeys)].some((key) => !signedHistory.has(key));
+    historicalSignerKeys.forEach((key) => signedHistory.add(key));
+    const cancelReason = details.cancelReason || briefing.sourceStatus || "";
+    const publishApproved = briefing.review?.validPublishStatus === "APPROVED"
+      && !isSourceInvalidForPublish(briefing.sourceStatus ?? "", cancelReason);
+    if (publishApproved) validPublishCount += 1;
+    if (publishApproved && briefing.review?.validCompleteStatus === "APPROVED" && hasNewSigner) validCompleteCount += 1;
+  }
+
+  const meetsQualification = validPublishCount >= 6 && validCompleteCount >= 2;
+  if (meetsQualification) {
+    await prisma.broker.update({
+      where: { id: brokerId },
+      data: {
+        identityReviewStatus: "NONE",
+        identityReviewValidPublishCount: validPublishCount,
+        identityReviewValidCompleteCount: validCompleteCount,
+        identityReviewTriggeredAt: null,
+        identityReviewResolvedAt: null,
+        referralUnlocked: true
+      }
+    });
+    return;
+  }
+  await prisma.broker.update({
+    where: { id: brokerId },
+    data: {
+      identityReviewStatus: broker.identityReviewStatus === "RETAINED" ? "RETAINED" : "PENDING",
+      identityReviewValidPublishCount: validPublishCount,
+      identityReviewValidCompleteCount: validCompleteCount,
+      identityReviewTriggeredAt: broker.identityReviewTriggeredAt ?? new Date(),
+      identityReviewResolvedAt: broker.identityReviewStatus === "RETAINED" ? broker.identityReviewResolvedAt : null,
+      referralUnlocked: broker.identityReviewStatus === "RETAINED"
+    }
+  });
+}
+
 function mapReviewStatus(status?: string) {
   if (status === "APPROVED") return "approved";
   if (status === "REJECTED") return "rejected";
@@ -2369,6 +2799,7 @@ function mapBroker(broker: any) {
     : null;
   const seedProgramJoinedAt = broker.seedProgramJoinedAt ?? seedQualifiedAt;
   const snapshots = briefingRows.flatMap((briefing: any) => briefing.snapshots ?? []);
+  const lastBriefingSnapshot = [...snapshots].sort((left: any, right: any) => right.capturedAt.getTime() - left.capturedAt.getTime())[0];
   return {
     id: broker.id,
     miniProgramUserId: broker.miniProgramUserId,
@@ -2382,6 +2813,11 @@ function mapBroker(broker: any) {
     seedProgramJoinedAt: broker.seedPhase && seedProgramJoinedAt ? formatDateTime(seedProgramJoinedAt) : null,
     seedQualifiedAt: seedQualifiedAt ? formatDateTime(seedQualifiedAt) : null,
     referralUnlocked: broker.referralUnlocked,
+    identityReviewStatus: broker.identityReviewStatus === "PENDING" ? "pending" : broker.identityReviewStatus === "RETAINED" ? "retained" : "none",
+    identityReviewValidPublishCount: broker.identityReviewValidPublishCount ?? null,
+    identityReviewValidCompleteCount: broker.identityReviewValidCompleteCount ?? null,
+    identityReviewTriggeredAt: broker.identityReviewTriggeredAt ? formatDateTime(broker.identityReviewTriggeredAt) : null,
+    identityReviewResolvedAt: broker.identityReviewResolvedAt ? formatDateTime(broker.identityReviewResolvedAt) : null,
     referrerNickname: referrerRelation?.referrer?.nickname ?? null,
     referrerBoundAt: referrerRelation?.boundAt ? formatDateTime(referrerRelation.boundAt) : null,
     refereeCount: broker._count?.referrerRelations ?? broker.referrerRelations?.length ?? 0,
@@ -2394,7 +2830,9 @@ function mapBroker(broker: any) {
     signupTotalTimes: latestBrokerSnapshot?.signupTotalTimes ?? snapshots.reduce((total: number, snapshot: any) => total + snapshot.signupTimes, 0),
     contractTotalTimes: latestBrokerSnapshot?.contractTotalTimes ?? snapshots.reduce((total: number, snapshot: any) => total + snapshot.contractTimes, 0),
     signupTotalPeople: latestBrokerSnapshot?.signupTotalPeople ?? snapshots.reduce((total: number, snapshot: any) => total + snapshot.signupPeople, 0),
-    contractTotalPeople: latestBrokerSnapshot?.contractTotalPeople ?? snapshots.reduce((total: number, snapshot: any) => total + snapshot.contractPeople, 0)
+    contractTotalPeople: latestBrokerSnapshot?.contractTotalPeople ?? snapshots.reduce((total: number, snapshot: any) => total + snapshot.contractPeople, 0),
+    briefingImportCount: briefingRows.length,
+    lastBriefingImportedAt: lastBriefingSnapshot?.capturedAt ? formatDateTime(lastBriefingSnapshot.capturedAt) : ""
   };
 }
 
@@ -2466,8 +2904,24 @@ function mapBriefing(briefing: any) {
     .reverse()
     .find((snapshot: any) => snapshot.contractPeople > 0);
   const details = unpackBriefingDetails(briefing.requirementText);
+  const syncedSignedModelNames = (briefing.signers ?? []).map(({ signer }: any) =>
+    `${signer.nickname} · #${signer.jarvisUserId}`
+  );
+  const signedModelNames = syncedSignedModelNames.length > 0
+    ? syncedSignedModelNames
+    : details.signedModelNames;
+  const signedModels = (briefing.signers ?? []).map(({ signer, ...relationship }: any) => ({
+    name: signer.nickname,
+    phone: signer.phone ?? "",
+    userId: signer.jarvisUserId,
+    sourceStatus: signerRelationshipStatusLabel(relationship),
+    signedAt: relationship.signedAt ? formatDateTime(relationship.signedAt) : "",
+    cancelledAt: relationship.cancelledAt ? formatDateTime(relationship.cancelledAt) : "",
+    cancelReason: relationship.cancelReason ?? "",
+    active: isActiveSignerRelationship(relationship)
+  }));
   const detailImported = Boolean(
-    details.publisherText || details.workTimeText || details.requirementText || details.cancelReason || details.signedModelNames.length
+    details.publisherText || details.workTimeText || details.requirementText || details.cancelReason || signedModelNames.length
   );
   return {
     id: briefing.id,
@@ -2488,8 +2942,9 @@ function mapBriefing(briefing: any) {
     cancelReason: details.cancelReason || (briefing.sourceStatus?.includes("已取消") ? safeText(briefing.sourceStatus) : ""),
     requirementText: details.requirementText,
     publisherText: details.publisherText,
-    signedModelNames: details.signedModelNames,
-    signedModelCount: details.signedModelNames.length,
+    signedModelNames,
+    signedModels,
+    signedModelCount: signedModelNames.length,
     detailImported,
     detailUrl: `https://jarvis.tong-gao.com/business/briefing/${briefing.jarvisBriefingId}`,
     signupTimes: latestSnapshot?.signupTimes ?? 0,
@@ -2502,7 +2957,43 @@ function mapBriefing(briefing: any) {
     reviewedAt: briefing.review?.reviewedAt ? formatDateTime(briefing.review.reviewedAt) : "",
     evidenceCount: briefing.evidences?.length ?? 0,
     evidenceFiles: (briefing.evidences ?? []).map(mapEvidence),
-    salaryText: briefing.salaryText ?? "-"
+    salaryText: briefing.salaryText ?? "-",
+    settlementDispute: briefing.settlementDispute ? mapSettlementDispute(briefing.settlementDispute) : null
+  };
+}
+
+function mapSettlementDispute(dispute: any) {
+  const status = dispute.status === "APPROVED" ? "approved" : dispute.status === "REJECTED" ? "rejected" : "pending";
+  return {
+    id: dispute.id,
+    briefingId: dispute.briefingId,
+    jarvisBriefingId: dispute.briefing?.jarvisBriefingId ?? "",
+    briefingTitle: dispute.briefing?.title ?? "",
+    brokerId: dispute.briefing?.brokerId ?? "",
+    brokerNickname: dispute.briefing?.broker?.nickname ?? "",
+    brokerPhone: dispute.briefing?.broker?.boundPhone ?? dispute.briefing?.broker?.wechatPhone ?? "",
+    originalCycleKey: dispute.originalCycleKey,
+    deferredCycleKey: dispute.deferredCycleKey ?? "",
+    deferPublishReward: Boolean(dispute.deferPublishReward),
+    deferCompleteReward: Boolean(dispute.deferCompleteReward),
+    evidences: (dispute.evidences ?? []).map(mapSettlementDisputeEvidence),
+    status,
+    reason: dispute.reason ?? "",
+    resolution: dispute.resolution ?? "",
+    submittedBy: dispute.submittedBy,
+    reviewedBy: dispute.reviewedBy ?? "",
+    submittedAt: formatDateTime(dispute.submittedAt),
+    reviewedAt: dispute.reviewedAt ? formatDateTime(dispute.reviewedAt) : ""
+  };
+}
+
+function mapSettlementDisputeEvidence(evidence: any) {
+  return {
+    id: evidence.id,
+    fileName: evidence.fileName,
+    fileUrl: evidence.fileUrl,
+    fileType: evidence.fileType ?? "",
+    uploadedAt: formatDateTime(evidence.uploadedAt)
   };
 }
 

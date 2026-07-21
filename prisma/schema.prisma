@@ -19,6 +19,11 @@ model Broker {
   seedPhase          Int?
   seedProgramJoinedAt DateTime?
   referralUnlocked   Boolean            @default(false)
+  identityReviewStatus IdentityReviewStatus @default(NONE)
+  identityReviewValidPublishCount Int?
+  identityReviewValidCompleteCount Int?
+  identityReviewTriggeredAt DateTime?
+  identityReviewResolvedAt DateTime?
   registeredAt       DateTime?
   lastLoginAt        DateTime?
   violationCount     Int                @default(0)
@@ -87,7 +92,40 @@ model Briefing {
   review              BriefingReview?
   evidences           EvidenceFile[]
   settlementItems     SettlementItem[]
+  settlementDispute   SettlementDispute?
   signers             BriefingSigner[]
+}
+
+model SettlementDispute {
+  id                   String                  @id @default(cuid())
+  briefingId           String                  @unique
+  originalCycleKey     String
+  deferredCycleKey     String?
+  deferPublishReward   Boolean                 @default(false)
+  deferCompleteReward  Boolean                 @default(false)
+  status               SettlementDisputeStatus @default(PENDING_REVIEW)
+  reason               String?                 @db.Text
+  resolution           String?                 @db.Text
+  submittedBy          String                  @default("开发预览账号")
+  reviewedBy           String?
+  submittedAt          DateTime                @default(now())
+  reviewedAt           DateTime?
+  updatedAt            DateTime                @updatedAt
+  briefing             Briefing                @relation(fields: [briefingId], references: [id])
+  evidences             SettlementDisputeEvidence[]
+}
+
+model SettlementDisputeEvidence {
+  id          String            @id @default(cuid())
+  disputeId   String
+  fileName    String
+  fileUrl     String
+  fileType    String?
+  uploadedBy  String            @default("开发预览账号")
+  uploadedAt  DateTime          @default(now())
+  dispute     SettlementDispute @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+
+  @@index([disputeId])
 }
 
 model SignerProfile {
@@ -128,17 +166,57 @@ model SignerProfile {
 }
 
 model BriefingSigner {
-  id          String        @id @default(cuid())
-  briefingId  String
-  signerId    String
-  signedAt    DateTime?
-  sourceStatus String       @default("已签约")
-  createdAt   DateTime      @default(now())
-  briefing    Briefing      @relation(fields: [briefingId], references: [id])
-  signer      SignerProfile @relation(fields: [signerId], references: [id])
+  id                 String        @id @default(cuid())
+  sourceRecordId     String?       @unique
+  briefingId         String
+  signerId           String
+  signedUpAt         DateTime?
+  signedAt           DateTime?
+  cancelledAt        DateTime?
+  cancelReason       String?       @db.Text
+  sourceStatus       String        @default("已签约")
+  sourceUpdatedAt    DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  briefing           Briefing      @relation(fields: [briefingId], references: [id])
+  signer             SignerProfile @relation(fields: [signerId], references: [id])
 
   @@unique([briefingId, signerId])
   @@index([signerId])
+}
+
+model OperationLog {
+  id          String   @id @default(cuid())
+  actor       String
+  action      String
+  module      String
+  method      String?
+  path        String?
+  result      String
+  detail      String?  @db.Text
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([actor, createdAt])
+}
+
+model DataSyncRun {
+  id              String   @id @default(cuid())
+  triggerType     String
+  status          String
+  startedAt       DateTime @default(now())
+  finishedAt      DateTime?
+  brokerCount     Int      @default(0)
+  briefingCount   Int      @default(0)
+  participantCount Int     @default(0)
+  modelCount      Int      @default(0)
+  changedCount    Int      @default(0)
+  progressPercent Int      @default(0)
+  progressStage   String   @default("正在准备同步")
+  message         String?  @db.Text
+
+  @@index([startedAt])
 }
 
 model BriefingSnapshot {
@@ -260,6 +338,12 @@ enum BrokerLevel {
   SEED
 }
 
+enum IdentityReviewStatus {
+  NONE
+  PENDING
+  RETAINED
+}
+
 enum ImportSource {
   JARVIS_CHROME
   MANUAL
@@ -294,4 +378,10 @@ enum SettlementItemStatus {
   DISPUTED
   ADJUSTED
   PAID
+}
+
+enum SettlementDisputeStatus {
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
 }

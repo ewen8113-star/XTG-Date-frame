@@ -1,5 +1,6 @@
 export type ReviewStatus = "pending" | "approved" | "rejected";
 export type BrokerLevel = "normal" | "seed";
+export type IdentityReviewStatus = "none" | "pending" | "retained";
 
 export interface Broker {
   id: string;
@@ -14,6 +15,11 @@ export interface Broker {
   seedProgramJoinedAt: string | null;
   seedQualifiedAt: string | null;
   referralUnlocked: boolean;
+  identityReviewStatus?: IdentityReviewStatus;
+  identityReviewValidPublishCount?: number | null;
+  identityReviewValidCompleteCount?: number | null;
+  identityReviewTriggeredAt?: string | null;
+  identityReviewResolvedAt?: string | null;
   referrerNickname?: string | null;
   referrerBoundAt?: string | null;
   refereeCount?: number;
@@ -27,6 +33,8 @@ export interface Broker {
   contractTotalTimes: number;
   signupTotalPeople: number;
   contractTotalPeople: number;
+  briefingImportCount?: number;
+  lastBriefingImportedAt?: string;
 }
 
 export interface BrokerLevelUpdate {
@@ -57,6 +65,16 @@ export interface Briefing {
   requirementText: string;
   publisherText: string;
   signedModelNames: string[];
+  signedModels?: Array<{
+    name: string;
+    phone: string;
+    userId: string;
+    sourceStatus: string;
+    signedAt: string;
+    cancelledAt: string;
+    cancelReason: string;
+    active: boolean;
+  }>;
   signedModelCount: number;
   detailImported: boolean;
   detailUrl: string;
@@ -71,6 +89,31 @@ export interface Briefing {
   evidenceCount: number;
   evidenceFiles: EvidenceFile[];
   salaryText: string;
+  settlementDispute?: SettlementDispute | null;
+}
+
+export interface SettlementDispute {
+  id: string;
+  originalCycleKey: string;
+  deferredCycleKey: string;
+  deferPublishReward: boolean;
+  deferCompleteReward: boolean;
+  evidences: SettlementDisputeEvidence[];
+  status: "pending" | "approved" | "rejected";
+  reason: string;
+  resolution: string;
+  submittedBy: string;
+  reviewedBy: string;
+  submittedAt: string;
+  reviewedAt: string;
+}
+
+export interface SettlementDisputeEvidence {
+  id: string;
+  fileName: string;
+  fileUrl: string;
+  fileType: string;
+  uploadedAt: string;
 }
 
 export interface EvidenceFile {

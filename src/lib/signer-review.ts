@@ -2,12 +2,14 @@ export type SignedModelReviewDecision =
   | "APPROVED"
   | "IDENTITY_INCOMPLETE"
   | "NON_REAL_PHOTO"
+  | "DUPLICATE_SIGNER"
   | "ACCOUNT_CANCELLED";
 
 export const signedModelReviewOptions: Array<{ value: SignedModelReviewDecision; label: string }> = [
   { value: "APPROVED", label: "审核通过" },
   { value: "IDENTITY_INCOMPLETE", label: "身份信息不完整" },
   { value: "NON_REAL_PHOTO", label: "非真人照片" },
+  { value: "DUPLICATE_SIGNER", label: "签约者重复" },
   { value: "ACCOUNT_CANCELLED", label: "该用户已注销" }
 ];
 
@@ -28,7 +30,7 @@ export function signedModelReviewDecisions(invalidReason: string) {
   for (const match of invalidReason.matchAll(legacyPattern)) {
     decisions.set(decodeKey(match[1]), "IDENTITY_INCOMPLETE");
   }
-  const pattern = /\[SIGNED_MODEL_REVIEW:([^:\]]+):(APPROVED|IDENTITY_INCOMPLETE|NON_REAL_PHOTO|ACCOUNT_CANCELLED)\]/g;
+  const pattern = /\[SIGNED_MODEL_REVIEW:([^:\]]+):(APPROVED|IDENTITY_INCOMPLETE|NON_REAL_PHOTO|DUPLICATE_SIGNER|ACCOUNT_CANCELLED)\]/g;
   for (const match of invalidReason.matchAll(pattern)) {
     decisions.set(decodeKey(match[1]), match[2] as SignedModelReviewDecision);
   }

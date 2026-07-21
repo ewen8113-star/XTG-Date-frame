@@ -9,7 +9,7 @@ const report: SettlementReport = {
   cycleLabel: "2026年4月第五周",
   generatedAt: "2026/7/14 18:00:00",
   rows: [
-    { id: "1", category: "新增签约奖励", object: "2901", decision: "计奖", description: "新增签约", amount: 2 },
+    { id: "1", briefingId: "1842219082712345678", category: "新增签约奖励", object: "2901", decision: "计奖", description: "新增签约", amount: 2 },
     { id: "2", category: "新增签约奖励", object: "2902", decision: "不计奖", description: "签约者重复", amount: 0 }
   ],
   weekSubtotal: 2,
@@ -26,6 +26,9 @@ test("settlement PDF includes rewarded and excluded decisions", () => {
   assert.match(html, /不计奖/);
   assert.match(html, /¥0/);
   assert.match(html, /<span class="number">17701861230<\/span>/);
+  assert.match(html, /<td class="number">1842219082712345678<\/td>/);
+  assert.match(html, /本人奖励/);
+  assert.doesNotMatch(html, /引荐、复审与调整/);
 });
 
 test("settlement PDF escapes imported broker content", () => {

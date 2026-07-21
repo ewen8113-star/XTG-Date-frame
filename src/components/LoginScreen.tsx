@@ -1,9 +1,7 @@
 import { Eye, EyeOff, LockKeyhole, Moon, Sun, UserRound } from "lucide-react";
-import { type CSSProperties, type FormEvent, useEffect, useRef, useState } from "react";
-import baseImageUrl from "../assets/login-network-dark-base-hq.avif";
-import revealImageUrl from "../assets/login-network-dark-reveal-hq.avif";
-import lightBaseImageUrl from "../assets/login-network-light-base-hq.avif";
-import lightRevealImageUrl from "../assets/login-network-light-reveal-hq.avif";
+import { type CSSProperties, type FormEvent, useEffect, useState } from "react";
+import darkBackgroundUrl from "../assets/login-operations-dark-v2.avif";
+import lightBackgroundUrl from "../assets/login-operations-light-v2.avif";
 import { appVersion } from "../data/releaseNotes";
 import { fetchAuthStatus, loginRemoteAccount, readAccounts, registerRemoteAccount, saveAccounts, syncLocalAccounts } from "../lib/auth";
 
@@ -14,18 +12,12 @@ type LoginScreenProps = {
 };
 
 const loginArtworkStyle = {
-  "--login-base": `url(${baseImageUrl})`,
-  "--login-reveal": `url(${revealImageUrl})`,
-  "--login-light-base": `url(${lightBaseImageUrl})`,
-  "--login-light-reveal": `url(${lightRevealImageUrl})`
+  "--login-background-dark": `url(${darkBackgroundUrl})`,
+  "--login-background-light": `url(${lightBackgroundUrl})`
 } as CSSProperties;
 
 type AuthMode = "login" | "register";
 export function LoginScreen({ theme, onThemeChange, onLogin }: LoginScreenProps) {
-  const artworkRef = useRef<HTMLDivElement>(null);
-  const revealRef = useRef<HTMLDivElement>(null);
-  const rawPointer = useRef({ x: 0.69, y: 0.52 });
-  const smoothPointer = useRef({ x: 0.69, y: 0.52 });
   const [account, setAccount] = useState(() => window.localStorage.getItem("xtg-last-account") ?? "");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -42,55 +34,6 @@ export function LoginScreen({ theme, onThemeChange, onLogin }: LoginScreenProps)
         if (hasAccounts) setAuthMode("login");
       })
       .catch(() => undefined);
-  }, []);
-
-  useEffect(() => {
-    const artwork = artworkRef.current;
-    const reveal = revealRef.current;
-    if (!artwork || !reveal) return;
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
-    let animationFrame = 0;
-    let startTime = performance.now();
-
-    function positionInReveal(clientX: number, clientY: number) {
-      const bounds = reveal!.getBoundingClientRect();
-      return {
-        x: Math.max(0, Math.min(1, (clientX - bounds.left) / bounds.width)),
-        y: Math.max(0, Math.min(1, (clientY - bounds.top) / bounds.height))
-      };
-    }
-
-    function updatePointer(event: PointerEvent) {
-      rawPointer.current = positionInReveal(event.clientX, event.clientY);
-    }
-
-    function animate(time: number) {
-      if (coarsePointer && !reduceMotion) {
-        const elapsed = (time - startTime) / 1000;
-        rawPointer.current = positionInReveal(
-          window.innerWidth * (0.68 + Math.sin(elapsed * 0.42) * 0.17),
-          window.innerHeight * (0.52 + Math.cos(elapsed * 0.34) * 0.2)
-        );
-      }
-      const easing = reduceMotion ? 1 : 0.28;
-      smoothPointer.current.x += (rawPointer.current.x - smoothPointer.current.x) * easing;
-      smoothPointer.current.y += (rawPointer.current.y - smoothPointer.current.y) * easing;
-      artwork!.style.setProperty("--spot-x", `${smoothPointer.current.x * 100}%`);
-      artwork!.style.setProperty("--spot-y", `${smoothPointer.current.y * 100}%`);
-      animationFrame = window.requestAnimationFrame(animate);
-    }
-
-    const initialPointer = positionInReveal(window.innerWidth * 0.69, window.innerHeight * 0.52);
-    rawPointer.current = initialPointer;
-    smoothPointer.current = initialPointer;
-    if (!coarsePointer) window.addEventListener("pointermove", updatePointer);
-    if (reduceMotion) startTime = 0;
-    animationFrame = window.requestAnimationFrame(animate);
-    return () => {
-      window.removeEventListener("pointermove", updatePointer);
-      window.cancelAnimationFrame(animationFrame);
-    };
   }, []);
 
   function changeAuthMode(nextMode: AuthMode) {
@@ -166,12 +109,11 @@ export function LoginScreen({ theme, onThemeChange, onLogin }: LoginScreenProps)
   return (
     <main className={`login-screen ${theme}`}>
       <section className="login-shell">
-        <div className="login-artwork" ref={artworkRef} style={loginArtworkStyle} aria-hidden="true">
-          <div className="login-artwork-base" />
-          <div className="login-artwork-reveal" ref={revealRef} />
-        </div>
+        <div className="login-artwork" style={loginArtworkStyle} aria-hidden="true" />
 
         <div className="login-content">
+          <span className="login-glow login-glow-one" aria-hidden="true" />
+          <span className="login-glow login-glow-two" aria-hidden="true" />
           <div className="login-heading">
             <h1>鑫通告运营结算后台</h1>
           </div>

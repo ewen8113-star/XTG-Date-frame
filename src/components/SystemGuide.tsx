@@ -24,8 +24,8 @@ const workflowSteps = [
 ];
 
 const roleGuides = [
-  { icon: ShieldCheck, role: "超级管理员", text: "管理系统账号、角色权限，并可查看运营与财务全部功能。" },
-  { icon: ListChecks, role: "运营", text: "负责经纪人资料、通告与签约审核，以及费用核对和付款提报。" },
+  { icon: ShieldCheck, role: "超级管理员", text: "管理系统账号、角色和可用系统板块，并可查看运营与财务全部功能。" },
+  { icon: ListChecks, role: "运营", text: "按已获授权的系统板块，负责经纪人资料、通告与签约审核，以及费用核对和付款提报。" },
   { icon: WalletCards, role: "财务", text: "审核待付款订单、准备款项、确认实际付款或驳回，并查看财务报表。" }
 ];
 
@@ -67,9 +67,11 @@ export function SystemGuide() {
           <div className="guide-checklist">
             <GuideCheck title="有效通告发布" text="在具备引荐权限的种子经纪人关系网络中关联下线后，下线自动成为普通经纪人并继承相同种子期数，关联时间即计划生效时间。其后发布的通告立即进入计划审核、本人奖励和 6 + 2 统计，同时贡献直属上线收益。" />
             <GuideCheck title="有效新增签约" text="新增签约去重从计划身份生效时间开始，与该时间之后发布的历史通告签约者比较。晋升不会重置去重范围；晋升前后通告都沿用同一计划周期。" />
+            <GuideCheck title="凭证审核" text="上传文件先进入经纪人凭证库，运营可将图片或视频添加到对应通告凭证库，也可移回经纪人库重新选择。确认全部凭证有效后通过；存在异议时暂缓该通告结算，等待复审。" />
+            <GuideCheck title="审核状态同步" text="运营对有效通告和新增签约分别给出结论；签约者可标记审核通过、身份信息不完整、非真人照片、签约者重复或账号已注销。保存后，签约者结论、通告详情和列表状态保持一致；举报取消等无需人工处理的通告显示为无需审核。" />
             <GuideCheck title="上下级关系" text="每位经纪人只能关联一个直接上线；关系建立后自动继承上线的种子期数。满足 6 + 2 后，系统提醒运营确认晋升，晋升时间默认当前时间并可按实际情况回填；晋升后才开通发展下线的权限。" />
             <GuideCheck title="初始种子身份" text="没有上线的第一期、第二期等初始种子经纪人，由运营在用户级别中手动设置种子期数、身份生效时间和引荐权限；被引荐经纪人不能通过此入口绕过 6 + 2 晋升流程。" />
-            <GuideCheck title="费用结算" text="上线本人和每个直接下线分别执行每日 3 条、每周 12 条上限；下线每条有效新增签约通告给上线 1 元提成，多名下线独立计算后汇总。下线满足 6 + 2 并由运营确认晋升为种子经纪人后，给上线 10 元且每名下线仅发一次。" />
+            <GuideCheck title="费用结算" text="结算结果同时保留计奖、不计奖、待审核和抵扣项目，运营可展开核对明细并导出结算报表。具体计算口径见下方“费用结算口径”。" />
             <GuideCheck title="财务流程" text="付款单先显示财务审批中；审核通过且款项准备完成后显示财务审批通过，实际付款后再标记财务已付款。若被驳回，运营在付款状态中查看理由，修正通告或费用后重新提交。" />
           </div>
         </section>
@@ -85,6 +87,20 @@ export function SystemGuide() {
           </div>
         </section>
       </div>
+
+      <section className="guide-section">
+        <div className="guide-section-heading">
+          <div><h2>费用结算口径</h2><p>以下规则用于系统判定和运营复核，不在日常结算列表中重复展示。</p></div>
+        </div>
+        <div className="guide-checklist">
+          <GuideCheck title="有效通告奖励" text="本周期发布且人工审核通过的有效通告按 1 元/条计奖；本人和每个直接下线分别执行每日 3 条、每周 12 条上限。" />
+          <GuideCheck title="历史有效通告抵扣" text="历史周期已结算的有效通告，在本周期抓取到手动取消或举报取消后，按 -1 元/条抵扣。" />
+          <GuideCheck title="新增签约奖励" text="有效通告通过，且签约者未出现在种子计划生效后的其他通告中，按 2 元/条计奖；签约者人工审核结论会同步影响最终结果。" />
+          <GuideCheck title="历史新增签约抵扣" text="已经获得新增签约奖励的通告，在本周期因手动取消或举报取消失效后，按 -2 元/条抵扣。" />
+          <GuideCheck title="引荐奖励" text="每个直接下线独立按每日 3 条、每周 12 条上限计算新增签约通告，上线按 1 元/条获得增量奖；直接下线满足 6 + 2 且由运营确认晋升后，上线获得一次性 10 元基础达标奖。" />
+          <GuideCheck title="争议复审补发" text="凭证异议暂缓结算；二审通过后按原周期应得奖励转入当前周期补发，且不占用当前周期奖励上限。" />
+        </div>
+      </section>
 
       <section className="guide-section">
         <div className="guide-section-heading">
@@ -114,11 +130,11 @@ export function SystemGuide() {
           <div><h2>页面速查</h2><p>不知道从哪里开始时，可按任务选择入口。</p></div>
         </div>
         <div className="guide-map">
-          <GuideMapItem icon={<BarChart3 size={19} />} title="工作总览 / 数据分析" text="查看待办、关键指标与审核漏斗。" />
+          <GuideMapItem icon={<BarChart3 size={19} />} title="工作总览 / 数据分析" text="按种子期数与周、月、季度查看种子经纪人、下线裂变、奖励和环比数据。" />
           <GuideMapItem icon={<UsersRound size={19} />} title="经纪人用户 / 工作台" text="查询用户、关系网络、通告、签约和付款状态。" />
           <GuideMapItem icon={<GitBranch size={19} />} title="关系网络" text="桌面端横向查看上下级，手机端自动切换纵向布局。" />
           <GuideMapItem icon={<WalletCards size={19} />} title="财务管理" text="处理付款审批、已付款订单和结算报表。" />
-          <GuideMapItem icon={<UserCog size={19} />} title="账户管理" text="超级管理员创建账号并分配运营、财务等权限。" />
+          <GuideMapItem icon={<UserCog size={19} />} title="账户管理" text="超级管理员创建账号，并按角色和具体系统板块分配使用权限。" />
           <GuideMapItem icon={<Bell size={19} />} title="版本更新" text="点击右上角铃铛查看每次功能更新与问题修复。" />
         </div>
       </section>

@@ -11,6 +11,17 @@ export function cycleWeekIndex(cycleKey: string) {
   return match ? Number(match[1]) : -1;
 }
 
+export function cycleKeyRange(startKey: string, endKey: string) {
+  const startIndex = cycleWeekIndex(startKey);
+  const endIndex = cycleWeekIndex(endKey);
+  if (startIndex < 1 || endIndex < startIndex) return [];
+  return Array.from({ length: endIndex - startIndex + 1 }, (_, index) => `week-${startIndex + index}`);
+}
+
+export function disputeRewardAmount(dispute: { deferPublishReward: boolean; deferCompleteReward: boolean }) {
+  return (dispute.deferPublishReward ? 1 : 0) + (dispute.deferCompleteReward ? 2 : 0);
+}
+
 export function isCycleBefore(leftKey: string, rightKey: string) {
   return cycleWeekIndex(leftKey) < cycleWeekIndex(rightKey);
 }

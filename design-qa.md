@@ -1,61 +1,57 @@
-**Comparison Target**
+**Source visual truth**
 
-- Source visual truth: `/Users/ewen/.codex/generated_images/019f5ae0-15f8-7da2-9185-f9c99a1bb6af/exec-da5c1d93-227a-4a1d-8509-f3e62aaf4ee6.png`
-- Rendered implementation: `http://localhost:5174/`
-- Viewport: 1280 x 720, desktop, device scale 1
-- State: authenticated broker list and system whitepaper, light and dark themes
+- Selected concept: second generated settlement UI shown in the current Product Design ideation set.
+- Source image: `/Users/ewen/.codex/generated_images/019f7d69-a932-7c12-98c7-6a7da12a0406/exec-6d3553be-ef6c-4bfa-b80b-d23ff13c507a.png`
 
-**Evidence**
+**Implementation evidence**
 
-- Full view, light: `output/playwright/seed-broker-icon-bold-light.png`
-- Full view, dark: `output/playwright/seed-broker-icon-bold-dark.png`
-- Focused table, light: `output/playwright/seed-broker-icon-bold-light-table.png`
-- Focused table, dark: `output/playwright/seed-broker-icon-bold-dark-table.png`
-- Side-by-side source and dark implementation comparison: `output/playwright/seed-broker-icon-comparison.png`
-- Whitepaper identity guide, light: `output/playwright/whitepaper-identity-icons-light.png`
-- Whitepaper identity guide, dark: `output/playwright/whitepaper-identity-icons-dark.png`
-- Whitepaper identity guide, mobile 390 x 844: `output/playwright/whitepaper-identity-icons-mobile.png`
+- Local URL: `http://localhost:5174/`
+- Intended viewport: desktop, matching the existing admin workspace.
+- Intended state: dark theme, broker workspace, fee settlement tab, settlement detail preview open.
+- Browser-rendered implementation screenshot: unavailable because reloading the local app returned to the login screen and no authenticated session was available.
 
 **Findings**
 
-- No actionable P0, P1, or P2 differences remain.
-- Fonts and typography: unchanged from the existing broker table; the 28px icon does not alter row text alignment or wrapping.
-- Spacing and layout rhythm: the icon remains centered in the existing level badge row without shifting neighboring seed-stage or referral icons.
-- Colors and visual tokens: the saturated emerald green is legible against both the light table background and the dark surface token.
-- Image quality and asset fidelity: the thicker ring, stem, root, and leaves remain recognizable at 28px; the transparent PNG has no visible box or halo in either theme.
-- Copy and content: unchanged.
-- Whitepaper: the production icon is shown with separate explanations for seed-broker identity, seed phase, and referral permission; desktop and mobile layouts remain readable.
+- [P0] Authenticated settlement screen could not be captured.
+  - Location: local browser verification.
+  - Evidence: the local app rendered the login screen after reload rather than the broker fee-settlement tab.
+  - Impact: the grouped settlement rows, expand interaction, preview modal, and in-preview PDF action cannot yet be visually compared with the selected concept.
+  - Fix: sign in to the local app, reopen a broker's fee-settlement tab, then capture and compare the main list and preview state.
 
-**Open Questions**
+**Required fidelity surfaces**
 
-- None.
+- Fonts and typography: blocked pending authenticated capture.
+- Spacing and layout rhythm: blocked pending authenticated capture.
+- Colors and visual tokens: implementation uses existing project tokens, but visual comparison is blocked pending authenticated capture.
+- Image quality and asset fidelity: no raster assets are required for this settlement UI; icon usage remains within the project's existing icon library.
+- Copy and content: code review confirms the selected three groups and removal of the visible calculation-basis column, but browser confirmation is blocked.
 
-**Implementation Checklist**
+**Primary interactions tested**
 
-- [x] Replace the thin icon asset with the heavier, higher-saturation version.
-- [x] Increase the rendered size from 25px to 28px.
-- [x] Verify light and dark theme rendering.
-- [x] Check browser console errors.
-- [x] Run tests and production build.
-- [x] Add the identity icon legend to the system whitepaper.
-- [x] Verify the whitepaper legend in light, dark, and mobile states.
+- Local app load: passed.
+- Authentication: not attempted because credentials were not provided for browser testing.
+- Settlement row expand/collapse: blocked.
+- Open settlement preview: blocked.
+- PDF action visible only inside preview: blocked.
 
-**Comparison History**
+**Console errors checked**
 
-- Initial user evidence: the seed-broker icon appeared thin and low-saturation at the table's compact size.
-- Fix: increased the source artwork's line weight and color saturation, regenerated the transparent asset, and increased the rendered slot to 28px.
-- Post-fix evidence: the light and dark focused table captures above show a clearly separated circular outline and leaf/root silhouette with no layout regression.
+- Blocked for the authenticated settlement state.
 
-**Primary Interactions Tested**
+**Comparison history**
 
-- Opened broker management from the main navigation.
-- Opened the system whitepaper from the top navigation.
-- Switched between light and dark themes.
-- Resized the whitepaper to a 390 x 844 mobile viewport.
-- Confirmed zero browser console errors.
+- Initial pass: blocked at authentication before implementation capture; no visual fixes were made from an unverified screenshot.
 
-**Follow-up Polish**
+**Implementation checklist**
 
-- No P3 refinements required for the requested scope.
+- Sign in and navigate to a broker fee-settlement tab.
+- Capture the grouped settlement list at the desktop viewport.
+- Expand one reward row and verify the thin chevron state.
+- Open the settlement preview and verify the PDF action is present there and absent from the outer page.
+- Compare the source and implementation in the same visual input and resolve any P0/P1/P2 differences.
 
-final result: passed
+**Follow-up polish**
+
+- None recorded until the authenticated visual comparison is available.
+
+final result: blocked

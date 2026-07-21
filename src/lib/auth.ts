@@ -1,4 +1,13 @@
 export type SystemRole = "super_admin" | "operations" | "finance";
+export type SystemPermission = "dashboard" | "audit" | "brokers" | "workspace" | "stats" | "finance" | "operationLogs" | "dataSync" | "dataBackup";
+
+export const allSystemPermissions: SystemPermission[] = ["dashboard", "audit", "brokers", "workspace", "stats", "finance", "operationLogs", "dataSync", "dataBackup"];
+
+export function defaultPermissionsForRole(role: SystemRole): SystemPermission[] {
+  if (role === "super_admin") return [...allSystemPermissions];
+  if (role === "finance") return ["finance"];
+  return ["dashboard", "audit", "brokers", "workspace", "stats"];
+}
 
 export type StoredAccount = {
   account: string;
@@ -8,6 +17,7 @@ export type StoredAccount = {
   createdAt: string;
   role: SystemRole;
   enabled: boolean;
+  permissions: SystemPermission[];
 };
 
 export const accountStorageKey = "xtg-local-accounts";
@@ -38,7 +48,10 @@ export function readAccounts(): StoredAccount[] {
         salt: item.salt,
         createdAt: item.createdAt,
         role: item.role ?? (index === 0 ? "super_admin" : "operations"),
-        enabled: item.enabled ?? true
+        enabled: item.enabled ?? true,
+        permissions: Array.isArray(item.permissions)
+          ? item.permissions.filter((permission): permission is SystemPermission => allSystemPermissions.includes(permission as SystemPermission))
+          : defaultPermissionsForRole(item.role ?? (index === 0 ? "super_admin" : "operations"))
       }));
   } catch {
     return [];
@@ -50,12 +63,30 @@ export function saveAccounts(accounts: StoredAccount[]) {
 }
 
 async function authRequest<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers }
-  });
-  const value = await response.json() as T & { error?: string };
-  if (!response.ok) throw new Error(value.error ?? "账户服务请求失败");
+  let response: Response;
+  try {
+    response = await fetch(path, {
+      ...init,
+      headers: { "Content-Type": "application/json", ...init?.headers }
+    });
+  } catch {
+    throw new Error("账户服务暂时不可用，请稍后重试或联系系统管理员");
+  }
+  return parseAuthResponse<T>(response);
+}
+
+export async function parseAuthResponse<T>(response: Response): Promise<T> {
+  const responseText = await response.text();
+  let value: (T & { error?: string }) | null = null;
+  try {
+    value = responseText ? JSON.parse(responseText) as T & { error?: string } : null;
+  } catch {
+    throw new Error("账户服务返回异常，请稍后重试或联系系统管理员");
+  }
+  if (!response.ok) {
+    throw new Error(value?.error ?? "账户服务暂时不可用，请稍后重试或联系系统管理员");
+  }
+  if (value === null) throw new Error("账户服务返回异常，请稍后重试或联系系统管理员");
   return value;
 }
 
@@ -94,7 +125,7 @@ export async function fetchAccounts() {
 
 export async function updateRemoteAccount(
   account: string,
-  changes: Partial<Pick<StoredAccount, "role" | "enabled">> & { avatarDataUrl?: string }
+  changes: Partial<Pick<StoredAccount, "role" | "enabled" | "permissions">> & { avatarDataUrl?: string }
 ) {
   return authRequest<StoredAccount[]>(`/api/auth/accounts/${encodeURIComponent(account)}`, {
     method: "PATCH",

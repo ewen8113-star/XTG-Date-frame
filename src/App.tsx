@@ -4,10 +4,10 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronLeft,
-  ChevronRight,
   CircleDollarSign,
   Copy,
   Download,
+  Database,
   ExternalLink,
   Gauge,
   GitBranch,
@@ -30,20 +30,27 @@ import {
   Users,
   Upload,
   UserCog,
+  History,
+  RefreshCw,
+  Wrench,
   UsersRound,
   XCircle
 } from "lucide-react";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { LoginScreen } from "./components/LoginScreen";
+import { BrokerFissionTree } from "./components/BrokerFissionTree";
+import { DinoLoader } from "./design-components/loaders/DinoLoader";
 import { SignerDetailPage } from "./components/SignerDetailPage";
 import { SystemGuide } from "./components/SystemGuide";
 import { briefings, brokers, importBatches, referralNodes } from "./data/mockData";
 import { appVersion, releaseNotes } from "./data/releaseNotes";
-import { readAccounts, roleDescriptions, roleLabels, saveAccounts, syncLocalAccounts, updateRemoteAccount, type StoredAccount, type SystemRole } from "./lib/auth";
+import { allSystemPermissions, defaultPermissionsForRole, readAccounts, roleDescriptions, roleLabels, saveAccounts, syncLocalAccounts, updateRemoteAccount, type StoredAccount, type SystemPermission, type SystemRole } from "./lib/auth";
 import {
   activityEndAt,
   briefingRewardCycleKey,
+  cycleKeyRange,
   cycleWeekIndex,
+  disputeRewardAmount,
   firstQualificationCycle,
   isPublishedAfterSeedQualification,
   isSourceInvalidForPublish,
@@ -55,7 +62,6 @@ import {
   seedSelfRewardStartAt,
   sourceRejectLabel
 } from "./lib/briefing-rules";
-import { importWithBrowserExtension } from "./lib/browser-import";
 import {
   composeInvalidReasonWithModelReviews,
   isSignedModelReviewIssue,
@@ -66,9 +72,30 @@ import {
   type SignedModelReviewDecision
 } from "./lib/signer-review";
 import { exportSettlementReportPdf, type SettlementReportDecision, type SettlementReportRow } from "./lib/settlement-report";
+import { signerRelationshipStatusLabel } from "./lib/signer-status";
 import type { Briefing, Broker, BrokerLevelUpdate, EvidenceFile, ImportBatch, ReferralNode, ReviewStatus } from "./types";
 
-type PageKey = "dashboard" | "audit" | "stats" | "brokers" | "workspace" | "briefingReview" | "signerDetail" | "financePending" | "financePaid" | "financeReport" | "system" | "guide";
+type SettlementDisputeRecord = {
+  id: string;
+  briefingId: string;
+  jarvisBriefingId: string;
+  briefingTitle: string;
+  brokerId: string;
+  brokerNickname: string;
+  brokerPhone: string;
+  originalCycleKey: string;
+  deferredCycleKey: string;
+  deferPublishReward: boolean;
+  deferCompleteReward: boolean;
+  evidences: Array<{ id: string; fileName: string; fileUrl: string; fileType: string; uploadedAt: string }>;
+  status: "pending" | "approved" | "rejected";
+  reason: string;
+  resolution: string;
+  submittedAt: string;
+  reviewedAt: string;
+};
+
+type PageKey = "dashboard" | "audit" | "stats" | "brokers" | "brokerFission" | "workspace" | "briefingReview" | "signerDetail" | "financePending" | "financePaid" | "financeReport" | "system" | "operationLogs" | "dataBackup" | "dataSync" | "guide";
 type WorkspaceTab = "briefings" | "signedModels" | "level" | "network" | "settlement" | "paymentStatus";
 type BrokerFilter = "all" | "normal" | "seed";
 type SeedPhaseFilter = "all" | "none" | `${number}`;
@@ -132,6 +159,18 @@ const navItems = [
   { key: "system" as const, label: "账户管理", icon: UserCog }
 ];
 
+const permissionLabels: Record<SystemPermission, { label: string; description: string }> = {
+  dashboard: { label: "工作总览", description: "查看运营核心指标和待办概览" },
+  audit: { label: "审核中心", description: "处理通告、凭证和签约审核" },
+  brokers: { label: "经纪人用户", description: "查看经纪人列表和裂变关系图" },
+  workspace: { label: "经纪人工作台", description: "进入经纪人详情、通告和签约者页面" },
+  stats: { label: "数据分析", description: "查看业务统计与趋势" },
+  finance: { label: "财务管理", description: "查看付款订单和财务报表" },
+  operationLogs: { label: "操作日志", description: "查看系统操作记录" },
+  dataSync: { label: "数据同步", description: "执行和查看鑫通告数据同步" },
+  dataBackup: { label: "数据备份", description: "创建和还原系统备份" }
+};
+
 const reviewText: Record<ReviewStatus, string> = {
   pending: "待审核",
   approved: "通过",
@@ -139,8 +178,8 @@ const reviewText: Record<ReviewStatus, string> = {
 };
 
 const legacyViewStateKey = "xtg-review-admin-view-state";
-const viewStateKey = "xtg-review-admin-view-state-test-v1";
-const pageKeys: PageKey[] = ["dashboard", "audit", "stats", "brokers", "workspace", "briefingReview", "signerDetail", "financePending", "financePaid", "financeReport", "system", "guide"];
+const viewStateKey = "xtg-review-admin-view-state-test-v2";
+const pageKeys: PageKey[] = ["dashboard", "audit", "stats", "brokers", "brokerFission", "workspace", "briefingReview", "signerDetail", "financePending", "financePaid", "financeReport", "system", "operationLogs", "dataBackup", "dataSync", "guide"];
 const workspaceTabs: WorkspaceTab[] = ["briefings", "signedModels", "level", "network", "settlement", "paymentStatus"];
 const seedPlanStartDate = new Date("2026-04-01T00:00:00");
 const pastCycleKey = "past";
@@ -271,6 +310,12 @@ function weekCycleForDate(value: string | Date) {
   };
 }
 
+function weekCycleForKey(cycleKey: string) {
+  const cycleIndex = cycleWeekIndex(cycleKey);
+  if (cycleIndex < 1) return weekCycleForDate("");
+  return weekCycleForDate(new Date(seedPlanStartDate.getTime() + (cycleIndex - 1) * 7 * 86400000));
+}
+
 function isBriefingSeedEligible(briefing: Briefing, seedQualifiedAt?: string | null) {
   return isPublishedAfterSeedQualification(briefing.publishedAt, seedQualifiedAt);
 }
@@ -285,6 +330,11 @@ function brokerSelfRewardStartAt(broker: Pick<Broker, "brokerLevel" | "seedPhase
 
 function brokerCurrentIncentiveStartAt(broker: Pick<Broker, "brokerLevel" | "seedPhase" | "seedProgramJoinedAt" | "seedQualifiedAt">) {
   return seedCurrentIncentiveStartAt(broker);
+}
+
+function brokerDisplayName(broker: Pick<Broker, "nickname" | "boundPhone">) {
+  const withoutPhone = broker.boundPhone ? broker.nickname.replace(broker.boundPhone, "") : broker.nickname;
+  return withoutPhone.replace(/[\s·•]+$/g, "").trim() || broker.nickname;
 }
 
 function briefingCycleForEligibility(briefing: Briefing, seedQualifiedAt?: string | null) {
@@ -310,7 +360,19 @@ function buildWeekCycleOptions(briefings: Briefing[], seedQualifiedAt?: string |
       addCycleByIndex(index);
     }
     addCycleByIndex(cycleWeekIndex(briefingBonusCycleKey(briefing)));
+    const deferredCycleKey = briefing.settlementDispute?.deferredCycleKey;
+    if (briefing.settlementDispute?.status === "approved" && deferredCycleKey) {
+      addCycleByIndex(cycleWeekIndex(deferredCycleKey));
+    }
   });
+  const incentiveStartCycle = seedQualifiedAt ? weekCycleForDate(seedQualifiedAt) : null;
+  const latestCycleIndex = Math.max(
+    ...Array.from(cycleMap.keys()).map(cycleWeekIndex),
+    incentiveStartCycle ? cycleWeekIndex(incentiveStartCycle.key) : -1
+  );
+  if (incentiveStartCycle && incentiveStartCycle.key !== pastCycleKey) {
+    cycleKeyRange(incentiveStartCycle.key, `week-${latestCycleIndex}`).forEach((key) => addCycleByIndex(cycleWeekIndex(key)));
+  }
   return Array.from(cycleMap.values()).sort((left, right) => {
     if (left.key === pastCycleKey) return 1;
     if (right.key === pastCycleKey) return -1;
@@ -462,7 +524,12 @@ function needsAdminEvidenceReview(briefing: Briefing) {
 }
 
 function manualReviewStatus(briefing: Briefing): { status: ReviewStatus; label: string } {
-  if (briefing.reviewedAt) {
+  if (sourceRejected(briefing)) {
+    return { status: "pending", label: "无需审核" };
+  }
+  const publishStatus = effectivePublishStatus(briefing);
+  const completeStatus = briefing.validCompleteStatus;
+  if (publishStatus !== "pending" && completeStatus !== "pending" && briefing.reviewedAt) {
     return { status: "approved", label: "人工已审核" };
   }
   return { status: "pending", label: "人工未审核" };
@@ -499,6 +566,17 @@ function signingStatusLabel(row: Pick<RewardCompleteRow, "briefing" | "newModels
   return reviewText[effectiveCompleteStatus(row)];
 }
 
+function signingFailureReason(row: RewardCompleteRow) {
+  const reviewIssues = Array.from(signedModelReviewDecisions(row.briefing.invalidReason).values())
+    .filter(isSignedModelReviewIssue)
+    .map((decision) => signedModelReviewLabels[decision]);
+  if (reviewIssues.length) return [...new Set(reviewIssues)].join("、");
+  if (row.briefing.contractPeople > 0 && row.newModels.length === 0) return "签约者均为历史重复";
+  return stripSignedModelReviewMarkers(row.briefing.invalidReason)
+    || row.briefing.cancelReason
+    || (row.publishStatus === "rejected" ? "有效通告不通过" : "新增签约人工审核不通过");
+}
+
 function effectiveCompleteStatus(row: Pick<RewardCompleteRow, "briefing" | "newModels" | "bonusEligible"> & { publishStatus?: ReviewStatus }): ReviewStatus {
   const publishStatus = row.publishStatus ?? effectivePublishStatus(row.briefing);
   if (publishStatus === "rejected") return "rejected";
@@ -523,8 +601,21 @@ type RewardCompleteRow = {
 
 function signedModelsForBriefing(briefing: Briefing) {
   const uniqueItems = new Map<string, ReturnType<typeof parseSignedModelName>>();
-  briefing.signedModelNames.map(parseSignedModelName).forEach((model) => uniqueItems.set(model.key, model));
+  const names = briefing.signedModels?.length
+    ? briefing.signedModels.map((model) => `${model.name}${model.phone ? `（${model.phone}）` : ""}${model.userId ? ` · #${model.userId}` : ""}`)
+    : briefing.signedModelNames;
+  names.map(parseSignedModelName).forEach((model) => uniqueItems.set(model.key, model));
   return Array.from(uniqueItems.values());
+}
+
+function activeSignedModelsForBriefing(briefing: Briefing) {
+  if (!briefing.signedModels?.length) return signedModelsForBriefing(briefing);
+  const activeKeys = new Set(
+    briefing.signedModels
+      .filter((model) => model.active)
+      .map((model) => parseSignedModelName(`${model.name}${model.phone ? `（${model.phone}）` : ""}${model.userId ? ` · #${model.userId}` : ""}`).key)
+  );
+  return signedModelsForBriefing(briefing).filter((model) => activeKeys.has(model.key));
 }
 
 function buildSignedModelRows(briefings: Briefing[]) {
@@ -613,11 +704,12 @@ function buildRewardProfile(
   const signedHistory = new Set<string>();
   const completeRows: RewardCompleteRow[] = [];
   historyBriefings.forEach((briefing) => {
-    const models = signedModelsForBriefing(briefing);
-    const newModels = models.filter((model) => !signedHistory.has(model.key));
-    const repeatedModels = models.filter((model) => signedHistory.has(model.key));
+    const historicalModels = signedModelsForBriefing(briefing);
+    const activeModels = activeSignedModelsForBriefing(briefing);
+    const newModels = activeModels.filter((model) => !signedHistory.has(model.key));
+    const repeatedModels = activeModels.filter((model) => signedHistory.has(model.key));
     if (!eligibleIds.has(briefing.id)) {
-      models.forEach((model) => signedHistory.add(model.key));
+      historicalModels.forEach((model) => signedHistory.add(model.key));
       return;
     }
     const rawPublishStatus = effectivePublishStatus(briefing);
@@ -628,7 +720,7 @@ function buildRewardProfile(
     const publishApproved = publishStatus === "approved";
     const completeApproved = wasCompleteApproved || (briefing.validCompleteStatus === "approved" && Boolean(briefing.reviewedAt));
     const bonusEligible = publishApproved && completeApproved && newModels.length > 0;
-    models.forEach((model) => signedHistory.add(model.key));
+    historicalModels.forEach((model) => signedHistory.add(model.key));
     completeRows.push({
       briefing,
       newModels,
@@ -678,8 +770,9 @@ function buildReviewSummary(
   const pendingCompleteCount = completeRows.filter((row) => effectiveCompleteStatus(row) === "pending").length;
   const rejectedPublishCount = briefings.filter((briefing) => effectivePublishStatus(briefing) === "rejected").length;
   const rejectedCompleteCount = completeRows.filter((row) => effectiveCompleteStatus(row) === "rejected").length;
-  const manualReviewedCount = briefings.filter((briefing) => Boolean(briefing.reviewedAt)).length;
-  const manualPendingCount = briefings.length - manualReviewedCount;
+  const manuallyReviewableBriefings = briefings.filter((briefing) => !sourceRejected(briefing));
+  const manualReviewedCount = manuallyReviewableBriefings.filter((briefing) => manualReviewStatus(briefing).label === "人工已审核").length;
+  const manualPendingCount = manuallyReviewableBriefings.length - manualReviewedCount;
   const missingDetailCount = briefings.filter((item) => !item.detailImported).length;
   const missingEvidenceCount = briefings.filter((item) => !hasMatchedEvidence(item) && effectivePublishStatus(item) === "pending").length;
   return {
@@ -949,6 +1042,7 @@ export function App() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [updatesOpen, setUpdatesOpen] = useState(false);
   const [releaseDetailOpen, setReleaseDetailOpen] = useState(false);
+  const [globalSearch, setGlobalSearch] = useState("");
   const [selectedReleaseId, setSelectedReleaseId] = useState(releaseNotes[0].id);
   const [readReleaseNoteIds, setReadReleaseNoteIds] = useState<string[]>(() => loadReadReleaseNoteIds(currentAccountName));
   const updatesCloseTimerRef = useRef<number | null>(null);
@@ -965,10 +1059,24 @@ export function App() {
   const selectedRelease = releaseNotes.find((note) => note.id === selectedReleaseId) ?? releaseNotes[0];
   const unreadReleaseCount = releaseNotes.filter((note) => !readReleaseNoteIds.includes(note.id)).length;
   const currentRole = currentAccount?.role ?? "operations";
-  const canOperate = currentRole === "super_admin" || currentRole === "operations";
-  const canManageFinance = currentRole === "super_admin" || currentRole === "finance";
-  const visibleNavItems = navItems.filter((item) => item.key === "dashboard" || (item.key === "system" ? currentRole === "super_admin" : canOperate));
-  const mobileNavItems = currentRole === "finance"
+  const currentPermissions = currentRole === "super_admin"
+    ? allSystemPermissions
+    : currentAccount?.permissions ?? defaultPermissionsForRole(currentRole);
+  const permissionSet = new Set<SystemPermission>(currentPermissions);
+  const hasPermission = (permission: SystemPermission) => currentRole === "super_admin" || permissionSet.has(permission);
+  const canOperate = (["dashboard", "audit", "brokers", "workspace", "stats"] as SystemPermission[]).some(hasPermission);
+  const canManageFinance = hasPermission("finance");
+  const navPermissionMap: Partial<Record<PageKey, SystemPermission>> = {
+    dashboard: "dashboard",
+    audit: "audit",
+    brokers: "brokers",
+    workspace: "workspace",
+    stats: "stats"
+  };
+  const visibleNavItems = navItems.filter((item) => item.key === "system"
+    ? currentRole === "super_admin"
+    : Boolean(navPermissionMap[item.key] && hasPermission(navPermissionMap[item.key]!)));
+  const mobileNavItems = !canOperate && canManageFinance
     ? [
         navItems[0],
         { key: "financePending" as const, label: "待付款", icon: WalletCards },
@@ -976,6 +1084,16 @@ export function App() {
         { key: "financeReport" as const, label: "财务报表", icon: BarChart3 }
       ]
     : visibleNavItems.slice(0, 4);
+  const globalSearchResults = useMemo(() => {
+    const query = globalSearch.trim().toLowerCase();
+    if (!query) return { brokers: [] as Broker[], briefings: [] as Briefing[], signers: [] as ReturnType<typeof parseSignedModelName>[] };
+    const matchingBrokers = brokerRows.filter((item) => `${item.nickname} ${item.miniProgramUserId} ${item.boundPhone} ${item.wechatPhone}`.toLowerCase().includes(query)).slice(0, 5);
+    const matchingBriefings = briefingRows.filter((item) => `${item.title} ${item.jarvisBriefingId}`.toLowerCase().includes(query)).slice(0, 5);
+    const signerMap = new Map<string, ReturnType<typeof parseSignedModelName>>();
+    briefingRows.forEach((item) => signedModelsForBriefing(item).forEach((model) => signerMap.set(model.key, model)));
+    const matchingSigners = [...signerMap.values()].filter((item) => `${item.name} ${item.phone} ${item.userId}`.toLowerCase().includes(query)).slice(0, 5);
+    return { brokers: matchingBrokers, briefings: matchingBriefings, signers: matchingSigners };
+  }, [briefingRows, brokerRows, globalSearch]);
 
   const selectedBroker = useMemo(
     () => brokerRows.find((broker) => broker.id === selectedBrokerId) ?? brokerRows[0] ?? brokers[0],
@@ -1036,12 +1154,34 @@ export function App() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
+    const requiredPermission: Partial<Record<PageKey, SystemPermission>> = {
+      dashboard: "dashboard",
+      audit: "audit",
+      stats: "stats",
+      brokers: "brokers",
+      brokerFission: "brokers",
+      workspace: "workspace",
+      briefingReview: "workspace",
+      signerDetail: "workspace",
+      financePending: "finance",
+      financePaid: "finance",
+      financeReport: "finance",
+      operationLogs: "operationLogs",
+      dataSync: "dataSync",
+      dataBackup: "dataBackup"
+    };
     const allowed = page === "guide"
-      || canOperate && ["dashboard", "audit", "stats", "brokers", "workspace", "briefingReview", "signerDetail"].includes(page)
-      || (canManageFinance && ["financePending", "financePaid", "financeReport"].includes(page))
-      || (currentRole === "super_admin" && page === "system");
-    if (!allowed) setPage(canManageFinance ? "financePending" : "dashboard");
-  }, [canManageFinance, canOperate, currentRole, isAuthenticated, page]);
+      || page === "system" && currentRole === "super_admin"
+      || Boolean(requiredPermission[page] && hasPermission(requiredPermission[page]!));
+    if (!allowed) {
+      const fallbackPermission = allSystemPermissions.find((permission) => hasPermission(permission));
+      const fallbackPage: Partial<Record<SystemPermission, PageKey>> = {
+        dashboard: "dashboard", audit: "audit", brokers: "brokers", workspace: "workspace", stats: "stats",
+        finance: "financePending", operationLogs: "operationLogs", dataSync: "dataSync", dataBackup: "dataBackup"
+      };
+      setPage(fallbackPermission ? fallbackPage[fallbackPermission]! : "guide");
+    }
+  }, [currentAccount?.permissions, currentRole, isAuthenticated, page]);
 
   useEffect(() => {
     void refreshData();
@@ -1121,8 +1261,8 @@ export function App() {
       ]);
       const nextBrokers = (await brokerResponse.json()) as Broker[];
       const nextBatches = (await batchResponse.json()) as ImportBatch[];
+      setBrokerRows(nextBrokers);
       if (nextBrokers.length > 0) {
-        setBrokerRows(nextBrokers);
         setSelectedBrokerId((current) => nextBrokers.some((broker) => broker.id === current) ? current : nextBrokers[0].id);
       }
       setImportBatchRows(nextBatches);
@@ -1145,6 +1285,19 @@ export function App() {
     navigateToPage("workspace", {
       selectedBrokerId: broker.id,
       workspaceTab: "briefings",
+      lastListPage: nextLastListPage
+    });
+  }
+
+  function openBrokerSettlement(broker: Broker, cycleKey: string) {
+    const nextLastListPage = page === "workspace" ? "brokers" : page;
+    updateWorkspaceCycle(broker.id, cycleKey);
+    setSelectedBrokerId(broker.id);
+    setWorkspaceTab("settlement");
+    setLastListPage(nextLastListPage);
+    navigateToPage("workspace", {
+      selectedBrokerId: broker.id,
+      workspaceTab: "settlement",
       lastListPage: nextLastListPage
     });
   }
@@ -1233,6 +1386,7 @@ export function App() {
       };
       return [...current.filter((item) => item.id !== orderId), nextOrder].sort((left, right) => right.submittedAt.localeCompare(left.submittedAt));
     });
+    recordClientOperation("财务管理", "提交付款单", `${order.brokerNickname} · ${order.cycleLabel} · ¥${order.amount}`);
     navigateToPage("financePending");
   }
 
@@ -1244,6 +1398,7 @@ export function App() {
       rejectedAt: undefined,
       rejectionReason: undefined
     } : order));
+    recordClientOperation("财务管理", "财务审批通过", orderId);
   }
 
   function markFinanceOrderPaid(orderId: string) {
@@ -1254,6 +1409,7 @@ export function App() {
           : order
       )
     );
+    recordClientOperation("财务管理", "确认付款", orderId);
     navigateToPage("financePaid");
   }
 
@@ -1266,19 +1422,27 @@ export function App() {
       approvedAt: undefined,
       paidAt: undefined
     } : order));
+    recordClientOperation("财务管理", "驳回付款单", `${orderId} · ${reason}`);
   }
 
   function cancelFinanceOrder(orderId: string) {
     setFinanceOrders((current) => current.filter((order) => order.id !== orderId));
+    recordClientOperation("财务管理", "撤回付款单", orderId);
   }
 
   async function updateSystemAccounts(nextAccounts: StoredAccount[]) {
     const changed = nextAccounts.find((next) => {
       const current = accounts.find((item) => item.account === next.account);
-      return current && (current.role !== next.role || current.enabled !== next.enabled);
+      const currentPermissions = current?.permissions ?? (current ? defaultPermissionsForRole(current.role) : []);
+      const nextPermissions = next.permissions ?? defaultPermissionsForRole(next.role);
+      return current && (
+        current.role !== next.role
+        || current.enabled !== next.enabled
+        || currentPermissions.join(",") !== nextPermissions.join(",")
+      );
     });
     const savedAccounts = changed
-      ? await updateRemoteAccount(changed.account, { role: changed.role, enabled: changed.enabled })
+      ? await updateRemoteAccount(changed.account, { role: changed.role, enabled: changed.enabled, permissions: changed.permissions })
       : nextAccounts;
     saveAccounts(savedAccounts);
     setAccounts(savedAccounts);
@@ -1357,7 +1521,7 @@ export function App() {
               <UsersRound size={18} />
               <span>经纪人管理</span>
             </div>
-            {navItems.filter((item) => item.key !== "system" && item.key !== "workspace").map((item) => (
+            {visibleNavItems.filter((item) => item.key !== "system" && item.key !== "workspace").map((item) => (
               <div className="nav-entry" key={item.key}>
                 <button
                   className={`nav-subitem ${page === item.key ? "active" : ""}`}
@@ -1367,16 +1531,28 @@ export function App() {
                   {item.label}
                 </button>
                 {item.key === "brokers" ? (
-                  <button
-                    className={`nav-subitem nav-tertiary ${page === "workspace" ? "active" : ""}`}
-                    onClick={() => navigateToPage("workspace")}
-                    type="button"
-                  >
-                    经纪人工作台
-                  </button>
+                  <>
+                    <button
+                      className={`nav-subitem nav-tertiary ${page === "brokerFission" ? "active" : ""}`}
+                      onClick={() => navigateToPage("brokerFission")}
+                      type="button"
+                    >
+                      经纪人裂变图
+                    </button>
+                    {hasPermission("workspace") ? <button
+                      className={`nav-subitem nav-tertiary ${page === "workspace" ? "active" : ""}`}
+                      onClick={() => navigateToPage("workspace")}
+                      type="button"
+                    >
+                      经纪人工作台
+                    </button> : null}
+                  </>
                 ) : null}
               </div>
             ))}
+            {hasPermission("workspace") && !hasPermission("brokers") ? (
+              <button className={`nav-subitem ${page === "workspace" ? "active" : ""}`} onClick={() => navigateToPage("workspace")} type="button">经纪人工作台</button>
+            ) : null}
           </div> : null}
           {canManageFinance ? <div className="nav-group">
             <div className="nav-group-label">
@@ -1405,12 +1581,15 @@ export function App() {
               财务报表
             </button>
           </div> : null}
-          {currentRole === "super_admin" ? <div className="nav-group">
+          {(currentRole === "super_admin" || hasPermission("operationLogs") || hasPermission("dataSync") || hasPermission("dataBackup")) ? <div className="nav-group">
             <div className="nav-group-label">
-              <UserCog size={18} />
-              <span>账户管理</span>
+              <Wrench size={18} />
+              <span>系统工具</span>
             </div>
-            <button className={`nav-subitem ${page === "system" ? "active" : ""}`} onClick={() => navigateToPage("system")} type="button">系统用户</button>
+            {currentRole === "super_admin" ? <button className={`nav-subitem ${page === "system" ? "active" : ""}`} onClick={() => navigateToPage("system")} type="button">系统用户</button> : null}
+            {hasPermission("operationLogs") ? <button className={`nav-subitem ${page === "operationLogs" ? "active" : ""}`} onClick={() => navigateToPage("operationLogs")} type="button">操作日志</button> : null}
+            {hasPermission("dataSync") ? <button className={`nav-subitem ${page === "dataSync" ? "active" : ""}`} onClick={() => navigateToPage("dataSync")} type="button">数据同步</button> : null}
+            {hasPermission("dataBackup") ? <button className={`nav-subitem ${page === "dataBackup" ? "active" : ""}`} onClick={() => navigateToPage("dataBackup")} type="button">数据备份</button> : null}
           </div> : null}
         </nav>
 
@@ -1428,7 +1607,13 @@ export function App() {
           <div className="top-tools">
             <label className="global-search">
               <Search size={16} />
-              <input aria-label="全局搜索" placeholder="搜索经纪人或通告 ID" />
+              <input aria-label="全局搜索" onChange={(event) => setGlobalSearch(event.target.value)} placeholder="搜索经纪人、通告或签约者" value={globalSearch} />
+              {globalSearch.trim() ? <div className="global-search-results">
+                {globalSearchResults.brokers.length ? <div><span className="search-result-group">经纪人</span>{globalSearchResults.brokers.map((item) => <button key={item.id} onClick={() => { setGlobalSearch(""); openBroker(item); }} type="button"><strong>{item.nickname}</strong><small>#{item.miniProgramUserId}</small></button>)}</div> : null}
+                {globalSearchResults.briefings.length ? <div><span className="search-result-group">通告</span>{globalSearchResults.briefings.map((item) => <button key={item.id} onClick={() => { setGlobalSearch(""); openBriefingReview(item); }} type="button"><strong>{item.title}</strong><small>#{item.jarvisBriefingId}</small></button>)}</div> : null}
+                {globalSearchResults.signers.length ? <div><span className="search-result-group">签约者</span>{globalSearchResults.signers.map((item) => <button key={item.key} onClick={() => { if (!item.userId) return; setGlobalSearch(""); openSignerDetail(item.userId, page); }} type="button"><strong>{item.name}</strong><small>{item.userId ? `#${item.userId}` : item.phone}</small></button>)}</div> : null}
+                {!globalSearchResults.brokers.length && !globalSearchResults.briefings.length && !globalSearchResults.signers.length ? <p>没有匹配结果</p> : null}
+              </div> : null}
             </label>
             <button aria-label="系统使用白皮书" className="top-icon-button" onClick={() => navigateToPage("guide")} title="系统使用白皮书" type="button">
               <BookOpen size={18} />
@@ -1505,14 +1690,20 @@ export function App() {
             brokersData={brokerRows}
             briefingsData={briefingRows}
             importBatchesData={importBatchRows}
+            onOpenAudit={hasPermission("audit") ? () => navigateToPage("audit") : undefined}
             onOpenBroker={openBroker}
+            onOpenBrokers={hasPermission("brokers") ? () => navigateToPage("brokers") : undefined}
+            onOpenDataSync={hasPermission("dataSync") ? () => navigateToPage("dataSync") : undefined}
           />
         )}
         {page === "audit" && (
           <AuditCenter
             briefingsData={briefingRows}
             brokersData={brokerRows}
+            financeOrders={financeOrders}
+            onOpenBrokerSettlement={openBrokerSettlement}
             onOpenBriefing={openBriefingReview}
+            onRefresh={refreshData}
           />
         )}
         {page === "stats" && <Stats brokersData={brokerRows} briefingsData={briefingRows} />}
@@ -1523,6 +1714,20 @@ export function App() {
             onPageChange={setBrokerListPage}
             onRefresh={refreshData}
             pageNumber={brokerListPage}
+          />
+        )}
+        {page === "brokerFission" && (
+          <BrokerFissionTree
+            approvedSigningCounts={Object.fromEntries(brokerRows.map((broker) => [
+              broker.id,
+              buildRewardProfile(
+                briefingRows.filter((briefing) => briefing.brokerId === broker.id),
+                undefined,
+                brokerSelfRewardStartAt(broker)
+              ).bonusCompleteCount
+            ]))}
+            brokers={brokerRows}
+            onOpenBroker={openBroker}
           />
         )}
         {page === "workspace" && (
@@ -1575,7 +1780,10 @@ export function App() {
         )}
         {page === "financeReport" && <FinanceReport orders={financeOrders} />}
         {page === "guide" && <SystemGuide />}
-        {page === "system" && currentAccount && (
+        {page === "operationLogs" && hasPermission("operationLogs") && <OperationLogPage />}
+        {page === "dataSync" && hasPermission("dataSync") && <DataSyncPage onSynced={refreshData} />}
+        {page === "dataBackup" && hasPermission("dataBackup") && <DataBackupPage />}
+        {page === "system" && currentRole === "super_admin" && currentAccount && (
           <SystemManagement
             accounts={accounts}
             currentAccount={currentAccount}
@@ -1623,13 +1831,19 @@ export function App() {
 function AuditCenter({
   briefingsData,
   brokersData,
-  onOpenBriefing
+  financeOrders,
+  onOpenBrokerSettlement,
+  onOpenBriefing,
+  onRefresh
 }: {
   briefingsData: Briefing[];
   brokersData: Broker[];
+  financeOrders: FinanceOrder[];
+  onOpenBrokerSettlement: (broker: Broker, cycleKey: string) => void;
   onOpenBriefing: (briefing: Briefing) => void;
+  onRefresh: () => Promise<void>;
 }) {
-  const [filter, setFilter] = useState<"all" | "pending" | "evidence" | "dispute">("pending");
+  const [filter, setFilter] = useState<"all" | "pending" | "evidence" | "dispute" | "settlement" | "commission">("pending");
   const [query, setQuery] = useState("");
   const eligibleBriefings = programEligibleBriefings(brokersData, briefingsData);
   const rewardRows = new Map(brokersData.flatMap((broker) => buildRewardProfile(
@@ -1647,7 +1861,7 @@ function AuditCenter({
     if (filter === "dispute") return hasEvidenceDispute(item);
     return true;
   });
-  const pendingCount = eligibleBriefings.filter((item) => manualReviewStatus(item).status === "pending").length;
+  const pendingCount = eligibleBriefings.filter((item) => !sourceRejected(item) && manualReviewStatus(item).status === "pending").length;
   const missingEvidenceCount = eligibleBriefings.filter((item) => needsAdminEvidenceReview(item) && !hasMatchedEvidence(item)).length;
   const disputeCount = eligibleBriefings.filter(hasEvidenceDispute).length;
   const visibleRows = rows.slice(0, 25);
@@ -1665,12 +1879,12 @@ function AuditCenter({
         <div className="audit-filter-bar">
           <label className="audit-search"><Search size={16} /><input onChange={(event) => setQuery(event.target.value)} placeholder="搜索通告、经纪人或 ID" value={query} /></label>
           <div className="segmented">
-            {([['pending', '我的待办'], ['evidence', '缺少凭证'], ['dispute', '凭证异议'], ['all', '全部记录']] as const).map(([key, label]) => (
+            {([['pending', '我的待办'], ['evidence', '缺少凭证'], ['dispute', '凭证异议'], ['settlement', '争议通告'], ['commission', '提成结算'], ['all', '全部记录']] as const).map(([key, label]) => (
               <button className={filter === key ? "active" : ""} key={key} onClick={() => setFilter(key)} type="button">{label}</button>
             ))}
           </div>
         </div>
-        <div className="responsive-table-wrap">
+        {filter === "settlement" ? <SettlementDisputePanel briefingsData={briefingsData} financeOrders={financeOrders} onOpenBriefing={onOpenBriefing} onRefresh={onRefresh} /> : filter === "commission" ? <CommissionSettlementPanel briefingsData={briefingsData} brokersData={brokersData} financeOrders={financeOrders} onOpenSettlement={onOpenBrokerSettlement} /> : <div className="responsive-table-wrap">
           <table className="audit-queue-table">
             <thead><tr><th>通告 / 经纪人</th><th>发布时间</th><th>凭证</th><th>有效通告</th><th>新增签约</th><th>风险</th><th>操作</th></tr></thead>
             <tbody>
@@ -1680,7 +1894,7 @@ function AuditCenter({
                 const completeRow = rewardRows.get(item.id);
                 return (
                   <tr key={item.id}>
-                    <td data-label="通告"><div className="user-cell"><strong>{item.title}</strong><span>{broker?.nickname ?? "-"} · #{item.jarvisBriefingId}</span></div></td>
+                    <td data-label="通告"><div className="user-cell"><strong>{item.title}</strong><span>{broker ? brokerDisplayName(broker) : "-"} · #{item.jarvisBriefingId}</span></div></td>
                     <td data-label="发布时间">{item.publishedAt}</td>
                     <td data-label="凭证"><span className={`status-pill ${item.evidenceCount ? "success" : "warning"}`}>{item.evidenceCount ? `${item.evidenceCount} 个` : "待补充"}</span></td>
                     <td data-label="有效通告"><ReviewBadge label={cappedPublishLabel(item, brokerItems)} status={cappedPublishStatus(item, brokerItems)} /></td>
@@ -1692,24 +1906,265 @@ function AuditCenter({
               })}
             </tbody>
           </table>
-        </div>
-        {rows.length === 0 ? <p className="empty-state">当前筛选条件下没有审核任务。</p> : null}
-        {rows.length > visibleRows.length ? <p className="audit-result-note">当前显示前 {visibleRows.length} 条，共 {rows.length} 条；可通过搜索进一步缩小范围。</p> : null}
+        </div>}
+        {filter !== "settlement" && filter !== "commission" && rows.length === 0 ? <p className="empty-state">当前筛选条件下没有审核任务。</p> : null}
+        {filter !== "settlement" && filter !== "commission" && rows.length > visibleRows.length ? <p className="audit-result-note">当前显示前 {visibleRows.length} 条，共 {rows.length} 条；可通过搜索进一步缩小范围。</p> : null}
       </section>
     </section>
   );
+}
+
+type CommissionSettlementTask = {
+  broker: Broker;
+  cycleKey: string;
+  cycleLabel: string;
+  baseAmount: number;
+  incrementAmount: number;
+  totalAmount: number;
+};
+
+function CommissionSettlementPanel({ briefingsData, brokersData, financeOrders, onOpenSettlement }: {
+  briefingsData: Briefing[];
+  brokersData: Broker[];
+  financeOrders: FinanceOrder[];
+  onOpenSettlement: (broker: Broker, cycleKey: string) => void;
+}) {
+  const [tasks, setTasks] = useState<CommissionSettlementTask[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    const referrers = brokersData.filter((broker) => (broker.refereeCount ?? 0) > 0);
+    Promise.all(referrers.map(async (broker) => {
+      const response = await fetch(`/api/brokers/${broker.id}/referrals`);
+      const referrals = response.ok ? await response.json() as ReferralNode[] : [];
+      const rewards = new Map<string, { baseAmount: number; incrementAmount: number }>();
+      referrals.forEach((node) => {
+        const nodeBriefings = briefingsData.filter((briefing) => briefing.brokerId === node.id);
+        const baseCycle = referralBaseAwardCycle(node, nodeBriefings);
+        if (baseCycle) {
+          const current = rewards.get(baseCycle) ?? { baseAmount: 0, incrementAmount: 0 };
+          current.baseAmount += 10;
+          rewards.set(baseCycle, current);
+        }
+        const profile = buildRewardProfile(nodeBriefings, undefined, seedProgramStartAt(node));
+        profile.bonusCompleteRows.forEach((row) => {
+          const cycleKey = briefingBonusCycleKey(row.briefing);
+          if (row.briefing.settlementDispute?.originalCycleKey === cycleKey) return;
+          const current = rewards.get(cycleKey) ?? { baseAmount: 0, incrementAmount: 0 };
+          current.incrementAmount += 1;
+          rewards.set(cycleKey, current);
+        });
+        nodeBriefings.forEach((briefing) => {
+          const dispute = briefing.settlementDispute;
+          if (dispute?.status !== "approved" || !dispute.deferredCycleKey || !dispute.deferCompleteReward) return;
+          const current = rewards.get(dispute.deferredCycleKey) ?? { baseAmount: 0, incrementAmount: 0 };
+          current.incrementAmount += 1;
+          rewards.set(dispute.deferredCycleKey, current);
+        });
+      });
+      const ownBriefings = briefingsData.filter((briefing) => briefing.brokerId === broker.id);
+      return Array.from(rewards.entries()).flatMap(([cycleKey, reward]) => {
+        const hasOwnBriefing = ownBriefings.some((briefing) => weekCycleForDate(briefing.publishedAt).key === cycleKey);
+        const financeOrder = financeOrders.find((order) => order.brokerId === broker.id && order.cycleKey === cycleKey);
+        if (hasOwnBriefing || (financeOrder && financeOrder.status !== "rejected")) return [];
+        const cycleIndex = cycleWeekIndex(cycleKey);
+        const cycleDate = new Date(seedPlanStartDate.getTime() + (cycleIndex - 1) * 7 * 86400000);
+        return [{
+          broker,
+          cycleKey,
+          cycleLabel: weekCycleForDate(cycleDate.toISOString()).label,
+          ...reward,
+          totalAmount: reward.baseAmount + reward.incrementAmount
+        }];
+      });
+    })).then((groups) => {
+      if (!active) return;
+      setTasks(groups.flat().sort((left, right) => cycleWeekIndex(right.cycleKey) - cycleWeekIndex(left.cycleKey)));
+      setLoading(false);
+    }).catch(() => {
+      if (!active) return;
+      setTasks([]);
+      setLoading(false);
+    });
+    return () => { active = false; };
+  }, [briefingsData, brokersData, financeOrders]);
+
+  if (loading) return <p className="empty-state">正在核对下线奖励与上线结算...</p>;
+  if (!tasks.length) return <p className="empty-state">暂无“本人无通告但有下线提成”的待结算经纪人。</p>;
+  return <div className="responsive-table-wrap"><table className="commission-settlement-table">
+    <thead><tr><th>上线经纪人</th><th>结算周期</th><th>基础达标奖</th><th>成交增量奖</th><th>应结算</th><th>操作</th></tr></thead>
+    <tbody>{tasks.map((task) => <tr key={`${task.broker.id}-${task.cycleKey}`}>
+      <td><div className="user-cell"><strong>{task.broker.nickname}</strong><span>#{task.broker.miniProgramUserId}</span></div></td>
+      <td>{task.cycleLabel}</td>
+      <td>{money(task.baseAmount)}</td>
+      <td>{money(task.incrementAmount)}</td>
+      <td><strong>{money(task.totalAmount)}</strong></td>
+      <td><button className="primary-action compact-action" onClick={() => onOpenSettlement(task.broker, task.cycleKey)} type="button">处理结算</button></td>
+    </tr>)}</tbody>
+  </table></div>;
+}
+
+function SettlementDisputePanel({ briefingsData, financeOrders, onOpenBriefing, onRefresh }: {
+  briefingsData: Briefing[];
+  financeOrders: FinanceOrder[];
+  onOpenBriefing: (briefing: Briefing) => void;
+  onRefresh: () => Promise<void>;
+}) {
+  const [records, setRecords] = useState<SettlementDisputeRecord[]>([]);
+  const [idsText, setIdsText] = useState("");
+  const [reason, setReason] = useState("");
+  const [cycleKey, setCycleKey] = useState("");
+  const [resolutionById, setResolutionById] = useState<Record<string, string>>({});
+  const [notice, setNotice] = useState("");
+  const [evidenceTargetId, setEvidenceTargetId] = useState("");
+  const [uploadingEvidence, setUploadingEvidence] = useState(false);
+  const disputeEvidenceInputRef = useRef<HTMLInputElement>(null);
+  const cycleOptions = useMemo(() => {
+    const keys = Array.from(new Set(briefingsData.map((item) => weekCycleForDate(item.publishedAt).key))).filter((key) => key !== pastCycleKey);
+    return keys.sort((left, right) => cycleWeekIndex(right) - cycleWeekIndex(left));
+  }, [briefingsData]);
+
+  async function loadRecords() {
+    const response = await fetch("/api/settlement-disputes");
+    setRecords(response.ok ? await response.json() : []);
+  }
+
+  useEffect(() => { void loadRecords(); }, []);
+  useEffect(() => { if (!cycleKey && cycleOptions[0]) setCycleKey(cycleOptions[0]); }, [cycleKey, cycleOptions]);
+
+  async function importRecords() {
+    const requestedIds = idsText.split(/[\s,，]+/).map((item) => item.trim().replace(/^#/, "")).filter(Boolean);
+    const paidIds = requestedIds.filter((jarvisBriefingId) => {
+      const briefing = briefingsData.find((item) => item.jarvisBriefingId === jarvisBriefingId);
+      return briefing && financeOrders.some((order) => order.brokerId === briefing.brokerId && order.cycleKey === cycleKey && order.status === "paid");
+    });
+    const jarvisBriefingIds = requestedIds.filter((item) => !paidIds.includes(item));
+    if (paidIds.length) setNotice(`已付款周期不能直接转复审：${paidIds.map((item) => `#${item}`).join("、")}，请走下期抵扣流程。`);
+    if (!jarvisBriefingIds.length || !cycleKey) return;
+    const response = await fetch("/api/settlement-disputes/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jarvisBriefingIds, originalCycleKey: cycleKey, reason })
+    });
+    const result = await response.json();
+    if (!response.ok) { setNotice(result.error || "导入失败"); return; }
+    const failed = result.results.filter((item: any) => item.status !== "imported");
+    setNotice(`${paidIds.length ? `${paidIds.length} 条已付款记录已拦截；` : ""}已加入 ${result.importedCount} 条${failed.length ? `，${failed.length} 条未导入：${failed.map((item: any) => `#${item.jarvisBriefingId} ${item.message}`).join("；")}` : ""}`);
+    setIdsText("");
+    await loadRecords();
+    await onRefresh();
+  }
+
+  async function reviewRecord(record: SettlementDisputeRecord, status: "approved" | "rejected") {
+    const resolution = (resolutionById[record.id] || "").trim();
+    if (!resolution) { setNotice("请先填写明确的二审结论"); return; }
+    const nextCycleKey = `week-${cycleWeekIndex(record.originalCycleKey) + 1}`;
+    const response = await fetch(`/api/settlement-disputes/${record.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status, resolution, deferredCycleKey: status === "approved" ? nextCycleKey : "" })
+    });
+    const result = await response.json();
+    if (!response.ok) { setNotice(result.error || "复审保存失败"); return; }
+    setNotice(status === "approved"
+      ? `#${record.jarvisBriefingId} 二审通过，转入 ${weekCycleForKey(nextCycleKey).label} 补发 ${money(disputeRewardAmount(record))}`
+      : `#${record.jarvisBriefingId} 二审不通过`);
+    await loadRecords();
+    await onRefresh();
+  }
+
+  function chooseDisputeEvidence(recordId: string) {
+    setEvidenceTargetId(recordId);
+    disputeEvidenceInputRef.current?.click();
+  }
+
+  async function uploadDisputeEvidence(fileList: FileList | null) {
+    const files = Array.from(fileList ?? []);
+    if (!evidenceTargetId || files.length === 0) return;
+    setUploadingEvidence(true);
+    try {
+      for (const file of files) {
+        const response = await fetch(`/api/settlement-disputes/${evidenceTargetId}/evidences`, {
+          method: "POST",
+          headers: {
+            "content-type": file.type || "application/octet-stream",
+            "x-file-name": encodeURIComponent(file.name),
+            "x-file-type": file.type || "application/octet-stream"
+          },
+          body: await file.arrayBuffer()
+        });
+        const result = await response.json();
+        if (!response.ok) { setNotice(result.error || `${file.name} 上传失败`); return; }
+      }
+      setNotice(`已上传 ${files.length} 份二审凭证`);
+      await loadRecords();
+    } finally {
+      setUploadingEvidence(false);
+      setEvidenceTargetId("");
+      if (disputeEvidenceInputRef.current) disputeEvidenceInputRef.current.value = "";
+    }
+  }
+
+  async function deleteDisputeEvidence(recordId: string, evidenceId: string) {
+    const response = await fetch(`/api/settlement-disputes/${recordId}/evidences/${evidenceId}`, { method: "DELETE" });
+    const result = await response.json();
+    if (!response.ok) { setNotice(result.error || "删除二审凭证失败"); return; }
+    setNotice("二审凭证已删除");
+    await loadRecords();
+  }
+
+  function openDisputeBriefing(record: SettlementDisputeRecord) {
+    const item = briefingsData.find((briefing) => briefing.id === record.briefingId);
+    if (item) onOpenBriefing(item);
+  }
+
+  return <div className="settlement-dispute-panel">
+    <input accept="image/*,video/*,application/pdf" hidden multiple onChange={(event) => void uploadDisputeEvidence(event.target.files)} ref={disputeEvidenceInputRef} type="file" />
+    <div className="dispute-import-grid">
+      <label><span>通告ID（每行一个）</span><textarea onChange={(event) => setIdsText(event.target.value)} placeholder="粘贴一审不通过的鑫通告通告ID" rows={4} value={idsText} /></label>
+      <div className="dispute-import-fields">
+        <label><span>原结算周期</span><select onChange={(event) => setCycleKey(event.target.value)} value={cycleKey}>{cycleOptions.map((key) => <option key={key} value={key}>{weekCycleForKey(key).label}</option>)}</select></label>
+        <label><span>异议说明</span><input onChange={(event) => setReason(event.target.value)} placeholder="例如：经纪人认为签约者未重复" value={reason} /></label>
+        <button className="primary-action" disabled={!idsText.trim() || !cycleKey} onClick={() => void importRecords()} type="button"><Upload size={16} />导入争议通告</button>
+      </div>
+    </div>
+    {notice ? <p className="form-status">{notice}</p> : null}
+    <div className="responsive-table-wrap"><table className="dispute-table"><thead><tr><th>通告 / 经纪人</th><th>结算周期</th><th>异议说明</th><th>二审凭证</th><th>二审结论</th><th>状态</th><th>操作</th></tr></thead><tbody>
+      {records.map((record) => <tr className="clickable-dispute-row" key={record.id} onClick={(event) => { if (!(event.target as HTMLElement).closest("button, a, textarea, input")) openDisputeBriefing(record); }} onKeyDown={(event) => { if (event.key === "Enter" && event.target === event.currentTarget) openDisputeBriefing(record); }} tabIndex={0}>
+        <td><div className="dispute-identity"><strong>{record.briefingTitle}</strong><span className="copy-line">#{record.jarvisBriefingId}<CopyButton value={record.jarvisBriefingId} label="复制通告ID" /></span><small>{record.brokerNickname} · {record.brokerPhone || "-"}</small></div></td>
+        <td><div className="dispute-cycle"><strong>{weekCycleForKey(record.originalCycleKey).label}</strong>{record.deferredCycleKey ? <><span>补发至 {weekCycleForKey(record.deferredCycleKey).label}</span><small>{record.deferCompleteReward ? "新增签约奖励" : "有效通告奖励"} {money(disputeRewardAmount(record))}</small></> : null}</div></td>
+        <td>{record.reason || "-"}</td>
+        <td><div className="dispute-evidence-cell">
+          <button className="secondary-action compact-action dispute-upload-action" disabled={uploadingEvidence} onClick={() => chooseDisputeEvidence(record.id)} type="button"><Upload size={14} />{record.evidences.length ? "补充凭证" : "上传凭证"}</button>
+          {record.evidences.map((evidence) => <div className="dispute-evidence-file" key={evidence.id}><a href={evidence.fileUrl} rel="noreferrer" target="_blank">{evidence.fileName}</a>{record.status === "pending" ? <button aria-label={`删除${evidence.fileName}`} onClick={() => void deleteDisputeEvidence(record.id, evidence.id)} title="删除二审凭证" type="button"><Trash2 size={13} /></button> : null}</div>)}
+          {!record.evidences.length ? <small>通过前必须上传</small> : null}
+        </div></td>
+        <td>{record.status === "pending" ? <textarea onChange={(event) => setResolutionById((current) => ({ ...current, [record.id]: event.target.value }))} placeholder="填写二审依据与结论" rows={2} value={resolutionById[record.id] || ""} /> : record.resolution}</td>
+        <td><span className={`status-pill ${record.status === "approved" ? "success" : record.status === "rejected" ? "danger" : "warning"}`}>{record.status === "approved" ? "二审通过" : record.status === "rejected" ? "二审不通过" : "待二审"}</span></td>
+        <td><div className="dispute-review-actions">{record.status === "pending" ? <><button aria-label="二审通过" className="icon-only-button approve" disabled={!record.evidences.length} onClick={() => void reviewRecord(record, "approved")} title={!record.evidences.length ? "请先上传二审凭证" : "二审通过"} type="button"><Check size={17} /></button><button aria-label="二审不通过" className="icon-only-button reject" onClick={() => void reviewRecord(record, "rejected")} title="二审不通过" type="button"><XCircle size={17} /></button></> : <span className="muted">-</span>}</div></td>
+      </tr>)}
+    </tbody></table></div>
+    {!records.length ? <p className="empty-state">暂无争议通告。</p> : null}
+  </div>;
 }
 
 function Dashboard({
   brokersData,
   briefingsData,
   importBatchesData,
-  onOpenBroker
+  onOpenAudit,
+  onOpenBroker,
+  onOpenBrokers,
+  onOpenDataSync
 }: {
   brokersData: Broker[];
   briefingsData: Briefing[];
   importBatchesData: ImportBatch[];
+  onOpenAudit?: () => void;
   onOpenBroker: (broker: Broker) => void;
+  onOpenBrokers?: () => void;
+  onOpenDataSync?: () => void;
 }) {
   const brokerPerformanceRows = buildBrokerPerformanceRows(brokersData, briefingsData);
   const eligibleBriefings = programEligibleBriefings(brokersData, briefingsData);
@@ -1719,47 +2174,79 @@ function Dashboard({
   const signedSummary = buildSignedModelSummary(eligibleBriefings);
   const pendingPublishCount = reviewSummary.pendingPublishCount;
   const pendingCompleteCount = reviewSummary.pendingCompleteCount;
-  const promotionCandidates = brokerPerformanceRows
+  const promotionReadyRows = brokerPerformanceRows
     .filter((row) => row.isPromotionReady
       && row.broker.brokerLevel === "normal"
       && Boolean(row.broker.seedPhase && row.broker.seedProgramJoinedAt))
-    .sort((left, right) => right.rewardAmount - left.rewardAmount)
-    .slice(0, 5);
+    .sort((left, right) => right.rewardAmount - left.rewardAmount);
+  const promotionCandidates = promotionReadyRows.slice(0, 5);
   const rewardLeaders = [...brokerPerformanceRows]
     .filter((row) => row.rewardAmount > 0)
     .sort((left, right) => right.rewardAmount - left.rewardAmount)
     .slice(0, 6);
   const estimatedRewardAmount = brokerPerformanceRows.reduce((total, row) => total + row.rewardAmount, 0);
+  const pendingReviewCount = pendingPublishCount + pendingCompleteCount;
+  const importedDetailCount = briefingsData.filter((item) => item.detailImported).length;
+  const detailCoverage = briefingsData.length ? Math.round((importedDetailCount / briefingsData.length) * 100) : 100;
+  const latestBatch = [...importBatchesData].sort((left, right) => dateValue(right.importedAt) - dateValue(left.importedAt))[0];
 
   return (
     <section className="page">
       <PageHeader
-        eyebrow="Dashboard"
-        title="仪表盘"
-        description={`运营总览：${latestImportTitle(importBatchesData)}。`}
+        eyebrow="Operations"
+        title="运营工作总览"
+        description="先处理审核与资料异常，再跟进晋升候选和奖励结果。"
       />
 
-      <div className="metric-grid">
-        <MetricCard label="经纪人总数" value={brokersData.length} delta={`${brokersData.filter((broker) => broker.accountStatus === "正常").length} 位正常`} />
-        <MetricCard label="种子经纪人" value={brokersData.filter((broker) => broker.brokerLevel === "seed").length} delta={`${brokersData.filter((broker) => broker.referralUnlocked).length} 位已开引荐`} />
-        <MetricCard label="已导入通告" value={briefingsData.length} delta={`${briefingsData.filter((item) => item.detailImported).length} 条详情已入库`} />
-        <MetricCard label="有效通告" value={validPublishCount} delta="人工审核通过" />
-        <MetricCard label="新增签约" value={bonusCompleteCount} delta="仅在种子身份生效后判重" />
-        <MetricCard label="待审核" value={pendingPublishCount + pendingCompleteCount} delta={`${pendingPublishCount} 发布 / ${pendingCompleteCount} 完成`} />
-        <MetricCard label="人工已审核" value={reviewSummary.manualReviewedCount} delta={`${reviewSummary.manualPendingCount} 条未人工保存`} />
+      <section className="operations-overview panel">
+        <div className="operations-overview-primary">
+          <span>当前首要任务</span>
+          <div><strong>{pendingReviewCount}</strong><b>项待审核</b></div>
+          <p>{pendingReviewCount ? `其中有效通告 ${pendingPublishCount} 项、新增签约 ${pendingCompleteCount} 项，建议优先处理。` : "当前没有待审核任务，可继续检查资料完整性与晋升候选。"}</p>
+          {onOpenAudit ? <button className="operations-overview-action" onClick={onOpenAudit} type="button">进入审核中心<ExternalLink size={14} /></button> : null}
+        </div>
+        <div className="operations-signal-grid">
+          <div className={reviewSummary.missingEvidenceCount ? "operations-signal warning" : "operations-signal success"}>
+            <span>凭证缺口</span>
+            <strong>{reviewSummary.missingEvidenceCount}</strong>
+            <small>待审核且未上传凭证</small>
+          </div>
+          <div className={reviewSummary.missingDetailCount ? "operations-signal warning" : "operations-signal success"}>
+            <span>资料完整度</span>
+            <strong>{detailCoverage}%</strong>
+            <small>{reviewSummary.missingDetailCount} 条通告待补详情</small>
+          </div>
+          <div className="operations-signal">
+            <span>待晋升跟进</span>
+            <strong>{promotionReadyRows.length}</strong>
+            <small>已达到 6 + 2 条件</small>
+          </div>
+          <div className={latestBatch?.status === "失败" ? "operations-signal danger" : "operations-signal success"}>
+            <span>最近数据同步</span>
+            <strong>{latestBatch?.status ?? "暂无"}</strong>
+            <small>{latestBatch ? latestBatch.importedAt : "尚无同步批次"}</small>
+          </div>
+        </div>
+      </section>
+
+      <div className="metric-grid operations-result-grid">
+        <MetricCard label="有效通告" value={validPublishCount} delta="人工审核通过后计数" />
+        <MetricCard label="新增签约" value={bonusCompleteCount} delta="审核通过且完成历史判重" />
         <MetricCard label="已签约模特" value={signedSummary.totalSignedModelCount} delta={`${signedSummary.newLatestModels.length} 位最近新增`} />
-        <MetricCard label="当前预估奖金" value={money(estimatedRewardAmount)} delta="发布奖 + 完成奖" />
+        <MetricCard label="种子经纪人" value={brokersData.filter((broker) => broker.brokerLevel === "seed").length} delta={`${brokersData.filter((broker) => broker.referralUnlocked).length} 位已开引荐`} />
+        <MetricCard label="经纪人总数" value={brokersData.length} delta={`最近同步覆盖 ${latestBatch?.brokerCount ?? 0} 位`} />
+        <MetricCard label="当前预估奖金" value={money(estimatedRewardAmount)} delta="发布奖 + 完成奖，结算前预估" />
       </div>
 
-      <div className="two-column">
+      <div className="two-column operations-workspace">
         <section className="panel">
-          <PanelTitle icon={<Gauge size={18} />} title="运营待办" />
+          <PanelTitle icon={<ListChecks size={18} />} title="优先处理队列" />
           <div className="task-grid">
-            <TaskCard label="有效通告待审核" value={pendingPublishCount} hint="需要核对视频凭证与通告详情" />
-            <TaskCard label="新增签约待审核" value={pendingCompleteCount} hint="按签约者用户ID与历史订单判重" />
-            <TaskCard label="待晋升处理" value={promotionCandidates.length} hint="已达到 6 + 2 条件" />
-            <TaskCard label="未导入详情" value={reviewSummary.missingDetailCount} hint="需补抓通告详情字段" />
-            <TaskCard label="待审核且未上传凭证" value={reviewSummary.missingEvidenceCount} hint="仅统计仍需人工凭证审核的通告" />
+            <TaskCard label="有效通告待审核" value={pendingPublishCount} hint="核对视频凭证与通告详情" tone={pendingPublishCount ? "warning" : "default"} onAction={onOpenAudit} />
+            <TaskCard label="新增签约待审核" value={pendingCompleteCount} hint="核对签约者并执行历史判重" tone={pendingCompleteCount ? "warning" : "default"} onAction={onOpenAudit} />
+            <TaskCard label="缺少审核凭证" value={reviewSummary.missingEvidenceCount} hint="补齐凭证后才能完成审核" tone={reviewSummary.missingEvidenceCount ? "danger" : "default"} onAction={onOpenAudit} />
+            <TaskCard label="通告详情待补" value={reviewSummary.missingDetailCount} hint="检查同步结果与缺失字段" tone={reviewSummary.missingDetailCount ? "warning" : "default"} onAction={onOpenDataSync} />
+            <TaskCard label="晋升候选待跟进" value={promotionReadyRows.length} hint="已达到 6 个有效通告 + 2 个新增签约" onAction={onOpenBrokers} />
           </div>
         </section>
 
@@ -1823,14 +2310,30 @@ function Dashboard({
   );
 }
 
-function TaskCard({ label, value, hint }: { label: string; value: number; hint: string }) {
-  return (
-    <div className="task-card">
+function TaskCard({
+  label,
+  value,
+  hint,
+  tone = "default",
+  onAction
+}: {
+  label: string;
+  value: number;
+  hint: string;
+  tone?: "default" | "warning" | "danger";
+  onAction?: () => void;
+}) {
+  const content = (
+    <>
       <span>{label}</span>
       <strong>{value}</strong>
       <small>{hint}</small>
-    </div>
+      {onAction ? <b className="task-card-action">前往处理<ExternalLink size={13} /></b> : null}
+    </>
   );
+  return onAction
+    ? <button className={`task-card task-card-button ${tone}`} onClick={onAction} type="button">{content}</button>
+    : <div className={`task-card ${tone}`}>{content}</div>;
 }
 
 function ImportBatchList({ batches }: { batches: ImportBatch[] }) {
@@ -1857,115 +2360,268 @@ function ImportBatchList({ batches }: { batches: ImportBatch[] }) {
   );
 }
 
+type AnalyticsTimeUnit = "week" | "month" | "quarter";
+
+function analyticsPeriod(unit: AnalyticsTimeUnit, anchor = new Date()) {
+  if (unit === "week") {
+    const cycle = weekCycleForDate(anchor);
+    const start = cycle.start ?? anchor;
+    return { start, end: new Date(start.getTime() + 7 * 86400000), label: cycle.shortLabel };
+  }
+  if (unit === "month") {
+    const start = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+    return { start, end: new Date(anchor.getFullYear(), anchor.getMonth() + 1, 1), label: `${anchor.getFullYear()}年${anchor.getMonth() + 1}月` };
+  }
+  const quarter = Math.floor(anchor.getMonth() / 3);
+  const start = new Date(anchor.getFullYear(), quarter * 3, 1);
+  return { start, end: new Date(anchor.getFullYear(), quarter * 3 + 3, 1), label: `${anchor.getFullYear()}年第${quarter + 1}季度` };
+}
+
+function previousAnalyticsPeriod(unit: AnalyticsTimeUnit, current: ReturnType<typeof analyticsPeriod>) {
+  const anchor = unit === "week"
+    ? new Date(current.start.getTime() - 86400000)
+    : unit === "month"
+      ? new Date(current.start.getFullYear(), current.start.getMonth() - 1, 15)
+      : new Date(current.start.getFullYear(), current.start.getMonth() - 3, 15);
+  return analyticsPeriod(unit, anchor);
+}
+
+function inAnalyticsPeriod(value: string | Date, period: ReturnType<typeof analyticsPeriod>) {
+  const timestamp = dateValue(value);
+  return timestamp >= period.start.getTime() && timestamp < period.end.getTime();
+}
+
+function analyticsPerformance(broker: Pick<Broker, "id" | "brokerLevel" | "seedPhase" | "seedProgramJoinedAt" | "seedQualifiedAt">, briefingsData: Briefing[], period: ReturnType<typeof analyticsPeriod>) {
+  const brokerItems = briefingsData.filter((briefing) => briefing.brokerId === broker.id);
+  const profile = buildRewardProfile(brokerItems, undefined, brokerSelfRewardStartAt(broker));
+  const validPublishCount = profile.validPublishBriefings.filter((briefing) => inAnalyticsPeriod(briefing.publishedAt, period)).length;
+  const bonusCompleteCount = profile.bonusCompleteRows.filter((row) => {
+    const completedAt = activityEndAt(row.briefing.workDate, row.briefing.workTime) ?? row.briefing.publishedAt;
+    return inAnalyticsPeriod(completedAt, period);
+  }).length;
+  return { validPublishCount, bonusCompleteCount };
+}
+
+function analyticsDelta(current: number, previous: number) {
+  const amount = current - previous;
+  const amountText = `${amount > 0 ? "+" : ""}${amount}`;
+  if (previous === 0) return current === 0 ? "持平 0" : `由 0 增至 ${current}`;
+  const rate = (amount / previous) * 100;
+  return `${amountText} · ${rate > 0 ? "+" : ""}${rate.toFixed(1)}%`;
+}
+
 function Stats({ brokersData, briefingsData }: { brokersData: Broker[]; briefingsData: Briefing[] }) {
-  const brokerPerformanceRows = buildBrokerPerformanceRows(brokersData, briefingsData);
-  const eligibleBriefings = programEligibleBriefings(brokersData, briefingsData);
-  const reviewSummary = buildProgramReviewSummary(brokersData, briefingsData);
-  const validPublishCount = brokerPerformanceRows.reduce((total, row) => total + row.validPublishCount, 0);
-  const bonusCompleteCount = brokerPerformanceRows.reduce((total, row) => total + row.bonusCompleteCount, 0);
-  const signedSummary = buildSignedModelSummary(eligibleBriefings);
-  const publishRate = percentValue(validPublishCount, eligibleBriefings.length);
-  const completeRate = percentValue(bonusCompleteCount, validPublishCount);
-  const promotionReadyCount = brokerPerformanceRows.filter((row) => row.isPromotionReady
-    && row.broker.brokerLevel === "normal"
-    && Boolean(row.broker.seedPhase && row.broker.seedProgramJoinedAt)).length;
-  const topRows = [...brokerPerformanceRows]
-    .sort((left, right) => right.validPublishCount - left.validPublishCount || right.bonusCompleteCount - left.bonusCompleteCount)
-    .slice(0, 8);
-  const statusRows = [
-    { label: "计划内通告", value: eligibleBriefings.length, rate: percentValue(eligibleBriefings.length, eligibleBriefings.length) },
-    { label: "有效通告", value: validPublishCount, rate: publishRate },
-    { label: "新增签约奖励", value: bonusCompleteCount, rate: completeRate },
-    { label: "有效通告待审核", value: reviewSummary.pendingPublishCount, rate: percentValue(reviewSummary.pendingPublishCount, eligibleBriefings.length) },
-    { label: "新增签约待审核", value: reviewSummary.pendingCompleteCount, rate: percentValue(reviewSummary.pendingCompleteCount, eligibleBriefings.length) },
-    { label: "有效通告不通过", value: reviewSummary.rejectedPublishCount, rate: percentValue(reviewSummary.rejectedPublishCount, eligibleBriefings.length) },
-    { label: "新增签约不通过", value: reviewSummary.rejectedCompleteCount, rate: percentValue(reviewSummary.rejectedCompleteCount, eligibleBriefings.length) }
+  const phases = Array.from(new Set(brokersData.map((broker) => broker.seedPhase).filter((phase): phase is number => Boolean(phase)))).sort((left, right) => left - right);
+  const [selectedPhase, setSelectedPhase] = useState(phases[0] ?? 1);
+  const [timeUnit, setTimeUnit] = useState<AnalyticsTimeUnit>("week");
+  const [selectedSeedId, setSelectedSeedId] = useState("all");
+  const [referralsBySeed, setReferralsBySeed] = useState<Record<string, ReferralNode[]>>({});
+  const initialSeeds = brokersData.filter((broker) => broker.brokerLevel === "seed" && !broker.referrerBoundAt);
+  const phaseSeeds = initialSeeds.filter((broker) => broker.seedPhase === selectedPhase);
+  const selectedSeeds = selectedSeedId === "all" ? phaseSeeds : phaseSeeds.filter((broker) => broker.id === selectedSeedId);
+  const currentPeriod = analyticsPeriod(timeUnit);
+  const previousPeriod = previousAnalyticsPeriod(timeUnit, currentPeriod);
+
+  useEffect(() => {
+    let active = true;
+    Promise.all(initialSeeds.map(async (broker) => {
+      const response = await fetch(`/api/brokers/${broker.id}/referrals`);
+      return [broker.id, response.ok ? await response.json() as ReferralNode[] : []] as const;
+    })).then((entries) => {
+      if (active) setReferralsBySeed(Object.fromEntries(entries));
+    }).catch(() => {
+      if (active) setReferralsBySeed({});
+    });
+    return () => { active = false; };
+  }, [brokersData]);
+
+  useEffect(() => {
+    if (selectedSeedId !== "all" && !phaseSeeds.some((broker) => broker.id === selectedSeedId)) setSelectedSeedId("all");
+  }, [phaseSeeds, selectedSeedId]);
+
+  const sumPerformance = (brokers: Array<Pick<Broker, "id" | "brokerLevel" | "seedPhase" | "seedProgramJoinedAt" | "seedQualifiedAt">>, period: ReturnType<typeof analyticsPeriod>) => brokers.reduce((totals, broker) => {
+    const performance = analyticsPerformance(broker, briefingsData, period);
+    return { validPublishCount: totals.validPublishCount + performance.validPublishCount, bonusCompleteCount: totals.bonusCompleteCount + performance.bonusCompleteCount };
+  }, { validPublishCount: 0, bonusCompleteCount: 0 });
+
+  const selectedReferrals = selectedSeeds.flatMap((broker) => referralsBySeed[broker.id] ?? []);
+  const uniqueReferrals = Array.from(new Map(selectedReferrals.map((node) => [node.id, node])).values());
+  const currentOwn = sumPerformance(selectedSeeds, currentPeriod);
+  const previousOwn = sumPerformance(selectedSeeds, previousPeriod);
+  const currentReferral = sumPerformance(uniqueReferrals, currentPeriod);
+  const previousReferral = sumPerformance(uniqueReferrals, previousPeriod);
+  const activeReferralCount = uniqueReferrals.filter((node) => {
+    const value = analyticsPerformance(node, briefingsData, currentPeriod);
+    return value.validPublishCount > 0 || value.bonusCompleteCount > 0;
+  }).length;
+  const previousActiveReferralCount = uniqueReferrals.filter((node) => {
+    const value = analyticsPerformance(node, briefingsData, previousPeriod);
+    return value.validPublishCount > 0 || value.bonusCompleteCount > 0;
+  }).length;
+  const signedReferralCount = uniqueReferrals.filter((node) => analyticsPerformance(node, briefingsData, currentPeriod).bonusCompleteCount > 0).length;
+  const promotedReferralCount = uniqueReferrals.filter((node) => node.brokerLevel === "seed").length;
+  const qualifiedReferralCount = uniqueReferrals.filter((node) => node.validPublishCount >= 6 && node.validCompleteCount >= 2).length;
+  const referralBaseCount = uniqueReferrals.filter((node) => {
+    const cycleKey = referralBaseAwardCycle(node, briefingsData.filter((briefing) => briefing.brokerId === node.id));
+    const cycle = cycleKey ? weekCycleForKey(cycleKey) : null;
+    return Boolean(cycle?.start && inAnalyticsPeriod(cycle.start, currentPeriod));
+  }).length;
+  const commissionAmount = referralBaseCount * 10 + currentReferral.bonusCompleteCount;
+  const totalValidPublish = currentOwn.validPublishCount + currentReferral.validPublishCount;
+  const totalSigning = currentOwn.bonusCompleteCount + currentReferral.bonusCompleteCount;
+  const previousTotalPublish = previousOwn.validPublishCount + previousReferral.validPublishCount;
+  const previousTotalSigning = previousOwn.bonusCompleteCount + previousReferral.bonusCompleteCount;
+  const activationRate = percentValue(activeReferralCount, uniqueReferrals.length);
+  const promotionRate = percentValue(promotedReferralCount, uniqueReferrals.length);
+  const referralContributionRate = percentValue(currentReferral.bonusCompleteCount, totalSigning);
+  const costPerSigning = currentReferral.bonusCompleteCount ? commissionAmount / currentReferral.bonusCompleteCount : 0;
+  const comparisonChartRows = [
+    { label: "有效通告", current: totalValidPublish, previous: previousTotalPublish },
+    { label: "新增签约", current: totalSigning, previous: previousTotalSigning },
+    { label: "活跃下线", current: activeReferralCount, previous: previousActiveReferralCount }
   ];
-  const sourceStatusRows = Array.from(eligibleBriefings.reduce((map, briefing) => {
-    const key = briefing.sourceStatus || "-";
-    map.set(key, (map.get(key) ?? 0) + 1);
-    return map;
-  }, new Map<string, number>())).sort((left, right) => right[1] - left[1]);
+  const comparisonChartMax = Math.max(1, ...comparisonChartRows.flatMap((row) => [row.current, row.previous]));
+  const ownSigningRate = totalSigning ? (currentOwn.bonusCompleteCount / totalSigning) * 100 : 0;
+  const referralSigningRate = totalSigning ? (currentReferral.bonusCompleteCount / totalSigning) * 100 : 0;
+
+  const seedRows = selectedSeeds.map((broker) => {
+    const own = analyticsPerformance(broker, briefingsData, currentPeriod);
+    const referrals = referralsBySeed[broker.id] ?? [];
+    const referral = sumPerformance(referrals, currentPeriod);
+    const activeCount = referrals.filter((node) => {
+      const performance = analyticsPerformance(node, briefingsData, currentPeriod);
+      return performance.validPublishCount > 0 || performance.bonusCompleteCount > 0;
+    }).length;
+    const baseCount = referrals.filter((node) => {
+      const cycleKey = referralBaseAwardCycle(node, briefingsData.filter((briefing) => briefing.brokerId === node.id));
+      const cycle = cycleKey ? weekCycleForKey(cycleKey) : null;
+      return Boolean(cycle?.start && inAnalyticsPeriod(cycle.start, currentPeriod));
+    }).length;
+    return { broker, own, referrals, referral, activeCount, commission: baseCount * 10 + referral.bonusCompleteCount };
+  }).sort((left, right) => right.referral.bonusCompleteCount - left.referral.bonusCompleteCount || right.referrals.length - left.referrals.length);
+
+  const phaseRows = phases.map((phase) => {
+    const seeds = initialSeeds.filter((broker) => broker.seedPhase === phase);
+    const referrals = Array.from(new Map(seeds.flatMap((broker) => referralsBySeed[broker.id] ?? []).map((node) => [node.id, node])).values());
+    const own = sumPerformance(seeds, currentPeriod);
+    const referral = sumPerformance(referrals, currentPeriod);
+    return { phase, seeds, referrals, own, referral };
+  });
+  const comparisonPhase = phaseRows.find((row) => row.phase !== selectedPhase);
+  const comparisonSigningPerSeed = comparisonPhase?.seeds.length ? (comparisonPhase.own.bonusCompleteCount + comparisonPhase.referral.bonusCompleteCount) / comparisonPhase.seeds.length : 0;
+  const currentSigningPerSeed = selectedSeeds.length ? totalSigning / selectedSeeds.length : 0;
+  const effectivenessText = uniqueReferrals.length === 0
+    ? `第${selectedPhase}期当前没有已关联下线，暂时无法判断裂变成效。`
+    : `${currentPeriod.label}共开发 ${uniqueReferrals.length} 位直接下线，${activeReferralCount} 位产生有效业务，下线激活率 ${activationRate}。下线贡献 ${currentReferral.bonusCompleteCount} 个新增签约，占本期总新增签约 ${referralContributionRate}；裂变提成 ${money(commissionAmount)}，每个下线新增签约成本 ${money(costPerSigning)}。`;
+  const comparisonText = comparisonPhase
+    ? `按每位初始种子计算，第${selectedPhase}期本周期新增签约 ${currentSigningPerSeed.toFixed(1)} 个，第${comparisonPhase.phase}期为 ${comparisonSigningPerSeed.toFixed(1)} 个，${currentSigningPerSeed >= comparisonSigningPerSeed ? `第${selectedPhase}期效率更高` : `第${comparisonPhase.phase}期效率更高`}。`
+    : "当前只有一个种子期数，待新增下一期后可自动生成跨期对比。";
 
   return (
-    <section className="page">
+    <section className="page seed-analytics-page">
       <PageHeader
-        eyebrow="Analytics"
-        title="数据统计"
-        description="围绕经纪人增长、有效通告、新增签约和奖励预算做运营判断。"
+        eyebrow="Seed Growth Analytics"
+        title="种子裂变经营分析"
+        description="面向管理层审阅种子计划规模、业务产出、裂变质量与提成投入效率。"
       />
-      <div className="metric-grid">
-        <MetricCard label="有效通告率" value={publishRate} delta={`${validPublishCount}/${eligibleBriefings.length} 条`} />
-        <MetricCard label="新增签约率" value={completeRate} delta={`${bonusCompleteCount}/${validPublishCount} 条`} />
-        <MetricCard label="已签约模特" value={signedSummary.totalSignedModelCount} delta={`${signedSummary.signingRecordCount} 条签约记录`} />
-        <MetricCard label="新增签约模特" value={signedSummary.newLatestModels.length} delta="优先按签约者用户ID判重" />
-        <MetricCard label="可晋升经纪人" value={promotionReadyCount} delta="满足 6 + 2 条件" />
-        <MetricCard label="待处理审核" value={reviewSummary.pendingAnyCount} delta={`${reviewSummary.pendingPublishCount} 发布 / ${reviewSummary.pendingCompleteCount} 签约`} />
-        <MetricCard label="人工已审核" value={reviewSummary.manualReviewedCount} delta={`${reviewSummary.manualPendingCount} 条未人工保存`} />
+      <section className="panel analytics-toolbar">
+        <label><span>种子期数</span><select value={selectedPhase} onChange={(event) => { setSelectedPhase(Number(event.target.value)); setSelectedSeedId("all"); }}>{phases.map((phase) => <option key={phase} value={phase}>第{phase}期</option>)}</select></label>
+        <div><span>时间维度</span><div className="segmented">{([['week', '结算周'], ['month', '月'], ['quarter', '季度']] as const).map(([key, label]) => <button className={timeUnit === key ? "active" : ""} key={key} onClick={() => setTimeUnit(key)} type="button">{label}</button>)}</div></div>
+        <label><span>统计对象</span><select value={selectedSeedId} onChange={(event) => setSelectedSeedId(event.target.value)}><option value="all">全部初始种子经纪人</option>{phaseSeeds.map((broker) => <option key={broker.id} value={broker.id}>{broker.nickname}</option>)}</select></label>
+        <div className="analytics-period-label"><span>当前统计周期</span><strong>{currentPeriod.label}</strong><small>对比：{previousPeriod.label}</small></div>
+      </section>
+
+      <div className="metric-grid analytics-metric-grid">
+        <MetricCard label="初始种子经纪人" value={selectedSeeds.length} delta={`第${selectedPhase}期 · 非裂变下线`} />
+        <MetricCard label="有效通告" value={totalValidPublish} delta={analyticsDelta(totalValidPublish, previousTotalPublish)} />
+        <MetricCard label="新增签约" value={totalSigning} delta={analyticsDelta(totalSigning, previousTotalSigning)} />
+        <MetricCard label="直接下线 / 活跃" value={`${uniqueReferrals.length} / ${activeReferralCount}`} delta={`激活率 ${activationRate}`} />
+        <MetricCard label="达标 / 已晋升" value={`${qualifiedReferralCount} / ${promotedReferralCount}`} delta={`晋升率 ${promotionRate}`} />
+        <MetricCard label="裂变提成" value={money(commissionAmount)} delta={`签约成本 ${money(costPerSigning)}/个`} />
       </div>
 
-      <div className="two-column">
-        <section className="panel">
-          <PanelTitle icon={<BarChart3 size={18} />} title="审核漏斗" />
-          <div className="funnel-list">
-            {statusRows.map((row) => (
-              <div className="funnel-row" key={row.label}>
-                <div>
-                  <strong>{row.label}</strong>
-                  <span>{row.value} 条 · {row.rate}</span>
-                </div>
-                <div className="mini-bar" aria-hidden="true">
-                  <span style={{ width: row.value === 0 ? "0%" : row.rate }} />
+      <div className="analytics-chart-grid">
+        <section className="panel analytics-chart-panel">
+          <PanelTitle icon={<BarChart3 size={18} />} title="周期数据对比" />
+          <div className="analytics-chart-legend"><span className="current">当前：{currentPeriod.label}</span><span className="previous">上一周期：{previousPeriod.label}</span></div>
+          <div className="comparison-bar-chart">
+            {comparisonChartRows.map((row) => (
+              <div className="comparison-bar-row" key={row.label}>
+                <strong>{row.label}</strong>
+                <div className="comparison-bars">
+                  <div><span className="current-bar" style={{ width: `${(row.current / comparisonChartMax) * 100}%` }} /><b>{row.current}</b></div>
+                  <div><span className="previous-bar" style={{ width: `${(row.previous / comparisonChartMax) * 100}%` }} /><b>{row.previous}</b></div>
                 </div>
               </div>
             ))}
           </div>
         </section>
 
+        <section className="panel analytics-chart-panel">
+          <PanelTitle icon={<GitBranch size={18} />} title="新增签约来源占比" />
+          <div className="donut-chart-layout">
+            <div
+              aria-label={`本人贡献 ${ownSigningRate.toFixed(1)}%，下线贡献 ${referralSigningRate.toFixed(1)}%`}
+              className={`analytics-donut ${totalSigning === 0 ? "empty" : ""}`}
+              role="img"
+              style={{ "--referral-rate": `${referralSigningRate}%` } as React.CSSProperties}
+            >
+              <div><strong>{totalSigning}</strong><span>新增签约</span></div>
+            </div>
+            <div className="donut-breakdown">
+              <div><span className="donut-swatch own" /><p><small>种子本人</small><strong>{currentOwn.bonusCompleteCount} 个 · {ownSigningRate.toFixed(1)}%</strong></p></div>
+              <div><span className="donut-swatch referral" /><p><small>直接下线</small><strong>{currentReferral.bonusCompleteCount} 个 · {referralSigningRate.toFixed(1)}%</strong></p></div>
+              <p className="donut-note">下线贡献越高，代表种子计划越能形成持续裂变，而不是依赖初始种子本人产出。</p>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div className="two-column">
+        <section className="panel analytics-insight-panel">
+          <PanelTitle icon={<BarChart3 size={18} />} title="管理层分析摘要" />
+          <p>{effectivenessText}</p>
+          <p>{comparisonText}</p>
+          <div className="analytics-callouts"><span>下线签约贡献 <strong>{referralContributionRate}</strong></span><span>人均新增签约 <strong>{currentSigningPerSeed.toFixed(1)}</strong></span><span>提成投入 <strong>{money(commissionAmount)}</strong></span></div>
+        </section>
+
         <section className="panel">
-          <PanelTitle icon={<BriefcaseBusiness size={18} />} title="通告状态分布" />
-          <div className="source-status-grid">
-            {sourceStatusRows.map(([label, value]) => (
-              <div className="source-status-card" key={label}>
-                <span>{label}</span>
-                <strong>{value}</strong>
-                <small>{percentValue(value, eligibleBriefings.length)}</small>
+          <PanelTitle icon={<GitBranch size={18} />} title="直接下线转化漏斗" />
+          <div className="funnel-list">
+            {[
+              { label: "已关联直接下线", value: uniqueReferrals.length },
+              { label: "本周期活跃下线", value: activeReferralCount },
+              { label: "产生新增签约", value: signedReferralCount },
+              { label: "累计达到 6 + 2", value: qualifiedReferralCount },
+              { label: "已晋升种子经纪人", value: promotedReferralCount }
+            ].map((row) => (
+              <div className="funnel-row" key={row.label}>
+                <div><strong>{row.label}</strong><span>{row.value} 人 · {percentValue(row.value, uniqueReferrals.length)}</span></div>
+                <div className="mini-bar" aria-hidden="true"><span style={{ width: percentValue(row.value, uniqueReferrals.length) }} /></div>
               </div>
             ))}
-            {sourceStatusRows.length === 0 ? <p className="empty-state compact-empty">暂无通告状态数据。</p> : null}
           </div>
         </section>
       </div>
 
       <section className="panel table-panel">
-        <PanelTitle icon={<UsersRound size={18} />} title="经纪人表现排行" />
+        <PanelTitle icon={<UsersRound size={18} />} title={`第${selectedPhase}期种子经纪人个人表现`} />
         <table>
-          <thead>
-            <tr>
-              <th>经纪人</th>
-              <th>已导入通告</th>
-              <th>有效通告</th>
-              <th>新增签约奖励</th>
-              <th>签约模特</th>
-              <th>预估奖金</th>
-            </tr>
-          </thead>
+          <thead><tr><th>初始种子经纪人</th><th>本人有效通告 / 签约</th><th>直接下线 / 活跃</th><th>下线有效通告 / 签约</th><th>下线签约贡献</th><th>裂变提成</th></tr></thead>
           <tbody>
-            {topRows.map((row) => (
-              <tr key={row.broker.id}>
-                <td>
-                  <strong>{row.broker.nickname}</strong>
-                  <span>{row.broker.boundPhone} · #{row.broker.miniProgramUserId}</span>
-                </td>
-                <td>{row.briefingCount}</td>
-                <td>{row.validPublishCount}</td>
-                <td>{row.bonusCompleteCount}</td>
-                <td>{row.signedModelCount}</td>
-                <td>{money(row.rewardAmount)}</td>
-              </tr>
-            ))}
+            {seedRows.map((row) => <tr key={row.broker.id}><td><div className="user-cell"><strong>{row.broker.nickname}</strong><span>{row.broker.boundPhone} · #{row.broker.miniProgramUserId}</span></div></td><td>{row.own.validPublishCount} / {row.own.bonusCompleteCount}</td><td>{row.referrals.length} / {row.activeCount}</td><td>{row.referral.validPublishCount} / {row.referral.bonusCompleteCount}</td><td>{percentValue(row.referral.bonusCompleteCount, row.own.bonusCompleteCount + row.referral.bonusCompleteCount)}</td><td><strong>{money(row.commission)}</strong></td></tr>)}
+            {seedRows.length === 0 ? <tr><td colSpan={6}><p className="empty-state compact-empty">当前期数没有符合“无上线关系”的初始种子经纪人。</p></td></tr> : null}
           </tbody>
         </table>
+      </section>
+
+      <section className="panel table-panel">
+        <PanelTitle icon={<Sprout size={18} />} title="种子期数横向对比" />
+        <table><thead><tr><th>期数</th><th>初始种子</th><th>直接下线</th><th>有效通告</th><th>新增签约</th><th>人均签约</th><th>下线签约贡献</th></tr></thead><tbody>{phaseRows.map((row) => {
+          const publishCount = row.own.validPublishCount + row.referral.validPublishCount;
+          const signingCount = row.own.bonusCompleteCount + row.referral.bonusCompleteCount;
+          return <tr className={row.phase === selectedPhase ? "analytics-selected-row" : ""} key={row.phase}><td><strong>第{row.phase}期</strong></td><td>{row.seeds.length}</td><td>{row.referrals.length}</td><td>{publishCount}</td><td>{signingCount}</td><td>{row.seeds.length ? (signingCount / row.seeds.length).toFixed(1) : "0.0"}</td><td>{percentValue(row.referral.bonusCompleteCount, signingCount)}</td></tr>;
+        })}</tbody></table>
       </section>
     </section>
   );
@@ -1990,6 +2646,32 @@ function BrokerList({
   const [importStatus, setImportStatus] = useState("");
   const [importTone, setImportTone] = useState<"neutral" | "success" | "error">("neutral");
   const [isImporting, setIsImporting] = useState(false);
+  const [syncProgress, setSyncProgress] = useState({ percent: 0, stage: "正在准备同步" });
+
+  useEffect(() => {
+    if (!isImporting) return;
+    let active = true;
+    const loadProgress = async () => {
+      try {
+        const response = await fetch("/api/data-sync/active");
+        const run = await response.json() as { progressPercent?: number; progressStage?: string } | null;
+        if (active && response.ok && run) {
+          setSyncProgress({ percent: run.progressPercent ?? 0, stage: run.progressStage || "正在同步数据" });
+        }
+      } catch {
+        // 同步请求仍会在自身流程中反馈错误，这里不覆盖当前进度提示。
+      }
+    };
+    void loadProgress();
+    const interval = window.setInterval(() => { void loadProgress(); }, 700);
+    return () => { active = false; window.clearInterval(interval); };
+  }, [isImporting]);
+
+  useEffect(() => {
+    if (importTone !== "success" || !importStatus) return;
+    const timer = window.setTimeout(() => setImportStatus(""), 1500);
+    return () => window.clearTimeout(timer);
+  }, [importStatus, importTone]);
 
   const filteredBrokers = brokersData.filter((broker) => {
     const matchesFilter =
@@ -2044,42 +2726,29 @@ function BrokerList({
     URL.revokeObjectURL(link.href);
   }
 
-  async function importBrokersFromChrome() {
+  async function syncBrokersFromOpenApi() {
     setIsImporting(true);
     setImportTone("neutral");
-    setImportStatus("正在通过已登录浏览器抓取鑫通告经纪人列表，请等待系统自动返回本页...");
+    setImportStatus("");
+    setSyncProgress({ percent: 0, stage: "正在准备同步" });
     try {
-      const extensionImport = await importWithBrowserExtension({ mode: "brokers" });
-      if (extensionImport.available) {
-        if (!extensionImport.ok) {
-          setImportTone("error");
-          setImportStatus(extensionImport.error ?? "Edge 扩展导入经纪人数据失败");
-          return;
-        }
-        const result = extensionImport.result ?? {};
-        await onRefresh();
-        setImportTone("success");
-        setImportStatus(`导入完成：本次抓取 ${result.importedCount ?? 0} 位经纪人，写入 ${result.importedCount ?? 0} 位，新增 ${result.newBrokerCount ?? 0} 位。`);
-        return;
-      }
-      if (!/Mac/i.test(navigator.userAgent)) {
-        setImportTone("error");
-        setImportStatus("未检测到 Edge 扩展连接。请安装 v0.2.1，重新加载扩展后刷新当前系统页面。");
-        return;
-      }
-      const response = await fetch("/api/import/jarvis-brokers/chrome", { method: "POST" });
-      const result = await response.json();
+      const response = await fetch("/api/data-sync/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}"
+      });
+      const result = await response.json() as { error?: string; brokerCount?: number; briefingCount?: number; participantCount?: number; modelCount?: number };
       if (!response.ok) {
-        setImportTone("error");
-        setImportStatus(result?.error ?? "导入经纪人数据失败");
-        return;
+        throw new Error(result.error || "鑫通告数据同步失败");
       }
       await onRefresh();
+      recordClientOperation("用户管理", "点击“同步鑫通告数据”", `用户管理页面 · 经纪人 ${result.brokerCount ?? 0} 位 · 关联通告 ${result.briefingCount ?? 0} 条`);
       setImportTone("success");
-      setImportStatus(`导入完成：本次抓取 ${result.scrapedCount ?? result.importedCount} 位经纪人，写入 ${result.importedCount} 位，新增 ${result.newBrokerCount} 位。`);
-    } catch {
+      setImportStatus(`同步完成：经纪人 ${result.brokerCount ?? 0} 位、关联通告 ${result.briefingCount ?? 0} 条、报名/签约 ${result.participantCount ?? 0} 条、模特 ${result.modelCount ?? 0} 位。`);
+    } catch (error) {
+      recordClientOperation("用户管理", "点击“同步鑫通告数据”", error instanceof Error ? error.message : "鑫通告数据同步失败", "失败");
       setImportTone("error");
-      setImportStatus("导入失败，请确认 Edge/Chrome 已登录鑫通告，扩展已启用，或本机 Chrome 抓取环境可用。");
+      setImportStatus(error instanceof Error ? error.message : "鑫通告数据同步失败");
     } finally {
       setIsImporting(false);
     }
@@ -2094,10 +2763,13 @@ function BrokerList({
         action={(
           <div className="header-actions">
             <button className="secondary-action" onClick={exportBrokers} type="button">导出 Excel</button>
-            <button className="primary-action" disabled={isImporting} onClick={importBrokersFromChrome} type="button"><Upload size={16} />{isImporting ? "导入中..." : "导入经纪人数据"}</button>
+            <button className="primary-action" disabled={isImporting} onClick={syncBrokersFromOpenApi} type="button"><RefreshCw size={16} />{isImporting ? "同步中..." : "同步鑫通告数据"}</button>
           </div>
         )}
       />
+
+      {isImporting ? <DinoLoader className="broker-sync-loader" label={syncProgress.stage} progress={syncProgress.percent} /> : null}
+      {!isImporting && importStatus ? <p className={`form-status import-status ${importTone}`}>{importStatus}</p> : null}
 
       <section className="panel table-panel">
         <div className="table-toolbar">
@@ -2105,7 +2777,7 @@ function BrokerList({
             <div className="segmented">
               <button className={filter === "all" ? "active" : ""} onClick={() => { setFilter("all"); onPageChange(1); }} type="button">全部</button>
               <button className={filter === "normal" ? "active" : ""} onClick={() => { setFilter("normal"); onPageChange(1); }} type="button">普通经纪人</button>
-              <button className={filter === "seed" ? "active" : ""} onClick={() => { setFilter("seed"); onPageChange(1); }} type="button">种子经纪人</button>
+              <button className={filter === "seed" ? "active" : ""} onClick={() => { setFilter("seed"); setSeedPhaseFilter("all"); setKeyword(""); onPageChange(1); }} type="button">种子经纪人</button>
             </div>
             {filter === "seed" ? (
               <div className="seed-phase-filter derived-filter" aria-label="种子期数筛选">
@@ -2125,7 +2797,6 @@ function BrokerList({
             value={keyword}
           />
         </div>
-        {importStatus ? <p className={`form-status import-status ${importTone}`}>{importStatus}</p> : null}
         <table>
           <thead>
             <tr>
@@ -2162,7 +2833,14 @@ function BrokerList({
                     <span>{broker.signupTotalPeople} / {broker.contractTotalPeople} 人</span>
                   </div>
                 </td>
-                <td><span className="status-pill success">{broker.accountStatus}</span></td>
+                <td>
+                  <div className="broker-row-statuses">
+                    <span className="status-pill success">{broker.accountStatus}</span>
+                    {broker.lastBriefingImportedAt ? (
+                      <span className="status-pill imported" title={`已导入 ${broker.briefingImportCount} 条通告`}>通告已导入 · {broker.lastBriefingImportedAt}</span>
+                    ) : <span className="status-pill warning">通告未导入</span>}
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -2247,12 +2925,23 @@ function BrokerWorkspace({
   const [showPromotionModal, setShowPromotionModal] = useState(false);
   const [promotionQualifiedAt, setPromotionQualifiedAt] = useState(() => dateTimeInputValue(broker.seedQualifiedAt));
   const [promotionStatus, setPromotionStatus] = useState("");
+  const [identityReviewActionStatus, setIdentityReviewActionStatus] = useState("");
 
   useEffect(() => {
     setPromotionQualifiedAt(dateTimeInputValue(broker.seedQualifiedAt ?? undefined));
     setPromotionStatus("");
     setShowPromotionModal(needsPromotion);
   }, [broker.id, broker.seedPhase, broker.seedQualifiedAt, needsPromotion]);
+
+  useEffect(() => {
+    if (broker.brokerLevel !== "seed") return;
+    void fetch(`/api/brokers/${broker.id}/identity-review/reconcile`, { method: "POST" })
+      .then((response) => {
+        if (!response.ok) throw new Error("身份复核失败");
+        return onRefresh();
+      })
+      .catch(() => undefined);
+  }, [broker.id]);
 
   function openPromotionModal() {
     setPromotionQualifiedAt(dateTimeInputValue());
@@ -2276,6 +2965,23 @@ function BrokerWorkspace({
     }
   }
 
+  async function resolveIdentityReview(decision: "retain" | "demote") {
+    setIdentityReviewActionStatus("保存中...");
+    try {
+      const response = await fetch(`/api/brokers/${broker.id}/identity-review`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision })
+      });
+      const result = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(result.error || "身份复核保存失败");
+      setIdentityReviewActionStatus(decision === "retain" ? "已保留种子身份" : "已降级为普通经纪人");
+      await onRefresh();
+    } catch (error) {
+      setIdentityReviewActionStatus(error instanceof Error ? error.message : "身份复核保存失败");
+    }
+  }
+
   return (
     <section className="page">
       <header className="workspace-header compact">
@@ -2286,7 +2992,7 @@ function BrokerWorkspace({
         <div className="profile-heading">
           <div>
             <div className="workspace-title-row">
-              <h1>{broker.nickname} · 经纪人工作台</h1>
+              <h1>{brokerDisplayName(broker)} · 经纪人工作台</h1>
               <LevelBadge broker={broker} />
               <span className="status-pill success">{broker.accountStatus}</span>
             </div>
@@ -2329,6 +3035,7 @@ function BrokerWorkspace({
         <BriefingTab
           broker={broker}
           items={scopedBriefings}
+          key={broker.id}
           allItems={brokerBriefings}
           weekCycles={weekCycles}
           selectedCycleKey={activeCycleKey}
@@ -2345,6 +3052,23 @@ function BrokerWorkspace({
             <span>{promotionValidPublishCount} 条有效通告 · {promotionValidCompleteCount} 条新增签约，可晋升为种子经纪人并开通引荐权限。</span>
           </div>
           <button className="primary-action" onClick={openPromotionModal} type="button">处理晋升</button>
+        </section>
+      ) : null}
+      {broker.identityReviewStatus === "pending" ? (
+        <section className="identity-review-banner" role="status">
+          <div>
+            <strong>种子身份待复核</strong>
+            <span>当前审核口径为 {broker.identityReviewValidPublishCount ?? 0}/6 条有效通告、{broker.identityReviewValidCompleteCount ?? 0}/2 条新增签约；新增引荐权限已暂停，既有关系和历史结算不受影响。</span>
+            {identityReviewActionStatus ? <small>{identityReviewActionStatus}</small> : null}
+          </div>
+          <div className="identity-review-actions">
+            <button className="secondary-action" onClick={() => void resolveIdentityReview("retain")} type="button">保留身份</button>
+            <button className="danger-action" onClick={() => void resolveIdentityReview("demote")} type="button">确认降级</button>
+          </div>
+        </section>
+      ) : broker.identityReviewStatus === "retained" ? (
+        <section className="identity-review-banner retained" role="status">
+          <div><strong>复核后保留种子身份</strong><span>运营已确认保留身份和引荐权限；既有关系及历史结算不变。</span></div>
         </section>
       ) : null}
 
@@ -2416,6 +3140,8 @@ function BriefingTab({
   onBriefingsChange: React.Dispatch<React.SetStateAction<Briefing[]>>;
   onOpenBriefingReview: (briefing: Briefing) => void;
 }) {
+  type BriefingListScope = "all" | "cycle";
+  type BriefingStatusFilter = "all" | "pending" | "active" | "cancelled" | "finished" | "disputed";
   const [status, setStatus] = useState("");
   const [statusTone, setStatusTone] = useState<"neutral" | "success" | "error">("neutral");
   const [refreshNoticeVersion, setRefreshNoticeVersion] = useState(0);
@@ -2423,18 +3149,51 @@ function BriefingTab({
   const [isImporting, setIsImporting] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const listScopeStorageKey = `xtg-briefing-list-scope:${broker.id}`;
+  const [listScope, setListScope] = useState<BriefingListScope>(() => (
+    window.sessionStorage.getItem(listScopeStorageKey) === "cycle" ? "cycle" : "all"
+  ));
+  const [briefingSearch, setBriefingSearch] = useState("");
+  const [briefingStatusFilter, setBriefingStatusFilter] = useState<BriefingStatusFilter>("all");
   const [pageNumber, setPageNumber] = useState(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const page = paginate(items, pageNumber);
-  const visibleWeekCycles = weekCycles.length ? weekCycles : [weekCycleForDate("")];
-  const activeCycle = visibleWeekCycles.find((cycle) => cycle.key === selectedCycleKey) ?? visibleWeekCycles[0];
-  const isPastCycle = selectedCycleKey === pastCycleKey;
-  const rewardRowsByBriefingId = new Map(buildRewardProfile(allItems, selectedCycleKey, brokerCurrentIncentiveStartAt(broker)).completeRows.map((row) => [row.briefing.id, row]));
+  const visibleWeekCycles = weekCycles.filter((cycle) => (
+    cycle.key === pastCycleKey
+      ? allItems.some((item) => briefingCycleForEligibility(item, brokerCurrentIncentiveStartAt(broker)).key === pastCycleKey)
+      : allItems.some((item) => weekCycleForDate(item.publishedAt).key === cycle.key)
+  ));
+  const availableWeekCycles = visibleWeekCycles.length ? visibleWeekCycles : [weekCycleForDate("")];
+  const defaultBrowseCycleKey = availableWeekCycles.some((cycle) => cycle.key === selectedCycleKey)
+    ? selectedCycleKey
+    : availableWeekCycles[0].key;
+  const activeCycle = weekCycles.find((cycle) => cycle.key === selectedCycleKey) ?? weekCycles[0];
+  const rewardRowsByBriefingId = new Map(buildRewardProfile(allItems, listScope === "all" ? undefined : selectedCycleKey, brokerCurrentIncentiveStartAt(broker)).completeRows.map((row) => [row.briefing.id, row]));
   const carriedBriefingCount = items.filter((item) => weekCycleForDate(item.publishedAt).key !== selectedCycleKey).length;
+  const normalizedSearch = briefingSearch.trim().toLowerCase();
+  const scopeItems = listScope === "all" ? allItems : items;
+  const filteredItems = scopeItems.filter((item) => {
+    const matchesSearch = !normalizedSearch || `${item.title} ${item.jarvisBriefingId}`.toLowerCase().includes(normalizedSearch);
+    const sourceText = `${item.sourceStatus} ${item.cancelReason}`;
+    const isCancelled = /取消|下架/.test(sourceText);
+    const isFinished = /结束|完成|关闭/.test(sourceText) && !isCancelled;
+    const matchesStatus = briefingStatusFilter === "all"
+      || (briefingStatusFilter === "pending" && needsAdminEvidenceReview(item))
+      || (briefingStatusFilter === "active" && !isCancelled && !isFinished)
+      || (briefingStatusFilter === "cancelled" && isCancelled)
+      || (briefingStatusFilter === "finished" && isFinished)
+      || (briefingStatusFilter === "disputed" && hasEvidenceDispute(item));
+    return matchesSearch && matchesStatus;
+  });
+  const page = paginate(filteredItems, pageNumber);
+
+  function changeListScope(nextScope: BriefingListScope) {
+    setListScope(nextScope);
+    window.sessionStorage.setItem(listScopeStorageKey, nextScope);
+  }
 
   useEffect(() => {
     setPageNumber(1);
-  }, [broker.id]);
+  }, [broker.id, listScope, selectedCycleKey, briefingSearch, briefingStatusFilter]);
 
   useEffect(() => {
     if (!status.startsWith("已刷新 ")) return;
@@ -2442,55 +3201,34 @@ function BriefingTab({
     return () => window.clearTimeout(timeoutId);
   }, [refreshNoticeVersion, status]);
 
-  async function createBriefingImport() {
+  async function syncBriefingsFromOpenApi() {
     setIsImporting(true);
     setStatus("");
     setImportNotice(null);
     try {
-      const extensionImport = await importWithBrowserExtension({
-        mode: "briefings",
-        brokerMiniProgramUserId: broker.miniProgramUserId
-      });
-      if (extensionImport.available) {
-        if (!extensionImport.ok) {
-          setImportNotice({ tone: "error", message: extensionImport.error ?? "Edge 扩展导入通告失败" });
-          return;
-        }
-        const result = extensionImport.result ?? {};
-        const nextItems = await refreshBriefings({ silent: true });
-        setImportNotice({
-          tone: "success",
-          message: `本次写入 ${result.importedCount ?? 0} 条，新增 ${result.newBriefingCount ?? 0} 条，详情 ${result.detailImportedCount ?? 0} 条。当前列表 ${nextItems.length} 条。`
-        });
-        return;
-      }
-      if (!/Mac/i.test(navigator.userAgent)) {
-        setImportNotice({ tone: "error", message: "未检测到 Edge 扩展连接。请安装 v0.2.1，重新加载扩展后刷新当前系统页面。" });
-        return;
-      }
-      const response = await fetch("/api/import/jarvis-briefings/chrome", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          brokerId: broker.id,
-          brokerMiniProgramUserId: broker.miniProgramUserId,
-          title: `${new Date().toISOString().slice(0, 10)} ${broker.nickname} 通告导入`
-        })
-      });
-      const result = await response.json();
+      const response = await fetch("/api/data-sync/run", { method: "POST" });
+      const result = await response.json() as {
+        error?: string;
+        briefingCount?: number;
+        participantCount?: number;
+        modelCount?: number;
+      };
       if (!response.ok) {
-        setImportNotice({ tone: "error", message: result?.error ?? "导入失败" });
+        recordClientOperation("经纪人工作台", "点击“同步通告数据”", `${broker.nickname} · 经纪人ID ${broker.miniProgramUserId} · ${result.error ?? "同步失败"}`, "失败");
+        setImportNotice({ tone: "error", message: result.error ?? "鑫通告数据同步失败" });
         return;
       }
       const nextItems = await refreshBriefings({ silent: true });
+      recordClientOperation("经纪人工作台", "点击“同步通告数据”", `${broker.nickname} · 经纪人ID ${broker.miniProgramUserId} · 当前通告 ${nextItems.length} 条`);
       setImportNotice({
         tone: "success",
-        message: `本次抓取 ${result.scrapedCount ?? result.importedCount} 条，写入 ${result.importedCount} 条，新增 ${result.newBriefingCount} 条，详情 ${result.detailImportedCount} 条。当前列表 ${nextItems.length} 条。`
+        message: `只读同步完成：当前经纪人通告 ${nextItems.length} 条；全局关联通告 ${result.briefingCount ?? 0} 条、报名/签约 ${result.participantCount ?? 0} 条、模特 ${result.modelCount ?? 0} 位。`
       });
     } catch {
+      recordClientOperation("经纪人工作台", "点击“同步通告数据”", `${broker.nickname} · 经纪人ID ${broker.miniProgramUserId} · 请求失败`, "失败");
       setImportNotice({
         tone: "error",
-        message: "导入失败，请确认 Edge/Chrome 已登录鑫通告，扩展已启用，或本机 Chrome 抓取环境可用。"
+        message: "鑫通告数据同步失败，请稍后重试或前往系统日志查看原因。"
       });
     } finally {
       setIsImporting(false);
@@ -2543,7 +3281,7 @@ function BriefingTab({
   async function uploadEvidenceFiles(fileList: FileList | null) {
     const files = Array.from(fileList ?? []);
     if (files.length === 0) return;
-    setStatus(`正在上传 ${files.length} 个视频到凭证库...`);
+    setStatus(`正在上传 ${files.length} 个凭证文件到经纪人凭证库...`);
     for (const file of files) {
       const response = await fetch(`/api/brokers/${broker.id}/evidences`, {
         method: "POST",
@@ -2561,7 +3299,7 @@ function BriefingTab({
       }
     }
     setStatusTone("success");
-    setStatus(`已上传 ${files.length} 个视频到凭证库`);
+    setStatus(`已上传 ${files.length} 个凭证文件到经纪人凭证库`);
     await refreshBriefings();
   }
 
@@ -2573,11 +3311,6 @@ function BriefingTab({
           <h2>发布通告审核</h2>
         </div>
         <div className="inline-actions">
-          <select className="compact-select" value={selectedCycleKey} onChange={(event) => onCycleChange(event.target.value)}>
-            {visibleWeekCycles.map((cycle) => (
-              <option key={cycle.key} value={cycle.key}>{cycle.label}</option>
-            ))}
-          </select>
           <button className="secondary-action" onClick={() => void refreshBriefings()} type="button">刷新</button>
           <button className="secondary-action" onClick={chooseEvidenceFiles} type="button"><Upload size={16} />上传凭证库</button>
           <button
@@ -2589,10 +3322,51 @@ function BriefingTab({
           >
             <Trash2 size={16} />清除通告
           </button>
-          <button className="primary-action" disabled={isImporting} onClick={createBriefingImport} type="button"><Upload size={16} />{isImporting ? "导入中..." : "导入通告数据"}</button>
+          <button className="primary-action" disabled={isImporting} onClick={syncBriefingsFromOpenApi} type="button"><RefreshCw size={16} />{isImporting ? "同步中..." : "同步通告数据"}</button>
         </div>
       </div>
-      <p className="form-status">当前周期：{activeCycle?.label ?? "暂无周期"}；本周期 {items.length} 条（跨周延续 {carriedBriefingCount} 条），全部已导入 {allItems.length} 条。每次导入会重新读取全部通告来源状态；手动取消、举报取消将自动判定为有效通告不通过，仅对待审核通告做凭证审核。种子身份生效前发布的通告归入往期通告，不纳入结算。</p>
+      <div className="briefing-list-toolbar">
+        <div className="briefing-scope-tabs" aria-label="通告查看范围" role="tablist">
+          <button aria-selected={listScope === "all"} className={listScope === "all" ? "active" : ""} onClick={() => changeListScope("all")} role="tab" type="button">全部通告 <span>{allItems.length}</span></button>
+          <button
+            aria-selected={listScope === "cycle"}
+            className={listScope === "cycle" ? "active" : ""}
+            onClick={() => {
+              changeListScope("cycle");
+              if (defaultBrowseCycleKey !== selectedCycleKey) onCycleChange(defaultBrowseCycleKey);
+            }}
+            role="tab"
+            type="button"
+          >按发布周期查看</button>
+        </div>
+        <div className="briefing-list-filters">
+          <label className="briefing-search-field">
+            <Search aria-hidden="true" size={16} />
+            <input aria-label="搜索通告名称或通告 ID" onChange={(event) => setBriefingSearch(event.target.value)} placeholder="搜索通告名称或 ID" type="search" value={briefingSearch} />
+          </label>
+          <select aria-label="筛选通告状态" className="compact-select" onChange={(event) => setBriefingStatusFilter(event.target.value as BriefingStatusFilter)} value={briefingStatusFilter}>
+            <option value="all">全部状态</option>
+            <option value="pending">待审核</option>
+            <option value="active">进行中</option>
+            <option value="cancelled">已取消</option>
+            <option value="finished">已结束</option>
+            <option value="disputed">凭证异议</option>
+          </select>
+          {listScope === "cycle" ? (
+            <select aria-label="选择发布周期" className="compact-select cycle-filter-select" value={selectedCycleKey} onChange={(event) => onCycleChange(event.target.value)}>
+              {availableWeekCycles.map((cycle) => (
+                <option key={cycle.key} value={cycle.key}>{cycle.label}</option>
+              ))}
+            </select>
+          ) : null}
+        </div>
+      </div>
+      <p className="form-status briefing-list-summary">
+        {listScope === "all"
+          ? `共 ${allItems.length} 条通告，当前显示 ${filteredItems.length} 条。可直接按名称或通告 ID 查找。`
+          : `发布周期：${activeCycle?.label ?? "暂无周期"}；周期内 ${items.length} 条（其中跨周延续 ${carriedBriefingCount} 条），当前显示 ${filteredItems.length} 条。`}
+        周期仅用于查阅，凭证审核与结算判定规则保持不变。
+      </p>
       {status ? <p className={`form-status import-status ${statusTone}`}>{status}</p> : null}
       {importNotice ? (
         <div className="modal-backdrop" role="presentation">
@@ -2629,7 +3403,7 @@ function BriefingTab({
       ) : null}
       <input
         ref={fileInputRef}
-        accept="video/*"
+        accept="image/*,video/*"
         hidden
         multiple
         onChange={(event) => void uploadEvidenceFiles(event.target.files)}
@@ -2639,6 +3413,7 @@ function BriefingTab({
         <thead>
           <tr>
             <th>通告</th>
+            <th>发布时间 / 活动日期</th>
             <th>报名 / 签约</th>
             <th>状态 / 取消原因</th>
             <th>凭证</th>
@@ -2655,8 +3430,15 @@ function BriefingTab({
                   <strong>{item.title}</strong>
                   <span>
                     {item.recruitmentType || "-"} · #{item.jarvisBriefingId}
-                    {weekCycleForDate(item.publishedAt).key !== selectedCycleKey ? " · 跨周延续" : ""}
                   </span>
+                </div>
+              </td>
+              <td>
+                <div className="briefing-time-cell">
+                  <strong>{weekCycleForDate(item.publishedAt).shortLabel}</strong>
+                  <span>发布：{item.publishedAt || "-"}</span>
+                  <span>活动：{item.workDate || "-"}</span>
+                  {listScope === "cycle" && weekCycleForDate(item.publishedAt).key !== selectedCycleKey ? <small>由发布周期延续至此</small> : null}
                 </div>
               </td>
               <td>
@@ -2679,30 +3461,36 @@ function BriefingTab({
                   ) : null}
                 </div>
               </td>
-              <td>{isPastCycle ? <ReviewBadge label="往期不计" status="pending" /> : <ReviewBadge label={cappedPublishLabel(item, allItems)} status={rewardRowsByBriefingId.get(item.id)?.publishStatus ?? cappedPublishStatus(item, allItems)} />}</td>
+              <td>{briefingCycleForEligibility(item, brokerCurrentIncentiveStartAt(broker)).key === pastCycleKey ? <ReviewBadge label="往期不计" status="pending" /> : <ReviewBadge label={cappedPublishLabel(item, allItems)} status={rewardRowsByBriefingId.get(item.id)?.publishStatus ?? cappedPublishStatus(item, allItems)} />}</td>
               <td>
-                {isPastCycle ? (
+                {briefingCycleForEligibility(item, brokerCurrentIncentiveStartAt(broker)).key === pastCycleKey ? (
                   <ReviewBadge label="往期不计" status="pending" />
                 ) : rewardRowsByBriefingId.get(item.id) ? (
-                  <ReviewBadge
-                    label={signingStatusLabel(rewardRowsByBriefingId.get(item.id)!)}
-                    status={effectiveCompleteStatus(rewardRowsByBriefingId.get(item.id)!)}
-                  />
+                  <div className="review-result-cell">
+                    <ReviewBadge
+                      label={signingStatusLabel(rewardRowsByBriefingId.get(item.id)!)}
+                      status={effectiveCompleteStatus(rewardRowsByBriefingId.get(item.id)!)}
+                    />
+                    {effectiveCompleteStatus(rewardRowsByBriefingId.get(item.id)!) === "rejected" ? (
+                      <small>原因：{signingFailureReason(rewardRowsByBriefingId.get(item.id)!)}</small>
+                    ) : null}
+                  </div>
                 ) : (
                   <ReviewBadge status="pending" />
                 )}
               </td>
               <td>
-                {isPastCycle ? <ReviewBadge label="无需审核" status="pending" /> : <ReviewBadge label={manualReviewStatus(item).label} status={manualReviewStatus(item).status} />}
+                {briefingCycleForEligibility(item, brokerCurrentIncentiveStartAt(broker)).key === pastCycleKey ? <ReviewBadge label="无需审核" status="pending" /> : <ReviewBadge label={manualReviewStatus(item).label} status={manualReviewStatus(item).status} />}
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+      {page.rows.length === 0 ? <p className="empty-state">没有符合当前搜索或筛选条件的通告。</p> : null}
       <TablePagination
         page={page.page}
         pageSize={page.pageSize}
-        total={items.length}
+        total={filteredItems.length}
         totalPages={page.totalPages}
         onPageChange={setPageNumber}
       />
@@ -2798,12 +3586,16 @@ function LevelTab({
   const meetsUnlock = validPublishCount >= 6 && validCompleteCount >= 2;
   const hasSeedProgram = Boolean(broker.seedPhase && broker.seedProgramJoinedAt);
   const hasDirectReferrer = Boolean(directReferrers?.length);
-  const statusTitle = broker.brokerLevel === "seed"
+  const statusTitle = broker.identityReviewStatus === "pending"
+    ? "种子身份待复核"
+    : broker.brokerLevel === "seed"
     ? "已晋升为种子经纪人"
     : hasSeedProgram
       ? "普通经纪人已加入种子计划"
       : "尚未加入种子计划";
-  const statusText = broker.brokerLevel === "seed"
+  const statusText = broker.identityReviewStatus === "pending"
+    ? "当前审核数据已低于 6 + 2，引荐权限暂停，等待运营确认保留身份或降级。"
+    : broker.brokerLevel === "seed"
     ? "晋升由 6 + 2 达标提醒触发，已开通引荐权限；裂变期数保持不变。"
     : hasSeedProgram
       ? "达到 6 条有效通告和 2 条新增签约后，系统会提醒运营确认晋升并填写晋升时间。"
@@ -2958,12 +3750,12 @@ function NetworkTab({
   const validPublishCount = rewardProfile.validPublishCount;
   const validCompleteCount = rewardProfile.bonusCompleteCount;
   const progress = Math.min(100, ((validCompleteCount / 2) + (validPublishCount / 6)) * 50);
-  const [phone, setPhone] = useState("");
+  const [brokerUserId, setBrokerUserId] = useState("");
   const [referralAt, setReferralAt] = useState(() => dateTimeInputValue());
   const [relations, setRelations] = useState<ReferralNode[]>([]);
   const [referrers, setReferrers] = useState<ReferralNode[]>([]);
   const [message, setMessage] = useState("");
-  const candidate = brokersData.find((item) => phone && (item.boundPhone === phone || item.wechatPhone === phone));
+  const candidate = brokersData.find((item) => brokerUserId && item.miniProgramUserId === brokerUserId.trim());
 
   useEffect(() => {
     Promise.all([
@@ -3001,12 +3793,12 @@ function NetworkTab({
       const response = await fetch(`/api/brokers/${broker.id}/referrals`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, boundAt: referralAt })
+        body: JSON.stringify({ brokerUserId: brokerUserId.trim(), boundAt: referralAt })
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result?.error ?? "关联失败");
       setRelations(result);
-      setPhone("");
+      setBrokerUserId("");
       setReferralAt(dateTimeInputValue());
       setMessage(`已关联；下线从 ${referralAt.replace("T", " ")} 起纳入节点统计`);
       await onRefresh();
@@ -3075,7 +3867,7 @@ function NetworkTab({
       <section className="panel">
         <PanelTitle icon={<Link size={18} />} title="关联经纪人" />
         <div className="relation-form">
-          <input value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="输入手机号筛选经纪人" />
+          <input inputMode="numeric" value={brokerUserId} onChange={(event) => setBrokerUserId(event.target.value)} placeholder="输入经纪人ID精确查找" />
         </div>
         {candidate ? (
           <div className="candidate-card">
@@ -3088,7 +3880,7 @@ function NetworkTab({
             </label>
             <button className="primary-action" disabled={!referralAt} onClick={bindReferral} type="button">确认关联</button>
           </div>
-        ) : phone ? <p className="form-status">未在当前导入数据中找到该手机号</p> : null}
+        ) : brokerUserId ? <p className="form-status">未在当前导入数据中找到该经纪人ID</p> : null}
         {message ? <p className="form-status">{message}</p> : null}
       </section>
       <section className="panel wide-panel">
@@ -3141,7 +3933,7 @@ function NetworkTab({
               <button className="text-button danger-action" onClick={(event) => { event.stopPropagation(); void unbindReferral(node.id); }} type="button">解除关联</button>
             </div>
           ))}
-          {relations.length === 0 ? <p className="empty-state">暂无直接下线，可通过手机号关联。</p> : null}
+          {relations.length === 0 ? <p className="empty-state">暂无直接下线，可通过经纪人ID关联。</p> : null}
         </div>
       </section>
       </div>
@@ -3225,6 +4017,20 @@ function SettlementTab({
   const referralIncrementDetails = referralProfiles.flatMap(({ node, profile }) =>
     profile.bonusCompleteRows.map((row) => ({ node, row }))
   );
+  const deferredOwnerAwards = brokerBriefings.flatMap((briefing) => {
+    const dispute = briefing.settlementDispute;
+    if (dispute?.status !== "approved" || dispute.deferredCycleKey !== cycleKey) return [];
+    const amount = disputeRewardAmount(dispute);
+    return amount ? [{ briefing, amount }] : [];
+  });
+  const deferredReferralAwards = referrals.flatMap((node) => {
+    const nodeBriefings = briefingsData.filter((briefing) => briefing.brokerId === node.id);
+    return nodeBriefings.flatMap((briefing) => {
+      const dispute = briefing.settlementDispute;
+      if (dispute?.status !== "approved" || dispute.deferredCycleKey !== cycleKey) return [];
+      return dispute.deferCompleteReward ? [{ node, briefing }] : [];
+    });
+  });
   const referralBaseCount = referralBaseDetails.length;
   const referralIncrementCount = referralProfiles.reduce((total, { profile }) => total + profile.bonusCompleteCount, 0);
   const settlementLedger = buildSettlementLedger({
@@ -3240,9 +4046,26 @@ function SettlementTab({
     { id: "validComplete", title: "新增签约奖励", quantity: rewardProfile.bonusCompleteCount, rule: "2 元/条", amount: rewardProfile.bonusCompleteCount * 2, basis: "有效通告通过，且签约者未出现在种子计划生效后的其他通告中", details: rewardProfile.bonusCompleteRows.map((item) => ({ id: item.briefing.id, object: item.briefing.title, description: `新增签约：${item.newModels.map((model) => model.label).join("、")}`, amount: 2 })) },
     { id: "completeClawback", title: "历史新增签约抵扣", quantity: rewardProfile.completeClawbackCount, rule: "-2 元/条", amount: -rewardProfile.completeClawbackCount * 2, basis: "已获新增签约奖励的通告，在本周期因手动/举报取消而失效", details: rewardProfile.completeClawbackBriefings.map((item) => ({ id: item.id, object: item.title, description: item.cancelReason || item.sourceStatus, amount: -2 })) },
     { id: "referralBase", title: "引荐基础达标奖", quantity: referralBaseCount, rule: "10 元/人，仅一次", amount: referralBaseCount * 10, basis: "直接下线累计满足 6 + 2 且已由运营确认晋升为种子经纪人", details: referralBaseDetails.map(({ node }) => ({ id: node.id, object: node.nickname, description: `已达标并晋升 · ${node.phone}`, amount: 10 })) },
-    { id: "referralIncrement", title: "引荐成交增量奖", quantity: referralIncrementCount, rule: "1 元/条", amount: referralIncrementCount, basis: "每个直接下线独立按日 3 条、周 12 条上限计算新增签约通告", details: referralIncrementDetails.map(({ node, row }) => ({ id: `${node.id}-${row.briefing.id}`, object: `${node.nickname} · ${row.briefing.title}`, description: row.newModels.map((model) => model.label).join("、"), amount: 1 })) }
+    { id: "referralIncrement", title: "引荐成交增量奖", quantity: referralIncrementCount, rule: "1 元/条", amount: referralIncrementCount, basis: "每个直接下线独立按日 3 条、周 12 条上限计算新增签约通告", details: referralIncrementDetails.map(({ node, row }) => ({ id: `${node.id}-${row.briefing.id}`, object: `${node.nickname} · ${row.briefing.title}`, description: row.newModels.map((model) => model.label).join("、"), amount: 1 })) },
+    { id: "disputeCarry", title: "争议复审补发", quantity: deferredOwnerAwards.length + deferredReferralAwards.length, rule: "按原周期奖励补发", amount: deferredOwnerAwards.reduce((total, item) => total + item.amount, 0) + deferredReferralAwards.length, basis: "二审通过后转入本周期补发，不占用本周期奖励上限", details: [...deferredOwnerAwards.map((item) => ({ id: item.briefing.id, object: item.briefing.title, description: `原第 ${cycleWeekIndex(item.briefing.settlementDispute!.originalCycleKey)} 周争议复审通过`, amount: item.amount })), ...deferredReferralAwards.map((item) => ({ id: `${item.node.id}-${item.briefing.id}`, object: `${item.node.nickname} · ${item.briefing.title}`, description: "下线争议通告的引荐奖励补发", amount: 1 }))] }
   ];
-  const weekSubtotal = rows.reduce((total, row) => total + row.amount, 0);
+  const rowCalculation: Record<string, string> = {
+    validPublish: `${rewardProfile.validPublishCount} 条 × ¥1`,
+    clawback: `${rewardProfile.clawbackCount} 条 × -¥1`,
+    validComplete: `${rewardProfile.bonusCompleteCount} 条 × ¥2`,
+    completeClawback: `${rewardProfile.completeClawbackCount} 条 × -¥2`,
+    referralBase: `${referralBaseCount} 人 × ¥10`,
+    referralIncrement: `${referralIncrementCount} 条 × ¥1`,
+    disputeCarry: `${deferredOwnerAwards.length + deferredReferralAwards.length} 项`
+  };
+  const settlementGroups = [
+    { key: "self", label: "本人奖励", rowIds: ["validPublish", "clawback", "validComplete", "completeClawback"] },
+    { key: "referral", label: "引荐奖励", rowIds: ["referralBase", "referralIncrement"] },
+    { key: "adjustment", label: "调整与补发", rowIds: ["disputeCarry"] }
+  ].map((group) => ({
+    ...group,
+    rows: group.rowIds.map((rowId) => rows.find((row) => row.id === rowId)).filter((row): row is SettlementLineItem => Boolean(row))
+  }));
   const financeOrder = financeOrders.find((order) => order.brokerId === broker.id && order.cycleKey === cycleKey);
   const eligibleBrokerBriefings = brokerBriefings.filter((briefing) => isBriefingSeedEligible(briefing, selfRewardStartAt));
   const publishCapState = buildPublishCapState(eligibleBrokerBriefings);
@@ -3250,15 +4073,17 @@ function SettlementTab({
   const publishReportRows: SettlementReportRow[] = eligibleBrokerBriefings
     .filter((briefing) => weekCycleForDate(briefing.publishedAt).key === cycleKey)
     .map((briefing) => {
-      const rewarded = validPublishIds.has(briefing.id);
+      const disputed = briefing.settlementDispute?.originalCycleKey === cycleKey;
+      const rewarded = !disputed && validPublishIds.has(briefing.id);
       const capped = publishCapState.cappedIds.has(briefing.id);
       const status = capped ? "pending" : effectivePublishStatus(briefing);
       return {
         id: `publish-${briefing.id}`,
+        briefingId: briefing.jarvisBriefingId,
         category: "有效通告奖励",
         object: briefing.title,
-        decision: settlementDecision(status, rewarded),
-        description: publishSettlementReason(briefing, rewarded, capped),
+        decision: disputed ? "待审核" : settlementDecision(status, rewarded),
+        description: disputed ? "争议通告转下期复审，本期暂不发放" : publishSettlementReason(briefing, rewarded, capped),
         amount: rewarded ? 1 : 0
       };
     });
@@ -3266,21 +4091,23 @@ function SettlementTab({
     .filter((row) => briefingBonusCycleKey(row.briefing) === cycleKey)
     .map((row) => ({
       id: `signing-${row.briefing.id}`,
+      briefingId: row.briefing.jarvisBriefingId,
       category: "新增签约奖励",
       object: row.briefing.title,
-      decision: settlementDecision(effectiveCompleteStatus(row), row.bonusEligible),
-      description: signingSettlementReason(row),
-      amount: row.bonusEligible ? 2 : 0
+      decision: row.briefing.settlementDispute?.originalCycleKey === cycleKey ? "待审核" : settlementDecision(effectiveCompleteStatus(row), row.bonusEligible),
+      description: row.briefing.settlementDispute?.originalCycleKey === cycleKey ? "争议通告转下期复审，本期暂不发放" : signingSettlementReason(row),
+      amount: row.briefing.settlementDispute?.originalCycleKey === cycleKey ? 0 : row.bonusEligible ? 2 : 0
     }));
   const adjustmentReportRows: SettlementReportRow[] = [
-    ...rewardProfile.clawbackBriefings.map((briefing) => ({ id: `publish-clawback-${briefing.id}`, category: "历史有效通告抵扣", object: briefing.title, decision: "抵扣" as const, description: briefing.cancelReason || briefing.sourceStatus, amount: -1 })),
-    ...rewardProfile.completeClawbackBriefings.map((briefing) => ({ id: `signing-clawback-${briefing.id}`, category: "历史新增签约抵扣", object: briefing.title, decision: "抵扣" as const, description: briefing.cancelReason || briefing.sourceStatus, amount: -2 }))
+    ...rewardProfile.clawbackBriefings.map((briefing) => ({ id: `publish-clawback-${briefing.id}`, briefingId: briefing.jarvisBriefingId, category: "历史有效通告抵扣", object: briefing.title, decision: "抵扣" as const, description: briefing.cancelReason || briefing.sourceStatus, amount: -1 })),
+    ...rewardProfile.completeClawbackBriefings.map((briefing) => ({ id: `signing-clawback-${briefing.id}`, briefingId: briefing.jarvisBriefingId, category: "历史新增签约抵扣", object: briefing.title, decision: "抵扣" as const, description: briefing.cancelReason || briefing.sourceStatus, amount: -2 }))
   ];
   const referralBaseReportRows: SettlementReportRow[] = referralProfiles.map(({ node, baseAwardCycle }) => {
     const rewarded = baseAwardCycle === cycleKey;
     const alreadySettled = Boolean(baseAwardCycle && cycleWeekIndex(baseAwardCycle) < cycleWeekIndex(cycleKey));
     return {
       id: `referral-base-${node.id}`,
+      briefingId: "",
       category: "引荐基础达标奖",
       object: `${node.nickname} · ${node.phone}`,
       decision: rewarded ? "计奖" : "不计奖",
@@ -3296,22 +4123,36 @@ function SettlementTab({
     .filter((row) => briefingBonusCycleKey(row.briefing) === cycleKey)
     .map((row) => ({
       id: `referral-signing-${node.id}-${row.briefing.id}`,
+      briefingId: row.briefing.jarvisBriefingId,
       category: "引荐成交增量奖",
       object: `${node.nickname} · ${row.briefing.title}`,
-      decision: settlementDecision(effectiveCompleteStatus(row), row.bonusEligible),
-      description: signingSettlementReason(row),
-      amount: row.bonusEligible ? 1 : 0
+      decision: row.briefing.settlementDispute?.originalCycleKey === cycleKey ? "待审核" : settlementDecision(effectiveCompleteStatus(row), row.bonusEligible),
+      description: row.briefing.settlementDispute?.originalCycleKey === cycleKey ? "下线争议通告转下期复审，本期引荐奖励暂不发放" : signingSettlementReason(row),
+      amount: row.briefing.settlementDispute?.originalCycleKey === cycleKey ? 0 : row.bonusEligible ? 1 : 0
     })));
+  const deferredReportRows: SettlementReportRow[] = [
+    ...deferredOwnerAwards.map((item) => ({ id: `dispute-carry-${item.briefing.id}`, briefingId: item.briefing.jarvisBriefingId, category: "争议复审补发", object: item.briefing.title, decision: "计奖" as const, description: `原第 ${cycleWeekIndex(item.briefing.settlementDispute!.originalCycleKey)} 周通告二审通过，本周期补发且不占奖励上限`, amount: item.amount })),
+    ...deferredReferralAwards.map((item) => ({ id: `dispute-referral-${item.node.id}-${item.briefing.id}`, briefingId: item.briefing.jarvisBriefingId, category: "引荐奖励复审补发", object: `${item.node.nickname} · ${item.briefing.title}`, decision: "计奖" as const, description: "下线争议通告二审通过，本周期补发引荐奖励", amount: 1 }))
+  ];
   const settlementReportRows = [
     ...publishReportRows,
     ...signingReportRows,
     ...adjustmentReportRows,
     ...referralBaseReportRows,
-    ...referralSigningReportRows
+    ...referralSigningReportRows,
+    ...deferredReportRows
   ];
+  const weekSubtotal = settlementReportRows.reduce((total, row) => total + row.amount, 0);
+  const settlementTotal = settlementLedger.carryForward + weekSubtotal;
+  const settlementPayout = Math.max(0, settlementTotal);
   const rewardedReportCount = settlementReportRows.filter((row) => row.decision === "计奖").length;
   const excludedReportCount = settlementReportRows.filter((row) => row.decision === "不计奖").length;
   const pendingReportCount = settlementReportRows.filter((row) => row.decision === "待审核").length;
+  const settlementPreviewGroups = [
+    { key: "self", label: "本人奖励", rows: settlementReportRows.filter((row) => !row.category.includes("引荐") && !row.category.includes("复审补发")) },
+    { key: "referral", label: "引荐奖励", rows: settlementReportRows.filter((row) => row.category.includes("引荐") && !row.category.includes("复审补发")) },
+    { key: "adjustment", label: "调整与补发", rows: settlementReportRows.filter((row) => row.category.includes("复审补发")) }
+  ].filter((group) => group.rows.length > 0);
 
   useEffect(() => {
     fetch(`/api/brokers/${broker.id}/referrals`)
@@ -3334,8 +4175,8 @@ function SettlementTab({
       rows: settlementReportRows,
       weekSubtotal,
       carryForward: settlementLedger.carryForward,
-      total: settlementLedger.total,
-      payout: settlementLedger.payout
+      total: settlementTotal,
+      payout: settlementPayout
     });
     if (!opened) setSubmitStatus("浏览器拦截了 PDF 窗口，请允许弹出窗口后重试。");
   }
@@ -3355,11 +4196,11 @@ function SettlementTab({
       brokerPhone: broker.boundPhone || broker.wechatPhone,
       cycleKey,
       cycleLabel: cycle.label,
-      amount: settlementLedger.total,
+      amount: settlementTotal,
       rows,
       carryForward: settlementLedger.carryForward,
       weekSubtotal,
-      settlementTotal: settlementLedger.total
+      settlementTotal
     });
     setSubmitStatus(`已提交 ${broker.nickname} ${cycle.shortLabel} 的付款单到财务管理。`);
   }
@@ -3496,6 +4337,18 @@ function SettlementTab({
       ) : <p className="empty-state compact-empty">暂无达成 6+2 的直接下线。</p>;
     }
 
+    if (rowId === "disputeCarry") {
+      const details = rows.find((row) => row.id === rowId)?.details ?? [];
+      return details.length ? (
+        <table className="nested-table">
+          <thead><tr><th>明细对象</th><th>复审说明</th><th>补发金额</th></tr></thead>
+          <tbody>{details.map((detail) => (
+            <tr key={detail.id}><td>{detail.object}</td><td>{detail.description}</td><td>{money(detail.amount)}</td></tr>
+          ))}</tbody>
+        </table>
+      ) : <p className="empty-state compact-empty">本周期无争议复审补发。</p>;
+    }
+
     return referralIncrementDetails.length ? (
       <table className="nested-table">
         <thead>
@@ -3530,7 +4383,6 @@ function SettlementTab({
           </div>
           <div className="inline-actions">
             <button className="secondary-action" onClick={() => setShowSettlementPreview(true)} type="button"><ListChecks size={16} />预览明细</button>
-            <button className="secondary-action" onClick={exportSettlementDetails} type="button"><Download size={16} />导出 PDF</button>
             <select className="compact-select" value={cycleKey} onChange={(event) => onCycleChange(event.target.value)}>
               {cycleOptions.map((item) => (
                 <option key={item.key} value={item.key}>{item.label}</option>
@@ -3546,39 +4398,30 @@ function SettlementTab({
           </div>
         </div>
         {!canReceiveSelfRewards ? <p className="form-status">该经纪人尚未获得种子期数及计划生效时间，不计算本人奖励。</p> : null}
-        <table>
-          <thead>
-            <tr>
-              <th>奖励项</th>
-              <th>数量</th>
-              <th>规则</th>
-              <th>金额</th>
-              <th>口径</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <Fragment key={row.id}>
-                <tr className="expandable-settlement-row" key={row.id} onClick={() => toggleReward(row.id)}>
-                  <td>
-                    <button className="icon-only-button inline-icon" type="button" aria-label={expandedReward === row.id ? "收起" : "展开"}>
-                      {expandedReward === row.id ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                    </button>
-                    {row.title}
-                  </td>
-                  <td>{row.quantity}</td>
-                  <td>{row.rule}</td>
-                  <td>{money(row.amount)}</td>
-                  <td>{row.basis}</td>
-                </tr>
-                {expandedReward === row.id ? (
-                  <tr className="settlement-detail-row" key={`${row.id}-detail`}>
-                    <td colSpan={5}>{renderRewardDetails(row.id)}</td>
+        <table className="settlement-list-table">
+          <thead><tr><th>奖励项目</th><th>计算</th><th>本期金额</th></tr></thead>
+          <tbody>{settlementGroups.map((group) => (
+            <Fragment key={group.key}>
+              <tr className={`settlement-list-group group-${group.key}`}>
+                <th colSpan={2}>{group.label}</th>
+                <th>小计 {money(group.rows.reduce((total, row) => total + row.amount, 0))}</th>
+              </tr>
+              {group.rows.map((row) => (
+                <Fragment key={row.id}>
+                  <tr className="expandable-settlement-row" onClick={() => toggleReward(row.id)}>
+                    <td>
+                      <button className={`settlement-chevron ${expandedReward === row.id ? "expanded" : ""}`} type="button" aria-label={expandedReward === row.id ? "收起" : "展开"}>
+                        <span>{row.title}</span><ChevronDown size={15} />
+                      </button>
+                    </td>
+                    <td>{rowCalculation[row.id]}</td>
+                    <td className={row.amount === 0 ? "muted-amount" : ""}>{money(row.amount)}</td>
                   </tr>
-                ) : null}
-              </Fragment>
-            ))}
-          </tbody>
+                  {expandedReward === row.id ? <tr className="settlement-detail-row"><td colSpan={3}>{renderRewardDetails(row.id)}</td></tr> : null}
+                </Fragment>
+              ))}
+            </Fragment>
+          ))}</tbody>
         </table>
         <div className="settlement-footer settlement-footer-stack">
           <div className="settlement-footer-line">
@@ -3593,12 +4436,12 @@ function SettlementTab({
           ) : null}
           <div className="settlement-footer-line total">
             <span>合计应付</span>
-            <strong className={settlementLedger.total < 0 ? "negative-amount" : ""}>{money(settlementLedger.total)}</strong>
+            <strong className={settlementTotal < 0 ? "negative-amount" : ""}>{money(settlementTotal)}</strong>
           </div>
-          {settlementLedger.total < 0 ? (
+          {settlementTotal < 0 ? (
             <p className="form-status">本周合计为负，差额将结转至后续周期，待累计为正后再发放。</p>
-          ) : settlementLedger.payout > 0 ? (
-            <p className="form-status">本周可发放 {money(settlementLedger.payout)}。</p>
+          ) : settlementPayout > 0 ? (
+            <p className="form-status">本周可发放 {money(settlementPayout)}。</p>
           ) : null}
           {financeOrder ? (
             <p className={`form-status ${financeOrder.status === "rejected" ? "error" : ""}`}>
@@ -3612,9 +4455,12 @@ function SettlementTab({
       {showSettlementPreview ? (
         <div className="modal-backdrop" role="presentation">
           <section aria-labelledby="settlement-preview-title" aria-modal="true" className="notice-modal settlement-preview-modal" role="dialog">
-            <div className="panel-title with-actions">
+            <div className="panel-title with-actions settlement-preview-heading">
               <div><ReceiptText size={18} /><h2 id="settlement-preview-title">结算明细预览</h2></div>
-              <button className="secondary-action" onClick={() => setShowSettlementPreview(false)} type="button">关闭</button>
+              <div className="inline-actions">
+                <button className="primary-action" onClick={exportSettlementDetails} type="button"><Download size={16} />导出 PDF</button>
+                <button className="secondary-action" onClick={() => setShowSettlementPreview(false)} type="button">关闭</button>
+              </div>
             </div>
             <div className="settlement-preview-meta">
               <strong>{broker.nickname}</strong>
@@ -3625,22 +4471,29 @@ function SettlementTab({
               <div><span>计奖</span><strong>{rewardedReportCount}</strong></div>
               <div><span>不计奖</span><strong>{excludedReportCount}</strong></div>
               <div><span>待审核</span><strong>{pendingReportCount}</strong></div>
-              <div><span>合计应付</span><strong>{money(settlementLedger.total)}</strong></div>
+              <div><span>合计应付</span><strong>{money(settlementTotal)}</strong></div>
             </div>
-            <table className="settlement-report-table">
-              <thead><tr><th>奖励项</th><th>明细对象</th><th>判定</th><th>判定说明</th><th>金额</th></tr></thead>
-              <tbody>{settlementReportRows.map((item) => (
-                <tr key={item.id}>
-                  <td>{item.category}</td>
-                  <td>{item.object}</td>
-                  <td><span className={`settlement-decision-pill ${item.decision === "计奖" ? "approved" : item.decision === "待审核" ? "pending" : item.decision === "抵扣" ? "deduction" : "rejected"}`}>{item.decision}</span></td>
-                  <td>{item.description}</td>
-                  <td className={item.amount === 0 ? "muted-amount" : ""}>{money(item.amount)}</td>
-                </tr>
-              ))}</tbody>
-            </table>
+            <div className="settlement-preview-table-wrap">
+              <table className="settlement-report-table">
+                <thead><tr><th>奖励项</th><th>通告ID</th><th>明细对象</th><th>判定</th><th>判定说明</th><th>金额</th></tr></thead>
+                <tbody>{settlementPreviewGroups.map((group) => (
+                  <Fragment key={group.key}>
+                    <tr className={`settlement-report-group group-${group.key}`}><th colSpan={6}>{group.label}<span>{group.rows.length} 条</span></th></tr>
+                    {group.rows.map((item) => (
+                      <tr key={item.id}>
+                        <td>{item.category}</td>
+                        <td><span className="copy-line settlement-briefing-id">{item.briefingId || "-"}{item.briefingId ? <CopyButton value={item.briefingId} label="复制通告ID" /> : null}</span></td>
+                        <td>{item.object}</td>
+                        <td><span className={`settlement-decision-pill ${item.decision === "计奖" ? "approved" : item.decision === "待审核" ? "pending" : item.decision === "抵扣" ? "deduction" : "rejected"}`}>{item.decision}</span></td>
+                        <td>{item.description}</td>
+                        <td className={item.amount === 0 ? "muted-amount" : ""}>{money(item.amount)}</td>
+                      </tr>
+                    ))}
+                  </Fragment>
+                ))}</tbody>
+              </table>
+            </div>
             {settlementReportRows.length === 0 ? <p className="empty-state">本周期暂无结算判定记录。</p> : null}
-            <div className="drawer-actions"><button className="primary-action" onClick={exportSettlementDetails} type="button"><Download size={16} />导出 PDF</button></div>
           </section>
         </div>
       ) : null}
@@ -3737,14 +4590,29 @@ function BriefingReviewPage({
       });
     return rows;
   }, [briefingsData, item.brokerId, item.id, item.publishedAt, currentIncentiveStartAt]);
-  const signedReviewRows = signedModelsForBriefing(item).map((model) => ({
-    model,
-    history: previousSignedBriefingsByKey.get(model.key) ?? [],
-    isNew: !previousSignedNames.has(model.key)
-  }));
+  const currentRelationshipByKey = new Map(
+    (item.signedModels ?? []).map((relationship) => {
+      const model = parseSignedModelName(`${relationship.name}${relationship.phone ? `（${relationship.phone}）` : ""}${relationship.userId ? ` · #${relationship.userId}` : ""}`);
+      return [model.key, relationship] as const;
+    })
+  );
+  const signedReviewRows = signedModelsForBriefing(item).map((model) => {
+    const relationship = currentRelationshipByKey.get(model.key);
+    const isActive = relationship?.active ?? true;
+    return {
+      model,
+      history: previousSignedBriefingsByKey.get(model.key) ?? [],
+      isActive,
+      sourceStatus: relationship ? signerRelationshipStatusLabel(relationship) : "已签约",
+      cancelledAt: relationship?.cancelledAt ?? "",
+      cancelReason: relationship?.cancelReason ?? "",
+      isNew: isActive && !previousSignedNames.has(model.key)
+    };
+  });
   const newSignedModelNames = signedReviewRows.filter((row) => row.isNew);
-  const repeatedSignedModelNames = signedReviewRows.filter((row) => !row.isNew);
-  const hasSignedModels = signedReviewRows.length > 0;
+  const repeatedSignedModelNames = signedReviewRows.filter((row) => row.isActive && !row.isNew);
+  const inactiveSignedModelNames = signedReviewRows.filter((row) => !row.isActive);
+  const hasSignedModels = signedReviewRows.some((row) => row.isActive);
   const initialModelReviewDecisions = useMemo(() => signedModelReviewDecisions(item.invalidReason), [item.invalidReason]);
   const brokerBriefings = briefingsData.filter((briefing) => briefing.brokerId === item.brokerId);
   const seedEligible = isBriefingSeedEligible(item, currentIncentiveStartAt);
@@ -3764,10 +4632,10 @@ function BriefingReviewPage({
   });
   const [modelReviewDecisions, setModelReviewDecisions] = useState<Map<string, SignedModelReviewDecision>>(initialModelReviewDecisions);
   const modelReviewIssueCount = Array.from(modelReviewDecisions.values()).filter(isSignedModelReviewIssue).length;
-  const [invalidReasonPreset, setInvalidReasonPreset] = useState("");
   const [expandedSignedKey, setExpandedSignedKey] = useState("");
   const [evidenceRows, setEvidenceRows] = useState<EvidenceFile[]>([]);
   const [activeEvidenceId, setActiveEvidenceId] = useState(item.evidenceFiles[0]?.id ?? "");
+  const [selectedEvidenceIds, setSelectedEvidenceIds] = useState<Set<string>>(new Set());
   const [status, setStatus] = useState("");
   const [evidenceUploadStatus, setEvidenceUploadStatus] = useState("");
   const [isUploadingEvidence, setIsUploadingEvidence] = useState(false);
@@ -3780,8 +4648,11 @@ function BriefingReviewPage({
     item.evidenceFiles.find((evidence) => evidence.id === activeEvidenceId) ??
     evidenceRows.find((evidence) => !evidence.briefingId || evidence.briefingId === item.id) ??
     item.evidenceFiles[0];
-  const availableEvidenceRows = evidenceRows.filter((evidence) => !evidence.briefingId || evidence.briefingId === item.id);
+  const availableEvidenceRows = evidenceRows.filter((evidence) => !evidence.briefingId);
   const matchedEvidenceRows = evidenceRows.filter((evidence) => evidence.briefingId === item.id);
+  const activeEvidenceIsImage = Boolean(activeEvidence && (
+    activeEvidence.fileType.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|heic)$/i.test(activeEvidence.fileName)
+  ));
 
   useEffect(() => {
     void refreshEvidenceRows();
@@ -3794,14 +4665,13 @@ function BriefingReviewPage({
       invalidReason: stripSignedModelReviewMarkers(item.invalidReason) || item.cancelReason || ""
     });
     setModelReviewDecisions(initialModelReviewDecisions);
-    setInvalidReasonPreset("");
     setExpandedSignedKey("");
   }, [item.id, item.validPublishStatus, item.validCompleteStatus, item.invalidReason, item.cancelReason, sourceInvalid, initialPublishStatus, initialCompleteStatus, initialModelReviewDecisions]);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    if (!activeEvidence) {
+    if (!activeEvidence || activeEvidenceIsImage) {
       video.removeAttribute("src");
       video.load();
       setIsVideoPlaying(false);
@@ -3813,7 +4683,7 @@ function BriefingReviewPage({
     video.dataset.sourceUrl = activeEvidence.fileUrl;
     video.src = activeEvidence.fileUrl;
     video.load();
-  }, [activeEvidence?.fileUrl]);
+  }, [activeEvidence?.fileUrl, activeEvidenceIsImage]);
 
   useEffect(() => {
     function handleKeydown(event: KeyboardEvent) {
@@ -3847,7 +4717,7 @@ function BriefingReviewPage({
     const files = Array.from(fileList ?? []);
     if (files.length === 0) return;
     setIsUploadingEvidence(true);
-    setEvidenceUploadStatus(`正在上传 ${files.length} 个视频到凭证库...`);
+    setEvidenceUploadStatus(`正在上传 ${files.length} 个凭证文件到经纪人凭证库...`);
     try {
       const uploadedRows: EvidenceFile[] = [];
       for (const file of files) {
@@ -3870,7 +4740,7 @@ function BriefingReviewPage({
           uploadedRows.push(result);
         }
       }
-      setEvidenceUploadStatus(`已上传 ${files.length} 个视频到凭证库`);
+      setEvidenceUploadStatus(`已上传 ${files.length} 个凭证文件到经纪人凭证库`);
       if (uploadedRows[0]) {
         setActiveEvidenceId(uploadedRows[0].id);
       }
@@ -3886,17 +4756,43 @@ function BriefingReviewPage({
     }
   }
 
-  async function matchEvidence() {
-    if (!activeEvidence) {
-      setStatus("请先在右侧选择一个视频");
+  async function matchEvidence(evidenceId = activeEvidence?.id) {
+    if (!evidenceId) {
+      setStatus("请先从经纪人凭证库选择文件");
       return;
     }
-    const response = await fetch(`/api/briefings/${item.id}/evidence/${activeEvidence.id}`, { method: "PATCH" });
+    const response = await fetch(`/api/briefings/${item.id}/evidence/${evidenceId}`, { method: "PATCH" });
     if (!response.ok) {
-      setStatus("视频匹配失败");
+      setStatus("凭证添加失败");
       return;
     }
-    setStatus("视频已匹配到当前通告");
+    setStatus("凭证已添加至当前通告凭证库");
+    setSelectedEvidenceIds((current) => {
+      const next = new Set(current);
+      next.delete(evidenceId);
+      return next;
+    });
+    await refreshEvidenceRows();
+    await onRefreshBriefings(broker.id);
+  }
+
+  async function matchSelectedEvidence() {
+    const ids = Array.from(selectedEvidenceIds);
+    if (ids.length === 0) {
+      setStatus("请先勾选需要添加的凭证文件");
+      return;
+    }
+    setStatus(`正在添加 ${ids.length} 个凭证文件...`);
+    for (const evidenceId of ids) {
+      const response = await fetch(`/api/briefings/${item.id}/evidence/${evidenceId}`, { method: "PATCH" });
+      if (!response.ok) {
+        setStatus("部分凭证添加失败，请检查后重试");
+        await refreshEvidenceRows();
+        return;
+      }
+    }
+    setSelectedEvidenceIds(new Set());
+    setStatus(`已确认 ${ids.length} 个凭证有效，并添加至当前通告凭证库`);
     await refreshEvidenceRows();
     await onRefreshBriefings(broker.id);
   }
@@ -3904,10 +4800,10 @@ function BriefingReviewPage({
   async function unmatchEvidence(evidenceId: string) {
     const response = await fetch(`/api/briefings/${item.id}/evidence/${evidenceId}`, { method: "DELETE" });
     if (!response.ok) {
-      setStatus("撤销匹配失败");
+      setStatus("凭证移回失败");
       return;
     }
-    setStatus("已撤销视频匹配");
+    setStatus("凭证已移回经纪人凭证库，可重新选择");
     setActiveEvidenceId(evidenceId);
     await refreshEvidenceRows();
     await onRefreshBriefings(broker.id);
@@ -3933,12 +4829,14 @@ function BriefingReviewPage({
       reviewDraft.validPublishStatus === "approved" &&
       !briefingHasMatchedEvidence
     ) {
-      setSaveNotice("有效通告已设为「通过」，但凭证尚未点击「审核通过」完成匹配。请先在右侧视频预览区选择凭证视频并点击「审核通过」，再保存审核结果。");
+      setSaveNotice("有效通告已设为「通过」，但当前通告凭证库仍为空。请先从经纪人凭证库添加至少一个截图或视频，再保存审核结果。");
       return;
     }
 
     if (reviewDraft.validCompleteStatus === "approved" && newSignedModelNames.length === 0) {
-      setSaveNotice("该通告没有历史未合作的新增签约者，不能审核为新增签约通过。");
+      setSaveNotice(hasSignedModels
+        ? "该通告没有历史未合作的新增签约者，不能审核为新增签约通过。"
+        : "该通告没有当前有效签约者；已解约人员只保留为历史记录，不能审核为新增签约通过。");
       return;
     }
 
@@ -3994,32 +4892,56 @@ function BriefingReviewPage({
     }
   }
 
+  function signingStatusFromModelReviews(decisions: Map<string, SignedModelReviewDecision>, publishStatus: ReviewStatus) {
+    const newSignerRows = signedReviewRows.filter((row) => row.isNew);
+    if (newSignerRows.length === 0) return "rejected" as ReviewStatus;
+    const values = newSignerRows.map((row) => decisions.get(row.model.key));
+    if (values.some((value) => isSignedModelReviewIssue(value))) return "rejected" as ReviewStatus;
+    if (values.every((value) => value === "APPROVED") && publishStatus === "approved") return "approved" as ReviewStatus;
+    return "pending" as ReviewStatus;
+  }
+
   async function updateModelReview(modelKey: string, decision: SignedModelReviewDecision | "") {
     const nextDecisions = new Map(modelReviewDecisions);
     if (decision) nextDecisions.set(modelKey, decision);
     else nextDecisions.delete(modelKey);
     setModelReviewDecisions(nextDecisions);
-    setStatus("签约者人工审核保存中...");
+    setReviewDraft((current) => ({
+      ...current,
+      validCompleteStatus: signingStatusFromModelReviews(nextDecisions, current.validPublishStatus)
+    }));
+    setStatus(decision ? `已选择：${signedModelReviewLabels[decision]}，请在下方保存审核` : "已清除该签约者人工审核选项");
+  }
+
+  async function confirmEvidencePassed() {
+    if (matchedEvidenceRows.length === 0) {
+      setStatus("当前通告凭证库为空，请先添加凭证");
+      return;
+    }
+    const nextDraft = {
+      ...reviewDraft,
+      validPublishStatus: "approved" as ReviewStatus,
+      validCompleteStatus: signingStatusFromModelReviews(modelReviewDecisions, "approved"),
+      invalidReason: reviewDraft.invalidReason.startsWith("凭证异议") ? "" : reviewDraft.invalidReason
+    };
+    setStatus("正在确认凭证通过...");
     const response = await fetch(`/api/briefings/${item.id}/review`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        ...reviewDraft,
-        validCompleteStatus: hasSignedModels ? reviewDraft.validCompleteStatus : "rejected",
-        invalidReason: composeInvalidReasonWithModelReviews(reviewDraft.invalidReason, nextDecisions)
+        ...nextDraft,
+        invalidReason: composeInvalidReasonWithModelReviews(nextDraft.invalidReason, modelReviewDecisions)
       })
     });
     const result = (await response.json()) as Briefing | { error?: string } | null;
     if (!response.ok) {
-      setModelReviewDecisions(modelReviewDecisions);
       const errorMessage = result && "error" in result ? result.error : "";
-      setStatus(`签约者人工审核保存失败：${errorMessage || "请稍后重试"}`);
+      setStatus(`凭证通过保存失败：${errorMessage || "请稍后重试"}`);
       return;
     }
-    if (result && "id" in result) {
-      onBriefingSaved(result);
-    }
-    setStatus(decision ? `已记录：${signedModelReviewLabels[decision]}` : "已清除该签约者人工审核结论");
+    setReviewDraft(nextDraft);
+    if (result && "id" in result) onBriefingSaved(result);
+    setStatus("凭证已确认通过；请继续完成新增签约人工审核并保存");
     await onRefreshBriefings(broker.id).catch(() => undefined);
   }
 
@@ -4027,6 +4949,7 @@ function BriefingReviewPage({
     const nextDraft = {
       ...reviewDraft,
       validPublishStatus: "pending" as ReviewStatus,
+      validCompleteStatus: hasSignedModels ? "pending" as ReviewStatus : "rejected" as ReviewStatus,
       invalidReason: reviewDraft.invalidReason.startsWith("凭证异议")
         ? reviewDraft.invalidReason
         : `凭证异议：${reviewDraft.invalidReason || "录屏凭证与通告详情存在个别信息差异，待与经纪人确认。"}`
@@ -4044,56 +4967,49 @@ function BriefingReviewPage({
       setStatus("凭证异议保存失败");
       return;
     }
+    const result = (await response.json()) as Briefing | null;
+    if (result) onBriefingSaved(result);
+    setStatus("已记录凭证异议，该通告暂缓结算");
     await onRefreshBriefings(broker.id);
-    onBack();
   }
 
-  async function importBriefingDetail() {
-    setStatus("正在导入当前通告详情...");
-    const extensionImport = await importWithBrowserExtension({
-      mode: "briefing-detail",
-      brokerMiniProgramUserId: broker.miniProgramUserId,
-      jarvisBriefingId: item.jarvisBriefingId,
-      briefingId: item.id,
-      title: item.title
-    });
-    if (extensionImport.available) {
-      if (!extensionImport.ok) {
-        setStatus(extensionImport.error ?? "Edge 扩展导入通告详情失败");
+  async function syncBriefingDetailFromOpenApi() {
+    setStatus("正在通过鑫通告只读接口同步通告和签约者...");
+    try {
+      const response = await fetch("/api/data-sync/run", { method: "POST" });
+      const result = await response.json() as { error?: string; participantCount?: number };
+      if (!response.ok) {
+        recordClientOperation("通告审核", "点击“同步签约者信息”", `${item.title} · 通告ID ${item.jarvisBriefingId} · ${result.error ?? "同步失败"}`, "失败");
+        setStatus(result.error ?? "鑫通告数据同步失败");
         return;
       }
-      setStatus("已通过 Edge 扩展导入当前通告详情和签约人员名单。");
-      await onRefreshBriefings(broker.id);
-      return;
+      const nextItems = await onRefreshBriefings(broker.id);
+      const updatedItem = nextItems.find((briefing) => briefing.jarvisBriefingId === item.jarvisBriefingId);
+      if (updatedItem) onBriefingSaved(updatedItem);
+      recordClientOperation("通告审核", "点击“同步签约者信息”", `${item.title} · 通告ID ${item.jarvisBriefingId} · 经纪人 ${broker.nickname} · 当前签约者 ${updatedItem?.signedModelCount ?? 0} 人`);
+      setStatus(`只读同步完成，通告详情和签约者已更新；本次共同步 ${result.participantCount ?? 0} 条报名/签约记录。`);
+    } catch {
+      recordClientOperation("通告审核", "点击“同步签约者信息”", `${item.title} · 通告ID ${item.jarvisBriefingId} · 请求失败`, "失败");
+      setStatus("鑫通告数据同步失败，请稍后重试或前往系统日志查看原因。");
     }
-    if (!/Mac/i.test(navigator.userAgent)) {
-      setStatus("未检测到 Edge 扩展连接。请安装 v0.2.1，重新加载扩展后刷新当前系统页面。");
-      return;
-    }
-    const response = await fetch("/api/import/jarvis-briefing-detail/local-package", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        brokerMiniProgramUserId: broker.miniProgramUserId,
-        jarvisBriefingId: item.jarvisBriefingId
-      })
-    });
-    const result = await response.json();
-    if (!response.ok) {
-      setStatus(result?.error ?? "通告详情导入失败");
-      return;
-    }
-    setStatus(`已导入当前通告详情，详情字段 ${result.detailImported ? "已更新" : "未变化"}。`);
-    await onRefreshBriefings(broker.id);
   }
 
   function selectEvidence(evidenceId: string) {
     setActiveEvidenceId((current) => (current === evidenceId ? current : evidenceId));
   }
 
+  function toggleEvidenceSelection(evidenceId: string) {
+    setSelectedEvidenceIds((current) => {
+      const next = new Set(current);
+      if (next.has(evidenceId)) next.delete(evidenceId);
+      else next.add(evidenceId);
+      return next;
+    });
+  }
+
   function toggleVideoPlayback() {
     const video = videoRef.current;
-    if (!video || !activeEvidence) return;
+    if (!video || !activeEvidence || activeEvidenceIsImage) return;
     if (video.paused) {
       void video.play();
     } else {
@@ -4189,27 +5105,28 @@ function BriefingReviewPage({
           <section className="xtg-detail-card">
             <div className="xtg-detail-title">
               <h3>新增签约核验</h3>
-              <span>新增 {newSignedModelNames.length} / 共 {item.signedModelNames.length}</span>
+              <span>有效签约 {signedReviewRows.length - inactiveSignedModelNames.length} / 记录 {signedReviewRows.length}</span>
             </div>
             <div className="section-inline-actions">
-              <button className="secondary-action compact-action" onClick={() => void importBriefingDetail()} type="button">
-                导入签约者信息
+              <button className="secondary-action compact-action" onClick={() => void syncBriefingDetailFromOpenApi()} type="button">
+                <RefreshCw size={15} />同步签约者信息
               </button>
               <a className="secondary-action compact-action" href={item.detailUrl} rel="noreferrer" target="_blank">打开鑫通告详情</a>
             </div>
             <div className="signed-model-summary">
               <InfoItem label="奖励新增" value={`${newSignedModelNames.length} 人`} />
               <InfoItem label="历史重复" value={`${repeatedSignedModelNames.length} 人`} />
+              <InfoItem label="已解约/无效" value={`${inactiveSignedModelNames.length} 人`} />
               <InfoItem label="人工异常" value={`${modelReviewIssueCount} 人`} />
             </div>
             {signedReviewRows.length > 0 ? (
               <div className="signed-review-list">
-                {signedReviewRows.map(({ model, history, isNew }) => {
+                {signedReviewRows.map(({ model, history, isActive, sourceStatus, cancelledAt, cancelReason, isNew }) => {
                   const modelReviewDecision = modelReviewDecisions.get(model.key);
                   const modelReviewIssue = isSignedModelReviewIssue(modelReviewDecision);
                   return (
                     <div
-                      className={`signed-review-row ${isNew ? "new" : "repeat"} ${modelReviewIssue ? "mismatch" : ""} ${model.userId ? "is-clickable" : ""}`}
+                      className={`signed-review-row ${!isActive ? "inactive" : isNew ? "new" : "repeat"} ${modelReviewIssue ? "mismatch" : ""} ${model.userId ? "is-clickable" : ""}`}
                       key={model.key}
                       onClick={() => model.userId && onOpenSigner(model.userId)}
                       onKeyDown={(event) => {
@@ -4235,22 +5152,25 @@ function BriefingReviewPage({
                               </span>
                             ) : null}
                           </span>
+                          {!isActive ? <small className="signed-relationship-note">{cancelReason || (cancelledAt ? `解约时间：${cancelledAt}` : "该签约关系当前已失效")}</small> : null}
                         </div>
                         <div className="signed-review-actions">
-                          <span className={`status-pill ${isNew ? "success" : "warning"}`}>{isNew ? "新增" : "重复"}</span>
-                          <select
-                            aria-label={`${model.name}人工审核`}
-                            className="signer-review-select"
-                            onChange={(event) => void updateModelReview(model.key, event.target.value as SignedModelReviewDecision | "")}
-                            onClick={(event) => event.stopPropagation()}
-                            value={modelReviewDecision ?? ""}
-                          >
-                            <option value="">人工审核</option>
-                            {signedModelReviewOptions.map((option) => (
-                              <option key={option.value} value={option.value}>{option.label}</option>
-                            ))}
-                          </select>
-                          {!isNew ? (
+                          <span className={`status-pill ${isActive ? "success" : "danger"}`}>{sourceStatus}</span>
+                          {isActive ? (
+                            <select
+                              aria-label={`${model.name}人工审核`}
+                              className="signer-review-select"
+                              onChange={(event) => void updateModelReview(model.key, event.target.value as SignedModelReviewDecision | "")}
+                              onClick={(event) => event.stopPropagation()}
+                              value={modelReviewDecision ?? ""}
+                            >
+                              <option value="">人工审核</option>
+                              {signedModelReviewOptions.map((option) => (
+                                <option key={option.value} value={option.value}>{option.label}</option>
+                              ))}
+                            </select>
+                          ) : <span className="status-pill danger">不计入新增签约</span>}
+                          {isActive && !isNew ? (
                             <button
                               className="text-button"
                               onClick={(event) => {
@@ -4279,23 +5199,27 @@ function BriefingReviewPage({
                 })}
               </div>
             ) : (
-              <p className="empty-state compact-empty">暂无已签约人员名单，请点击“导入签约者信息”从鑫通告详情页读取。</p>
+              <p className="empty-state compact-empty">暂无已签约人员名单，请点击“同步签约者信息”通过鑫通告只读接口获取。</p>
             )}
           </section>
         </section>
 
+        <div className="evidence-preview-stack">
         <section className="review-section video-stage">
-          <h3>视频预览</h3>
-          <div className="video-frame" onClick={toggleVideoPlayback} role="presentation">
+          <h3>凭证预览</h3>
+          <div className={`video-frame ${activeEvidenceIsImage ? "image-preview-frame" : ""}`} onClick={toggleVideoPlayback} role="presentation">
+            {activeEvidence && activeEvidenceIsImage ? (
+              <img alt={decodeURIComponent(activeEvidence.fileName)} src={activeEvidence.fileUrl} />
+            ) : null}
             <video
               controls
-              hidden={!activeEvidence}
+              hidden={!activeEvidence || activeEvidenceIsImage}
               onPause={() => setIsVideoPlaying(false)}
               onPlay={() => setIsVideoPlaying(true)}
               preload="metadata"
               ref={videoRef}
             />
-            {activeEvidence && !isVideoPlaying ? (
+            {activeEvidence && !activeEvidenceIsImage && !isVideoPlaying ? (
               <button
                 className="video-play-overlay"
                 onClick={(event) => {
@@ -4308,29 +5232,70 @@ function BriefingReviewPage({
                 <span />
               </button>
             ) : null}
-            {!activeEvidence ? <p className="video-placeholder">凭证库暂无可匹配视频</p> : null}
+            {!activeEvidence ? <p className="video-placeholder">凭证库暂无可预览文件</p> : null}
           </div>
           {activeEvidence ? (
             <>
               <div className="video-meta">
                 <strong>{decodeURIComponent(activeEvidence.fileName)}</strong>
-                <span>{activeEvidence.briefingId === item.id ? "视频与通告内容相符" : "待审核视频"} · {activeEvidence.uploadedAt}</span>
+                <span>{activeEvidence.briefingId === item.id ? "已在当前通告凭证库" : "经纪人凭证库待选"} · {activeEvidence.uploadedAt}</span>
               </div>
               <div className="inline-actions">
-                <button className="primary-action" disabled={activeEvidence.briefingId === item.id} onClick={matchEvidence} type="button">
+                <button className="primary-action" disabled={activeEvidence.briefingId === item.id} onClick={() => void matchEvidence()} type="button">
                   <Check size={16} />
-                  审核通过
+                  添加到通告凭证库
                 </button>
                 {activeEvidence.briefingId === item.id ? (
-                  <button className="secondary-action" onClick={() => unmatchEvidence(activeEvidence.id)} type="button">撤销匹配</button>
+                  <button className="secondary-action" onClick={() => void unmatchEvidence(activeEvidence.id)} type="button">移回经纪人凭证库</button>
                 ) : null}
               </div>
             </>
           ) : (
-            <p className="empty-state">请先在经纪人工作台批量上传视频。</p>
+            <p className="empty-state">请先上传截图或视频到经纪人凭证库。</p>
           )}
           {status ? <p className="form-status">{status}</p> : null}
         </section>
+
+        <section className="review-section briefing-evidence-library">
+          <div className="review-section-title">
+            <div>
+              <h3>当前通告凭证库</h3>
+              <small>已确认有效 {matchedEvidenceRows.length} 个文件</small>
+            </div>
+          </div>
+          <div className="briefing-evidence-list">
+            {matchedEvidenceRows.map((evidence) => (
+              <div className={`briefing-evidence-item ${activeEvidenceId === evidence.id ? "active" : ""}`} key={evidence.id}>
+                <button className="briefing-evidence-preview" onClick={() => selectEvidence(evidence.id)} type="button">
+                  <strong>{decodeURIComponent(evidence.fileName)}</strong>
+                  <span>{evidence.fileType.startsWith("image/") ? "截图" : "视频"} · 点击预览</span>
+                </button>
+                <button className="secondary-action compact-action" onClick={() => void unmatchEvidence(evidence.id)} type="button">移回经纪人库</button>
+              </div>
+            ))}
+            {matchedEvidenceRows.length === 0 ? <p className="empty-state compact-empty">尚未向当前通告添加凭证。</p> : null}
+          </div>
+          {!sourceInvalid ? (
+            <div className="briefing-evidence-verdicts">
+              <button
+                className="primary-action"
+                disabled={matchedEvidenceRows.length === 0 || publishCapBlocked || !seedEligible}
+                onClick={() => void confirmEvidencePassed()}
+                type="button"
+              >
+                <Check size={16} />确认凭证通过
+              </button>
+              <button className="secondary-action" onClick={() => void markEvidenceDispute()} type="button">凭证异议</button>
+            </div>
+          ) : null}
+          {reviewDraft.validPublishStatus === "approved" && !reviewDraft.invalidReason.startsWith("凭证异议") ? (
+            <p className="form-status success-status">当前凭证结论：通过</p>
+          ) : null}
+          {reviewDraft.invalidReason.startsWith("凭证异议") ? (
+            <p className="form-status warning-status">当前凭证结论：凭证异议，暂缓结算</p>
+          ) : null}
+        </section>
+        </div>
 
         <section className="review-section evidence-library">
           <div className="review-section-title">
@@ -4342,37 +5307,57 @@ function BriefingReviewPage({
           </div>
           <input
             ref={evidenceInputRef}
-            accept="video/*"
+            accept="image/*,video/*"
             hidden
             multiple
             onChange={(event) => void uploadEvidenceFiles(event.target.files)}
             type="file"
           />
           {evidenceUploadStatus ? <p className="form-status">{evidenceUploadStatus}</p> : null}
+          <p className="evidence-library-help">截图和视频会先保存在经纪人凭证库。勾选确认后，再加入当前通告。</p>
+          {availableEvidenceRows.length > 0 ? (
+            <div className="evidence-library-actions">
+              <label>
+                <input
+                  checked={selectedEvidenceIds.size === availableEvidenceRows.length}
+                  onChange={(event) => setSelectedEvidenceIds(event.target.checked ? new Set(availableEvidenceRows.map((evidence) => evidence.id)) : new Set())}
+                  type="checkbox"
+                />
+                全选未匹配凭证
+              </label>
+              <button className="primary-action compact-action" disabled={selectedEvidenceIds.size === 0} onClick={() => void matchSelectedEvidence()} type="button">
+                <Check size={15} />全部确认凭证有效（{selectedEvidenceIds.size}）
+              </button>
+            </div>
+          ) : null}
           <div className="evidence-picker-list">
             {availableEvidenceRows.map((evidence) => (
-              <button
+              <div
                 className={`evidence-picker-item ${activeEvidenceId === evidence.id ? "active" : ""}`}
                 key={evidence.id}
                 onClick={() => selectEvidence(evidence.id)}
-                type="button"
+                role="button"
+                tabIndex={0}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") selectEvidence(evidence.id);
+                }}
               >
-                <strong>{decodeURIComponent(evidence.fileName)}</strong>
-                <span>{evidence.briefingId === item.id ? "已匹配当前通告" : "未匹配"} · {evidence.uploadedAt}</span>
-              </button>
+                <input
+                  aria-label={`选择${decodeURIComponent(evidence.fileName)}`}
+                  checked={selectedEvidenceIds.has(evidence.id)}
+                  onChange={() => toggleEvidenceSelection(evidence.id)}
+                  onClick={(event) => event.stopPropagation()}
+                  type="checkbox"
+                />
+                <div>
+                  <strong>{decodeURIComponent(evidence.fileName)}</strong>
+                  <span>{evidence.fileType.startsWith("image/") ? "截图" : "视频"} · {evidence.uploadedAt}</span>
+                </div>
+                <button className="text-button" onClick={(event) => { event.stopPropagation(); void matchEvidence(evidence.id); }} type="button">添加</button>
+              </div>
             ))}
-            {availableEvidenceRows.length === 0 ? <p className="empty-state">没有未匹配视频。</p> : null}
+            {availableEvidenceRows.length === 0 ? <p className="empty-state">经纪人凭证库没有未匹配文件。</p> : null}
           </div>
-          {matchedEvidenceRows.length > 0 ? (
-            <div className="matched-list">
-              <strong>当前通告已匹配</strong>
-              {matchedEvidenceRows.map((evidence) => (
-                <button className="text-button" key={evidence.id} onClick={() => unmatchEvidence(evidence.id)} type="button">
-                  撤销 {decodeURIComponent(evidence.fileName)}
-                </button>
-              ))}
-            </div>
-          ) : null}
         </section>
 
         <section className="review-section review-action-panel">
@@ -4424,27 +5409,6 @@ function BriefingReviewPage({
                 <option value="pending">待审核</option>
                 <option value="approved">通过</option>
                 <option value="rejected">不通过</option>
-              </select>
-            </label>
-            <label className="wide-panel">
-              <span>新增签约无效原因</span>
-              <select
-                value={invalidReasonPreset}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setInvalidReasonPreset(value);
-                  if (value && value !== "其他") {
-                    setReviewDraft({ ...reviewDraft, validCompleteStatus: "rejected", invalidReason: value });
-                  }
-                  if (value === "其他") {
-                    setReviewDraft({ ...reviewDraft, validCompleteStatus: "rejected", invalidReason: "" });
-                  }
-                }}
-              >
-                <option value="">不选择</option>
-                <option value="身份信息不完整">身份信息不完整</option>
-                <option value="照片与身份不符">照片与身份不符</option>
-                <option value="其他">其他</option>
               </select>
             </label>
             <label className="wide-panel">
@@ -4509,16 +5473,59 @@ function InfoCopyItem({ label, value, copyValue }: { label: string; value: strin
 }
 
 function CopyButton({ value, label }: { value: string; label: string }) {
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">("idle");
+  const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (resetTimer.current) clearTimeout(resetTimer.current);
+  }, []);
+
   async function copyValue(event: React.MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
     event.stopPropagation();
     if (!value) return;
-    await navigator.clipboard.writeText(value);
+    try {
+      let copied = false;
+      if (navigator.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(value);
+          copied = true;
+        } catch {
+          // 局域网 HTTP 页面在 Windows 浏览器中可能拒绝 Clipboard API，继续使用兼容复制。
+        }
+      }
+      if (!copied) {
+        const textarea = document.createElement("textarea");
+        textarea.value = value;
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        textarea.setSelectionRange(0, value.length);
+        copied = document.execCommand("copy");
+        textarea.remove();
+      }
+      if (!copied) throw new Error("copy failed");
+      setCopyStatus("copied");
+    } catch {
+      setCopyStatus("failed");
+    }
+    if (resetTimer.current) clearTimeout(resetTimer.current);
+    resetTimer.current = setTimeout(() => setCopyStatus("idle"), 1600);
   }
 
   return (
-    <button className="copy-button" onClick={copyValue} title={label} type="button">
-      <Copy size={13} />
+    <button
+      aria-label={copyStatus === "copied" ? "已复制" : copyStatus === "failed" ? "复制失败" : label}
+      className={`copy-button ${copyStatus}`}
+      onClick={copyValue}
+      title={copyStatus === "copied" ? "已复制" : copyStatus === "failed" ? "复制失败，请重试" : label}
+      type="button"
+    >
+      {copyStatus === "copied" ? <Check size={13} /> : <Copy size={13} />}
+      {copyStatus !== "idle" ? <span className="copy-feedback" role="status">{copyStatus === "copied" ? "已复制" : "复制失败"}</span> : null}
     </button>
   );
 }
@@ -4561,6 +5568,181 @@ function paginate<T>(rows: T[], page: number, pageSize = 10) {
   };
 }
 
+type OperationLogRow = {
+  id: string;
+  actor: string;
+  action: string;
+  module: string;
+  result: string;
+  detail?: string;
+  createdAt: string;
+};
+
+type DataSyncRunRow = {
+  id: string;
+  triggerType: string;
+  status: string;
+  startedAt: string;
+  finishedAt?: string;
+  brokerCount: number;
+  briefingCount: number;
+  participantCount: number;
+  modelCount: number;
+  changedCount: number;
+  message?: string;
+};
+
+type SystemBackupRow = {
+  name: string;
+  createdAt: string;
+  actor: string;
+  reason: string;
+  sizeBytes: number;
+};
+
+function localDateTime(value?: string) {
+  return value ? new Date(value).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false }) : "-";
+}
+
+function recordClientOperation(module: string, action: string, detail: string, result = "成功") {
+  void fetch("/api/operation-logs", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ module, action, detail, result })
+  }).catch(() => undefined);
+}
+
+function OperationLogPage() {
+  const [rows, setRows] = useState<OperationLogRow[]>([]);
+  const [status, setStatus] = useState("正在读取日志...");
+
+  async function load() {
+    try {
+      const response = await fetch("/api/operation-logs?limit=500");
+      const data = await response.json() as OperationLogRow[] | { error?: string };
+      if (!response.ok || !Array.isArray(data)) throw new Error("error" in data ? data.error : "日志读取失败");
+      setRows(data);
+      setStatus(data.length ? "" : "暂无操作记录");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "日志读取失败");
+    }
+  }
+
+  useEffect(() => { void load(); }, []);
+  return (
+    <section className="page">
+      <PageHeader eyebrow="System Logs" title="操作日志" description="记录系统用户操作、数据同步、备份和还原结果，方便管理员追溯。" action={<button className="secondary-action" onClick={() => void load()} type="button"><RefreshCw size={16} />刷新日志</button>} />
+      <section className="panel table-panel">
+        <PanelTitle icon={<History size={18} />} title="最近 500 条记录" />
+        {status ? <p className="form-status">{status}</p> : null}
+        <div className="table-scroll"><table><thead><tr><th>时间</th><th>操作人</th><th>模块</th><th>操作</th><th>结果</th><th>说明</th></tr></thead><tbody>
+          {rows.map((row) => <tr key={row.id}><td>{localDateTime(row.createdAt)}</td><td>{row.actor}</td><td>{row.module}</td><td>{row.action}</td><td><span className={`status-pill ${row.result === "成功" ? "approved" : row.result === "进行中" ? "pending" : "rejected"}`}>{row.result}</span></td><td>{row.detail || "-"}</td></tr>)}
+        </tbody></table></div>
+      </section>
+    </section>
+  );
+}
+
+function DataSyncPage({ onSynced }: { onSynced: () => Promise<void> }) {
+  const [runs, setRuns] = useState<DataSyncRunRow[]>([]);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [notice, setNotice] = useState("");
+
+  async function loadRuns() {
+    const response = await fetch("/api/data-sync/runs");
+    const data = await response.json();
+    if (response.ok && Array.isArray(data)) setRuns(data);
+  }
+
+  useEffect(() => { void loadRuns(); }, []);
+  async function syncNow() {
+    setIsSyncing(true);
+    setNotice("正在通过鑫通告只读接口同步，请勿重复点击...");
+    try {
+      const response = await fetch("/api/data-sync/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      const result = await response.json() as { error?: string; brokerCount?: number; briefingCount?: number; modelCount?: number };
+      if (!response.ok) throw new Error(result.error || "同步失败");
+      recordClientOperation("系统工具 / 数据同步", "点击“立即同步”", `经纪人 ${result.brokerCount ?? 0} 位 · 通告 ${result.briefingCount ?? 0} 条 · 模特 ${result.modelCount ?? 0} 位`);
+      setNotice(`同步完成：${result.brokerCount ?? 0} 位经纪人、${result.briefingCount ?? 0} 条通告、${result.modelCount ?? 0} 位模特。`);
+      await Promise.all([loadRuns(), onSynced()]);
+    } catch (error) {
+      recordClientOperation("系统工具 / 数据同步", "点击“立即同步”", error instanceof Error ? error.message : "同步失败", "失败");
+      setNotice(error instanceof Error ? error.message : "同步失败");
+      await loadRuns();
+    } finally {
+      setIsSyncing(false);
+    }
+  }
+
+  return (
+    <section className="page">
+      <PageHeader eyebrow="Data Sync" title="鑫通告数据同步" description="每天 09:00 和 21:00 自动同步；也可以在需要时手动同步。所有鑫通告请求均为只读 GET，不会修改或删除鑫通告数据。" action={<button className="primary-action" disabled={isSyncing} onClick={() => void syncNow()} type="button"><RefreshCw size={16} />{isSyncing ? "同步中..." : "立即同步"}</button>} />
+      {notice ? <p className="form-status import-status">{notice}</p> : null}
+      <section className="panel table-panel">
+        <PanelTitle icon={<RefreshCw size={18} />} title="同步记录" />
+        <div className="table-scroll"><table><thead><tr><th>开始时间</th><th>触发方式</th><th>状态</th><th>经纪人</th><th>通告</th><th>报名/签约</th><th>模特</th><th>说明</th></tr></thead><tbody>
+          {runs.map((run) => <tr key={run.id}><td>{localDateTime(run.startedAt)}</td><td>{run.triggerType === "scheduled" ? "定时同步" : "手动同步"}</td><td>{run.status === "SUCCESS" ? "成功" : run.status === "FAILED" ? "失败" : "进行中"}</td><td>{run.brokerCount}</td><td>{run.briefingCount}</td><td>{run.participantCount}</td><td>{run.modelCount}</td><td>{run.message || "-"}</td></tr>)}
+        </tbody></table></div>
+      </section>
+    </section>
+  );
+}
+
+function DataBackupPage() {
+  const [rows, setRows] = useState<SystemBackupRow[]>([]);
+  const [status, setStatus] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function load() {
+    const response = await fetch("/api/system-backups");
+    const data = await response.json();
+    if (response.ok && Array.isArray(data)) setRows(data);
+  }
+
+  useEffect(() => { void load(); }, []);
+  async function createBackup() {
+    setBusy(true);
+    setStatus("正在备份数据库、系统账户和上传资料...");
+    try {
+      const response = await fetch("/api/system-backups", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason: "管理员手动备份" }) });
+      const result = await response.json() as { error?: string; name?: string };
+      if (!response.ok) throw new Error(result.error || "备份失败");
+      setStatus(`备份完成：${result.name}`);
+      await load();
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "备份失败");
+    } finally { setBusy(false); }
+  }
+
+  async function restoreBackup(row: SystemBackupRow) {
+    const confirmation = window.prompt(`还原前系统会自动再做一次保护备份。\n请输入“确认还原”以还原：${row.name}`) || "";
+    if (confirmation !== "确认还原") return;
+    setBusy(true);
+    setStatus(`正在还原 ${row.name}...`);
+    try {
+      const response = await fetch(`/api/system-backups/${encodeURIComponent(row.name)}/restore`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirmation }) });
+      const result = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(result.error || "还原失败");
+      setStatus("数据还原完成，请刷新页面确认。");
+      await load();
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "还原失败");
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <section className="page">
+      <PageHeader eyebrow="Backup & Restore" title="数据备份" description="备份本系统数据库、系统账户及上传资料。备份名称包含北京时间，执行还原前会自动创建保护备份。" action={<button className="primary-action" disabled={busy} onClick={() => void createBackup()} type="button"><Database size={16} />{busy ? "处理中..." : "新建完整备份"}</button>} />
+      {status ? <p className="form-status import-status">{status}</p> : null}
+      <section className="panel table-panel"><PanelTitle icon={<Database size={18} />} title="可用备份" />
+        <div className="table-scroll"><table><thead><tr><th>备份时间</th><th>备份名称</th><th>操作人</th><th>原因</th><th>数据库大小</th><th>操作</th></tr></thead><tbody>
+          {rows.map((row) => <tr key={row.name}><td>{localDateTime(row.createdAt)}</td><td>{row.name}</td><td>{row.actor}</td><td>{row.reason}</td><td>{(row.sizeBytes / 1024 / 1024).toFixed(2)} MB</td><td><button className="secondary-action" disabled={busy} onClick={() => void restoreBackup(row)} type="button">还原此备份</button></td></tr>)}
+        </tbody></table></div>
+      </section>
+    </section>
+  );
+}
+
 function SystemManagement({
   accounts,
   currentAccount,
@@ -4575,7 +5757,7 @@ function SystemManagement({
   const [avatarStatus, setAvatarStatus] = useState<Record<string, string>>({});
   const [uploadingAccount, setUploadingAccount] = useState("");
 
-  function updateAccount(accountName: string, changes: Partial<Pick<StoredAccount, "role" | "enabled">>) {
+  function updateAccount(accountName: string, changes: Partial<Pick<StoredAccount, "role" | "enabled" | "permissions">>) {
     onAccountsChange(accounts.map((account) => account.account === accountName ? { ...account, ...changes } : account));
   }
 
@@ -4617,6 +5799,7 @@ function SystemManagement({
         <div className="account-admin-list">
           {accounts.map((account) => {
             const isSelf = account.account === currentAccount.account;
+            const accountPermissions = account.permissions ?? defaultPermissionsForRole(account.role);
             return (
               <div className="account-admin-row" key={account.account}>
                 <div className="account-admin-identity">
@@ -4643,7 +5826,14 @@ function SystemManagement({
                 <div className="account-admin-controls">
                   <label>
                     <span>职能</span>
-                    <select disabled={isSelf} onChange={(event) => updateAccount(account.account, { role: event.target.value as SystemRole })} value={account.role}>
+                    <select
+                      disabled={isSelf}
+                      onChange={(event) => {
+                        const role = event.target.value as SystemRole;
+                        updateAccount(account.account, { role, permissions: defaultPermissionsForRole(role) });
+                      }}
+                      value={account.role}
+                    >
                       <option value="super_admin">超级管理员</option>
                       <option value="operations">运营</option>
                       <option value="finance">财务</option>
@@ -4654,6 +5844,30 @@ function SystemManagement({
                     <span>{account.enabled ? "已启用" : "已停用"}</span>
                   </label>
                 </div>
+                <fieldset className="account-permission-panel" disabled={isSelf || account.role === "super_admin"}>
+                  <legend>允许使用的系统板块</legend>
+                  <div className="account-permission-grid">
+                    {allSystemPermissions.map((permission) => {
+                      const checked = account.role === "super_admin" || accountPermissions.includes(permission);
+                      return (
+                        <label key={permission}>
+                          <input
+                            checked={checked}
+                            onChange={(event) => {
+                              const permissions = event.target.checked
+                                ? [...accountPermissions, permission]
+                                : accountPermissions.filter((item) => item !== permission);
+                              updateAccount(account.account, { permissions: allSystemPermissions.filter((item) => permissions.includes(item)) });
+                            }}
+                            type="checkbox"
+                          />
+                          <span><strong>{permissionLabels[permission].label}</strong><small>{permissionLabels[permission].description}</small></span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  {isSelf ? <p>当前账号不能在登录期间修改自身权限。</p> : account.role === "super_admin" ? <p>超级管理员固定拥有全部板块权限。</p> : null}
+                </fieldset>
               </div>
             );
           })}

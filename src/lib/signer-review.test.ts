@@ -23,6 +23,12 @@ test("legacy mismatch markers remain readable after the review upgrade", () => {
   assert.equal(decisions.get("id:1458396334277591040"), "IDENTITY_INCOMPLETE");
 });
 
+test("duplicate signer decisions remain readable after saving", () => {
+  const decisions = new Map([["id:1498888076608995328", "DUPLICATE_SIGNER" as const]]);
+  const stored = composeInvalidReasonWithModelReviews("", decisions);
+  assert.equal(signedModelReviewDecisions(stored).get("id:1498888076608995328"), "DUPLICATE_SIGNER");
+});
+
 test("a briefing without signed models always rejects new signing", () => {
   assert.equal(resolveStoredCompleteStatus("APPROVED", "APPROVED", false), "REJECTED");
   assert.equal(resolveStoredCompleteStatus("PENDING", "PENDING", false), "REJECTED");
